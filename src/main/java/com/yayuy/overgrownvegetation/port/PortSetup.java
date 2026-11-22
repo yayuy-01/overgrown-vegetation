@@ -22,6 +22,9 @@ public final class PortSetup {
         AttachmentEvents.init(modBus);
         TickBridge.init();
         OvChannel.init();
+        com.yayuy.overgrownvegetation.port.capabilities.OvCaps.init(modBus);
+        com.yayuy.overgrownvegetation.port.entity.OvEntityType.init();
+        com.yayuy.overgrownvegetation.port.entity.PortAttributes.init(modBus);
         // NeoForge の RegisterPayloadHandlersEvent の代わり。@EventBusSubscriber の受け手がつながった後(共通の準備)に 1 回投げる
         modBus.addListener((FMLCommonSetupEvent e) -> modBus.post(new RegisterPayloadHandlersEvent()));
     }

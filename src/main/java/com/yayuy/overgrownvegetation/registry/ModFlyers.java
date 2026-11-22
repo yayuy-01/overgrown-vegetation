@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 「飛ぶ型」の Mob の登録(2026-11-15。1 体目はヴェロフィル。後でセミナリア・アクムネス・ペディキュラ)。
@@ -30,7 +31,7 @@ public final class ModFlyers {
 
     /** 当たりは胴の芯だけ(幅 1.2 × 高さ 0.8【仮】)。翼(翼幅 5.8)と頭は叩ける部位。空を飛ぶので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<VelophyllEntity>> VELOPHYLL =
-            ModEntities.ENTITY_TYPES.register(VelophyllEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(VelophyllEntity.ID, () -> OvEntityType.Builder
                     .<VelophyllEntity>of(VelophyllEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(VelophyllEntity.ID, 1.2F), MobStats.height(VelophyllEntity.ID, 0.8F))
                     .spawnDimensionsScale(MobStats.spawnScale(VelophyllEntity.ID))
@@ -46,7 +47,7 @@ public final class ModFlyers {
     /** セミナリア(2026-11-15 段 1)。当たりは胸の芯だけ(幅 0.8 × 高さ 1.0【仮】)。翅(幅 4.7)と腹は叩ける部位。 */
     /** ヴェロフィルの胞子爆弾(11-15 能力の段)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VelophyllBomb>> VELOPHYLL_BOMB =
-            ModEntities.ENTITY_TYPES.register("velophyll_bomb", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("velophyll_bomb", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.VelophyllBomb>of(com.yayuy.overgrownvegetation.entity.VelophyllBomb::new, MobCategory.MISC)
                     .sized(0.4F, 0.4F)
                     .noSummon()
@@ -56,7 +57,7 @@ public final class ModFlyers {
 
     /** セミナリアの種(11-16 能力の段)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaSeed>> SEMINARIA_SEED =
-            ModEntities.ENTITY_TYPES.register("seminaria_seed", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("seminaria_seed", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.SeminariaSeed>of(com.yayuy.overgrownvegetation.entity.SeminariaSeed::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
                     .noSummon()
@@ -65,7 +66,7 @@ public final class ModFlyers {
                     .build("seminaria_seed"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.SeminariaEntity>> SEMINARIA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.SeminariaEntity>of(com.yayuy.overgrownvegetation.entity.SeminariaEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, 0.8F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.SeminariaEntity.ID, 1.0F))
@@ -82,7 +83,7 @@ public final class ModFlyers {
 
     /** ステノディクティア(獲物の環境生物の成虫、2026-11-16 段 1)。当たりは胴の芯 0.6 × 0.4(翅・脚ははみ出す)。生息しているだけの生き物なので CREATURE。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>> STENODICTYA_LOBATA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, 0.6F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.StenodictyaLobataEntity.ID, 0.4F))
@@ -99,7 +100,7 @@ public final class ModFlyers {
 
     /** ペディキュラ(2026-11-15 段 1、漂う型)。当たりは塊の真ん中(3.6 × 3.6、旧版の値)。高い空に浮くので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PediculaEntity>> PEDICULA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PediculaEntity>of(com.yayuy.overgrownvegetation.entity.PediculaEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, 3.6F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.PediculaEntity.ID, 3.6F))
@@ -116,7 +117,7 @@ public final class ModFlyers {
 
     /** アクムネス(2026-11-15 段 1、止まっては飛ぶトンボ型)。当たりは胸と垂らした脚の芯(1.2 × 3.0【仮】)。翅・頭・腹は叩ける部位。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AcumnesEntity>> ACUMNES =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.AcumnesEntity>of(com.yayuy.overgrownvegetation.entity.AcumnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 1.2F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.AcumnesEntity.ID, 3.0F))
@@ -133,7 +134,7 @@ public final class ModFlyers {
 
     /** アクムネスの棘(11-15 能力の段。狙撃・縫い止め・散弾で共用)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.AcumnesSpine>> ACUMNES_SPINE =
-            ModEntities.ENTITY_TYPES.register("acumnes_spine", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("acumnes_spine", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.AcumnesSpine>of(com.yayuy.overgrownvegetation.entity.AcumnesSpine::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
                     .noSummon()

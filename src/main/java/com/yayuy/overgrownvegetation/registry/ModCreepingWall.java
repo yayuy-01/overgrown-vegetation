@@ -50,6 +50,8 @@ public final class ModCreepingWall {
             ResourceKey.create(Registries.DAMAGE_TYPE, OvergrownVegetation.id("creeping_wall"));
 
     public static DamageSource creepingWall(ServerLevel level) {
-        return level.damageSources().source(CREEPING_WALL);
+        // 1.20.1: DamageSources#source が private なので、型の Holder から直接作る
+        return new net.minecraft.world.damagesource.DamageSource(
+                level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE).getHolderOrThrow(CREEPING_WALL));
     }
 }

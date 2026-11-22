@@ -11,7 +11,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.component.ItemContainerContents;
+import com.yayuy.overgrownvegetation.port.component.ItemContainerContents;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -83,7 +83,9 @@ public final class ModArmorAttach {
             "attachment_bench", () -> new MenuType<>(AttachBenchMenu::new, FeatureFlags.VANILLA_SET));
 
     public static final DeferredHolder<MenuType<?>, MenuType<BeltPouchMenu>> BELT_MENU = ModMenus.MENUS.register(
-            "belt_pouch", () -> IForgeMenuType.create(BeltPouchMenu::client));
+            "belt_pouch", () -> IForgeMenuType.create((id, inv, buf) -> BeltPouchMenu.client(id, inv,
+                    // 1.20.1: Forge の画面の通信は FriendlyByteBuf。本流の受け手(RegistryFriendlyByteBuf)へ包んで渡す
+                    new com.yayuy.overgrownvegetation.port.network.RegistryFriendlyByteBuf(buf, () -> inv.player.level().registryAccess()))));
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
     public static void acceptItems(CreativeModeTab.Output output) {

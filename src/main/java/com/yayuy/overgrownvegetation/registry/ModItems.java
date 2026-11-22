@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.registry;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.ArmorItem;
@@ -84,8 +83,14 @@ public final class ModItems {
      */
     public static final DeferredItem<BlockItem> GIANT_OVERGROWN_SAPLING_ITEM = ITEMS.registerItem(
             "giant_overgrown_sapling",
-            props -> new BlockItem(ModBlocks.GIANT_OVERGROWN_SAPLING.get(), props),
-            new Item.Properties().component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true));
+            props -> new BlockItem(ModBlocks.GIANT_OVERGROWN_SAPLING.get(), props) {
+                // 1.20.1: ENCHANTMENT_GLINT_OVERRIDE が無いので isFoil で常に光らせる
+                @Override
+                public boolean isFoil(net.minecraft.world.item.ItemStack stack) {
+                    return true;
+                }
+            },
+            new Item.Properties());
 
     /**
      * 「胞子」— 胞子除去装置({@link ModBlocks#SPORE_PURIFIER})が周囲のもともとの胞子濃度に応じて産出し、
@@ -180,8 +185,8 @@ public final class ModItems {
             props -> new BlockItem(ModBlocks.LARGE_UNDEVELOPED_FRUIT.get(), props),
             new Item.Properties().food(new FoodProperties.Builder()
                     .nutrition(6)
-                    .saturationModifier(0.6F)
-                    .alwaysEdible()
+                    .saturationMod(0.6F)
+                    .alwaysEat()
                     .build()));
 
     // ─────────────────────────────────────────────────────────────────────

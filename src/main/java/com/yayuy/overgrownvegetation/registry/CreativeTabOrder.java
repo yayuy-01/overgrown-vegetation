@@ -111,16 +111,26 @@ public final class CreativeTabOrder {
             return;
         }
 
-        List<ItemStack> sorted = new ArrayList<>(event.getParentEntries());
-        sorted.sort(Comparator.comparingInt((ItemStack stack) -> table.indexIn(tab, idOf(stack.getItem()))));
-        if (sorted.equals(new ArrayList<>(event.getParentEntries()))) {
+        // 1.20.1: Forge のイベントは並び(getEntries の MutableHashedLinkedMap)を直接持つ。全部抜いて、並べ替えた順に見え方ごと入れ直す
+        var entries = event.getEntries();
+        List<java.util.Map.Entry<ItemStack, CreativeModeTab.TabVisibility>> current = new ArrayList<>();
+        for (var e : entries) {
+            current.add(java.util.Map.entry(e.getKey(), e.getValue()));
+        }
+        List<java.util.Map.Entry<ItemStack, CreativeModeTab.TabVisibility>> sorted = new ArrayList<>(current);
+        sorted.sort(Comparator.comparingInt(e -> table.indexIn(tab, idOf(e.getKey().getItem()))));
+        boolean same = true;
+        for (int i = 0; i < sorted.size() && same; i++) {
+            same = sorted.get(i).getKey() == current.get(i).getKey();
+        }
+        if (same) {
             return;
         }
-        for (ItemStack stack : event.getParentEntries().toArray(ItemStack[]::new)) {
-            event.remove(stack, CreativeModeTab.TabVisibility.PARENT_TAB_ONLY);
+        for (var e : current) {
+            entries.remove(e.getKey());
         }
-        for (ItemStack stack : sorted) {
-            event.accept(stack, CreativeModeTab.TabVisibility.PARENT_TAB_ONLY);
+        for (var e : sorted) {
+            entries.put(e.getKey(), e.getValue());
         }
     }
 

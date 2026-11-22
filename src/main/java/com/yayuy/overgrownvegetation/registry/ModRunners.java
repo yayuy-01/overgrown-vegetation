@@ -13,6 +13,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 「② 大型の地上を走る型」の Mob の登録(2026-11-14。1 体目はヴェナムネス。次はクリペイムネス・スクティムネスの予定)。
@@ -31,7 +32,7 @@ public final class ModRunners {
 
     /** 当たりは胴の芯だけ(幅 1.2 × 高さ 2.4【仮】)。首・頭・尾ははみ出す(全体 2.2 × 3.1 × 8.1)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<VenamnesEntity>> VENAMNES =
-            ModEntities.ENTITY_TYPES.register(VenamnesEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(VenamnesEntity.ID, () -> OvEntityType.Builder
                     .<VenamnesEntity>of(VenamnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(VenamnesEntity.ID, 1.2F), MobStats.height(VenamnesEntity.ID, 2.4F))
                     .spawnDimensionsScale(MobStats.spawnScale(VenamnesEntity.ID))
@@ -45,7 +46,7 @@ public final class ModRunners {
 
     /** 当たりは胴の芯だけ(幅 1.4 × 高さ 2.6【仮】)。盾の腕・脚・尾ははみ出す(全体 4.45 × 3.43 × 8.58)。2026-11-15 段 1。 */
     public static final DeferredHolder<EntityType<?>, EntityType<ClipeimnesEntity>> CLIPEIMNES =
-            ModEntities.ENTITY_TYPES.register(ClipeimnesEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(ClipeimnesEntity.ID, () -> OvEntityType.Builder
                     .<ClipeimnesEntity>of(ClipeimnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(ClipeimnesEntity.ID, 1.4F), MobStats.height(ClipeimnesEntity.ID, 2.6F))
                     .spawnDimensionsScale(MobStats.spawnScale(ClipeimnesEntity.ID))

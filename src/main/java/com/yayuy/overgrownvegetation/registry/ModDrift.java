@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 漂流する擬態 Mob の登録(2026-11-20)。共有の登録クラスは並行するセッションが触るので、ModFlyers と同じくここへ寄せた。
@@ -28,7 +29,7 @@ public final class ModDrift {
 
     /** 当たりは真ん中の胞子嚢の塊だけ(幅 4.5 × 高さ 1.2。ユーザー決定: 塊が弱点・塊を壊す = 倒す。形は幅 約 15 で、傘の縁・水中の房ははみ出す)。海の上を遠くまで流れるので遠くまで送る。 */
     public static final DeferredHolder<EntityType<?>, EntityType<DriftMimicEntity>> DRIFT_MIMIC =
-            ModEntities.ENTITY_TYPES.register(DriftMimicEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(DriftMimicEntity.ID, () -> OvEntityType.Builder
                     .<DriftMimicEntity>of(DriftMimicEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(DriftMimicEntity.ID, 4.5F), MobStats.height(DriftMimicEntity.ID, 1.2F))
                     .spawnDimensionsScale(MobStats.spawnScale(DriftMimicEntity.ID))

@@ -237,7 +237,7 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<net.minecraft.world.item.ItemStack>> PLANT_ARMOR_KEPT =
             ATTACHMENT_TYPES.register("plant_armor_kept",
                     () -> AttachmentType.builder(() -> net.minecraft.world.item.ItemStack.EMPTY)
-                            .serialize(net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).copyOnDeath().build());
+                            .serialize(net.minecraft.world.item.ItemStack.CODEC).copyOnDeath().build());
 
     /**
      * 亜種の種別(2026-09-19、{@code variant/MobVariants})。0 = 未抽選、1 以降 = {@code MobVariant#code()}。

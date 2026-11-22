@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 「跳ぶ型」の Mob の登録(2026-11-14。1 体目はサルティムネス)。共有の登録クラスは並行するセッションが同時に触るので、
@@ -29,7 +30,7 @@ public final class ModLeapers {
 
     /** 当たりは胴の芯だけ(幅 1.8 × 高さ 1.0【仮】)。脚・翅・頭・腹ははみ出す(伏せた姿の全体 4.5 × 2.3 × 7.2)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<SaltimnesEntity>> SALTIMNES =
-            ModEntities.ENTITY_TYPES.register(SaltimnesEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(SaltimnesEntity.ID, () -> OvEntityType.Builder
                     .<SaltimnesEntity>of(SaltimnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(SaltimnesEntity.ID, 1.8F), MobStats.height(SaltimnesEntity.ID, 1.0F))
                     .spawnDimensionsScale(MobStats.spawnScale(SaltimnesEntity.ID))
@@ -43,7 +44,7 @@ public final class ModLeapers {
 
     /** ファランギオタルブス(狩る側の環境生物、11-16 段 1)。当たりは胴の芯 1.0 × 0.8【仮】(脚ははみ出す。全体 2.28 × 1.55 × 0.80)。地上は小さな地這いの虫の型。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity>> PHALANGIOTARBUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity>of(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID, 1.0F), MobStats.height(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID, 0.8F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.PhalangiotarbusEntity.ID))

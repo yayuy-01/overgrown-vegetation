@@ -59,6 +59,13 @@ public class DeferredRegister<T> {
         if (key == NeoForgeRegistries.Keys.DATA_COMPONENT_TYPE) {
             return (id, v) -> ((DataComponentType<?>) v).bind(id);
         }
+        if (key == NeoForgeRegistries.Keys.ARMOR_MATERIAL) {
+            return (id, v) -> {
+                if (v instanceof com.yayuy.overgrownvegetation.port.item.OvArmorMaterial m) {
+                    m.bind(id);
+                }
+            };
+        }
         return null;
     }
 
@@ -131,6 +138,40 @@ public class DeferredRegister<T> {
             // 登録簿の無い物は今ここで作る(名前を結び付け、保存のときに id から引けるようにする)
             for (DeferredHolder<T, ? extends T> h : entries) {
                 h.get();
+            }
+        }
+    }
+
+    private final java.util.Map<ResourceLocation, ResourceLocation> aliases = new java.util.LinkedHashMap<>();
+
+    /**
+     * NeoForge の {@code addAlias}(古い id を新しい id へ読み替える)。1.20.1 では Forge の {@code MissingMappingsEvent} で読み替える。
+     * 登録簿の無い物(attachment・データコンポーネント)には使えない。
+     */
+    public void addAlias(ResourceLocation from, ResourceLocation to) {
+        if (forge == null) {
+            throw new UnsupportedOperationException("alias on a local registry: " + registryKey);
+        }
+        if (aliases.isEmpty()) {
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(this::onMissingMappings);
+        }
+        aliases.put(from, to);
+    }
+
+    private void onMissingMappings(net.minecraftforge.registries.MissingMappingsEvent e) {
+        var registry = net.minecraftforge.registries.RegistryManager.ACTIVE.getRegistry(registryKey);
+        if (registry == null) {
+            return;
+        }
+        java.util.Set<String> namespaces = new java.util.HashSet<>();
+        aliases.keySet().forEach(k -> namespaces.add(k.getNamespace()));
+        for (String ns : namespaces) {
+            for (var m : e.getMappings(registryKey, ns)) {
+                ResourceLocation to = aliases.get(m.getKey());
+                T v = to == null ? null : registry.getValue(to);
+                if (v != null) {
+                    m.remap(v);
+                }
             }
         }
     }

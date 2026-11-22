@@ -26,9 +26,9 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.energy.ComponentEnergyStorage;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.RegisterCapabilitiesEvent;
+import com.yayuy.overgrownvegetation.port.energy.ComponentEnergyStorage;
 import com.yayuy.overgrownvegetation.port.registries.DeferredBlock;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
@@ -64,7 +64,7 @@ public final class ModLey {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WIRE_START =
             ModDataComponents.COMPONENTS.registerComponentType("ley_wire_start", b -> b
                     .persistent(GlobalPos.CODEC)
-                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+                    .networkSynchronized(ByteBufCodecs.GLOBAL_POS));
 
     // ---- ブロック ----
 
@@ -140,7 +140,7 @@ public final class ModLey {
         output.accept(WIRE.get());
         output.accept(BATTERY.get());
         ItemStack full = new ItemStack(BATTERY.get());
-        full.set(ENERGY.get(), LeyBatteryItem.capacity());
+        com.yayuy.overgrownvegetation.port.component.OvItemData.set(full, ENERGY.get(), LeyBatteryItem.capacity());
         output.accept(full);
     }
 

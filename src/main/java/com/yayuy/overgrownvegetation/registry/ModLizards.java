@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 「トカゲ型」の Mob の登録(2026-11-15。1 体目はピリムネス。次はシメリカワ(モデルの作り直しの後))。
@@ -30,7 +31,7 @@ public final class ModLizards {
 
     /** 当たりは胴の芯だけ(幅 1.3 × 高さ 1.6【仮】)。首・頭・尾・横へ張った脚・背の棘ははみ出す(全体 約 3.7 × 3.4 × 9.5)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<PilimnesEntity>> PILIMNES =
-            ModEntities.ENTITY_TYPES.register(PilimnesEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(PilimnesEntity.ID, () -> OvEntityType.Builder
                     .<PilimnesEntity>of(PilimnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(PilimnesEntity.ID, 1.3F), MobStats.height(PilimnesEntity.ID, 1.6F))
                     .spawnDimensionsScale(MobStats.spawnScale(PilimnesEntity.ID))
@@ -40,7 +41,7 @@ public final class ModLizards {
 
     /** ピリムネスが弾き飛ばす棘(能力の段 11-16)。小さな当たり・毎 tick 送る(速い弾)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PilimnesSpine>> PILIMNES_SPINE =
-            ModEntities.ENTITY_TYPES.register("pilimnes_spine", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("pilimnes_spine", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PilimnesSpine>of(com.yayuy.overgrownvegetation.entity.PilimnesSpine::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
                     .noSummon()
@@ -65,7 +66,7 @@ public final class ModLizards {
 
     /** ペトロラコサウルス: 当たりは 0.6 × 0.4(体格 2 が掛かって 1.2 × 0.8。10-10 のまま)。尾ははみ出す(全長 4.70)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity>> PETROLACOSAURUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity>of(com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity.ID, 0.6F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.PetrolacosaurusEntity.ID, 0.4F))
@@ -76,7 +77,7 @@ public final class ModLizards {
 
     /** イアンタサウルス: 当たりは 0.7 × 0.6(帆込み。体格 2 が掛かって 1.4 × 1.2。10-10 のまま)。尾ははみ出す(全長 4.21)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.IanthasaurusEntity>> IANTHASAURUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.IanthasaurusEntity>of(com.yayuy.overgrownvegetation.entity.IanthasaurusEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.ID, 0.7F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.IanthasaurusEntity.ID, 0.6F))
@@ -95,7 +96,7 @@ public final class ModLizards {
 
     /** ヒロノムス(11-16 段 1。体格 2 = 11-16 ユーザー決定。前は 2.5): 当たりは 0.4 × 0.3(体格 2 が掛かって 0.8 × 0.6)。全長 2.26・高さ 0.58。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.HylonomusEntity>> HYLONOMUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.HylonomusEntity>of(com.yayuy.overgrownvegetation.entity.HylonomusEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, 0.4F), MobStats.height(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID, 0.3F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.HylonomusEntity.ID))
@@ -108,7 +109,7 @@ public final class ModLizards {
 
     /** コエルロサウラウス(狩る側の環境生物、11-16 段 1)。当たり 0.7 × 0.4(体格 2.2 が掛かる)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>> COELUROSAURAVUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity>of(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, 0.7F), MobStats.height(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID, 0.4F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.CoelurosauravusEntity.ID))

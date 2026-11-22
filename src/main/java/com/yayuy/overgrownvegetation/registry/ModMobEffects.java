@@ -7,6 +7,7 @@ import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 public final class ModMobEffects {
 
@@ -28,11 +29,11 @@ public final class ModMobEffects {
     public static final DeferredHolder<MobEffect, MobEffect> ACUMNES_PINNED =
             MOB_EFFECTS.register("acumnes_pinned", () -> new MobEffect(MobEffectCategory.HARMFUL, 0xB8D838) {
             }.addAttributeModifier(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED,
-                            OvergrownVegetation.id("effect.acumnes_pinned.speed"), -1.0D,
-                            net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
-                    .addAttributeModifier(net.minecraft.world.entity.ai.attributes.Attributes.JUMP_STRENGTH,
-                            OvergrownVegetation.id("effect.acumnes_pinned.jump"), -1.0D,
-                            net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+                            com.yayuy.overgrownvegetation.port.entity.OvModifiers.uuid(OvergrownVegetation.id("effect.acumnes_pinned.speed")).toString(), -1.0D,
+                            net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL)
+                    .addAttributeModifier(PortAttributes.JUMP_STRENGTH.get(),
+                            com.yayuy.overgrownvegetation.port.entity.OvModifiers.uuid(OvergrownVegetation.id("effect.acumnes_pinned.jump")).toString(), -1.0D,
+                            net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL));
 
     public static void register(IEventBus modBus) {
         MOB_EFFECTS.register(modBus);

@@ -26,7 +26,9 @@ public final class ModDamageTypes {
             ResourceKey.create(Registries.DAMAGE_TYPE, OvergrownVegetation.id("spore_infection"));
 
     public static DamageSource sporeInfection(ServerLevel level) {
-        return level.damageSources().source(SPORE_INFECTION);
+        // 1.20.1: DamageSources#source が private なので、型の Holder から直接作る
+        return new net.minecraft.world.damagesource.DamageSource(
+                level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE).getHolderOrThrow(SPORE_INFECTION));
     }
 
     /** ファルキムネスが掴んだ獲物への噛みつき。防具と盾を貫く(09-23 ユーザー指定「防具関係なく」)。 */

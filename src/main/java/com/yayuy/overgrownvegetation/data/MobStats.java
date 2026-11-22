@@ -6,6 +6,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
+import com.yayuy.overgrownvegetation.port.entity.PortAttributes;
 
 /**
  * {@code mobs.json}(設計データ)から読み込んだ Mob ステータスの束。
@@ -68,14 +70,15 @@ public final class MobStats {
         addIf(builder, Attributes.ARMOR_TOUGHNESS, s.armorToughness);
         addIf(builder, Attributes.KNOCKBACK_RESISTANCE, s.knockbackResistance);
         addIf(builder, Attributes.FOLLOW_RANGE, s.followRange);
-        addIf(builder, Attributes.STEP_HEIGHT, s.stepHeight);
+        // 1.20.1: Forge の段差は「0.6 への足し分」。mobs.json の値(そのものの高さ)から 0.6 を引いて入れる(PortAttributes)
+        addIf(builder, PortAttributes.STEP_HEIGHT.get(), s.stepHeight == null ? null : PortAttributes.stepHeightBase(s.stepHeight));
         addIf(builder, Attributes.FLYING_SPEED, s.flyingSpeed);
-        addIf(builder, Attributes.SCALE, s.scale);
+        addIf(builder, PortAttributes.SCALE.get(), s.scale);
         return builder;
     }
 
     private static void addIf(AttributeSupplier.Builder builder,
-                              net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
+                              net.minecraft.world.entity.ai.attributes.Attribute attr,
                               Double value) {
         if (value != null) {
             builder.add(attr, value);
@@ -95,7 +98,7 @@ public final class MobStats {
     }
 
     /**
-     * {@code ModEntities} の湧き判定の箱の倍率({@code EntityType.Builder#spawnDimensionsScale})。
+     * {@code ModEntities} の湧き判定の箱の倍率({@code OvEntityType.Builder#spawnDimensionsScale})。
      * その種が<b>育ちうるいちばん大きな体</b> = mobs.json の {@code scale} × 個体差の上限 {@code scaleMax}。
      *
      * <p>SCALE 属性が当たり判定に掛かるのは湧いた後の<b>最初の tick の終わり</b>

@@ -73,10 +73,11 @@ legacyForge {
 
 // Mixin: 1.20.1 の Forge は実行時の名前が SRG なので、refmap を作って jar に入れる。
 mixin {
-    // 【最初の mixin を移したら戻す】mixin が 1 つも無いと注釈処理が refmap の対応表(build/mixin/*.mappings.tsrg)を作らず、
-    // それを読みにいく reobfJar が落ちる(2026-10-10 に確認)。今は mixins.json が空なので外してある。
-    // add sourceSets.main, "${mod_id}.refmap.json"
+    // mixin が 1 つも無いと注釈処理が refmap の対応表を作らず reobfJar が落ちる(2026-10-10)。
+    // 2026-11-23 から互換の層の mixin(port.mixins.json、F の持ち物)があるので戻した。本流の mixin は mixins.json(G7)
+    add sourceSets.main, "${mod_id}.refmap.json"
     config "${mod_id}.mixins.json"
+    config "${mod_id}.port.mixins.json"
 }
 
 repositories {
@@ -173,7 +174,7 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
                 // 1.20.1 の Forge は mods.toml の [[mixins]] を読まない。jar の manifest で知らせる
-                'MixinConfigs'            : "${mod_id}.mixins.json"
+                'MixinConfigs'            : "${mod_id}.mixins.json,${mod_id}.port.mixins.json"
         ])
     }
 }

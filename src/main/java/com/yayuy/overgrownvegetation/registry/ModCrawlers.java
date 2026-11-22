@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 「小さな地這いの虫」の型の Mob の登録(2026-11-15。1 体目はグレガリア。次はストロビラ・ヴェシカリア・トリツキの予定)。
@@ -33,7 +34,7 @@ public final class ModCrawlers {
      * 1 マス幅・高さ 1 の隙間をくぐれる。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.VesicariaEntity>> VESICARIA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.VesicariaEntity>of(com.yayuy.overgrownvegetation.entity.VesicariaEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, 0.8F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.VesicariaEntity.ID, 0.6F))
@@ -49,7 +50,7 @@ public final class ModCrawlers {
 
     /** 当たりは胴の芯だけ(幅 0.7 × 高さ 0.45【仮】)。脚・触角ははみ出す(全体 1.0 × 0.43 × 2.2)。根の下・1 マス幅の隙間をくぐれる。 */
     public static final DeferredHolder<EntityType<?>, EntityType<GregariaEntity>> GREGARIA =
-            ModEntities.ENTITY_TYPES.register(GregariaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(GregariaEntity.ID, () -> OvEntityType.Builder
                     .<GregariaEntity>of(GregariaEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(GregariaEntity.ID, 0.7F), MobStats.height(GregariaEntity.ID, 0.45F))
                     .spawnDimensionsScale(MobStats.spawnScale(GregariaEntity.ID))
@@ -66,7 +67,7 @@ public final class ModCrawlers {
      * 1 マス幅の通路は通れるが、高さ 1 の隙間はくぐらない(尾が天井を突き抜けないように)。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StrobilaEntity>> STROBILA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StrobilaEntity>of(com.yayuy.overgrownvegetation.entity.StrobilaEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, 0.95F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.StrobilaEntity.ID, 1.2F))
@@ -82,7 +83,7 @@ public final class ModCrawlers {
 
     /** ストロビラが山なりに投げる球果(11-15 段 2)。{@link com.yayuy.overgrownvegetation.entity.StrobilaCone}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StrobilaCone>> STROBILA_CONE =
-            ModEntities.ENTITY_TYPES.register("strobila_cone", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("strobila_cone", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StrobilaCone>of(com.yayuy.overgrownvegetation.entity.StrobilaCone::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)
                     .noSummon()
@@ -95,7 +96,7 @@ public final class ModCrawlers {
      * モデル制作(Fable)の形が来るまで、描画はグレガリアの形を大きくした仮のモデル。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GestatrixEntity>> GESTATRIX =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.GestatrixEntity>of(com.yayuy.overgrownvegetation.entity.GestatrixEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, 1.6F),
                             MobStats.height(com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID, 1.0F))
@@ -113,7 +114,7 @@ public final class ModCrawlers {
 
     /** プルモノスコルピウス(狩る側の環境生物)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>> PULMONOSCORPIUS =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>of(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, 1.0F), MobStats.height(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID, 0.6F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity.ID))
@@ -126,7 +127,7 @@ public final class ModCrawlers {
 
     /** プロトファスマ(獲物の環境生物)。当たりは胴の芯 0.5 × 0.5(脚・触角ははみ出す。全体 1.91 × 0.77 × 0.46)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>> PROTOPHASMA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.ProtophasmaEntity>of(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, 0.5F), MobStats.height(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID, 0.5F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.ProtophasmaEntity.ID))
@@ -139,7 +140,7 @@ public final class ModCrawlers {
 
     /** ステノディクティアの幼虫(獲物の環境生物、2026-11-17 段 1。梢を歩く)。当たりは胴の芯 0.45 × 0.3(0.7 倍に作り直した形。全長 1.11)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>> STENODICTYA_NYMPH =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity>of(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, 0.45F), MobStats.height(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID, 0.3F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.StenodictyaNymphEntity.ID))
@@ -152,7 +153,7 @@ public final class ModCrawlers {
 
     /** 陸生カタツムリ(獲物の環境生物。id は giant_snail のまま)。当たりは 0.7 × 0.9(MobStats の値)。全体 1.34 × 0.69 × 0.89。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>> GIANT_SNAIL =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.GiantSnailEntity>of(com.yayuy.overgrownvegetation.entity.GiantSnailEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, 0.7F), MobStats.height(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID, 0.9F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.GiantSnailEntity.ID))
@@ -165,7 +166,7 @@ public final class ModCrawlers {
 
     /** アースロプレウラ(獲物の環境生物)。当たりは胴の芯 1.1 × 0.55(MobStats の値。頭・脚・後ろの節ははみ出す。全体 3.62 × 1.24 × 0.40)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>> ARTHROPLEURA =
-            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.ArthropleuraEntity>of(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity::new, MobCategory.CREATURE)
                     .sized(MobStats.width(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, 1.1F), MobStats.height(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID, 0.55F))
                     .spawnDimensionsScale(MobStats.spawnScale(com.yayuy.overgrownvegetation.entity.ArthropleuraEntity.ID))

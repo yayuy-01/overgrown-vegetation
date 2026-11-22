@@ -9,6 +9,7 @@ import com.yayuy.overgrownvegetation.port.network.ByteBufCodecs;
 import net.minecraftforge.eventbus.api.IEventBus;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.registries.NeoForgeRegistries;
 
 /**
  * このMODが ItemStack に載せるデータコンポーネント。
@@ -16,7 +17,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 public final class ModDataComponents {
 
     public static final DeferredRegister.DataComponents COMPONENTS =
-            DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, OvergrownVegetation.MODID);
+            DeferredRegister.createDataComponents(NeoForgeRegistries.Keys.DATA_COMPONENT_TYPE, OvergrownVegetation.MODID);
 
     /**
      * 「胞子汚染」— そのアイテムがどれだけ胞子に侵されているか(0〜100 の %)。
@@ -69,7 +70,7 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> LEY_COMPASS_TARGET =
             COMPONENTS.registerComponentType("ley_compass_target", builder -> builder
                     .persistent(GlobalPos.CODEC)
-                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+                    .networkSynchronized(ByteBufCodecs.GLOBAL_POS));
     /** 前の地脈の羅針盤の向き先(true = 汚染されていない土地)。2026-10-22 の地脈探しで使わなくなった。古いセーブの読み込みのため登録だけ残す。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> LEY_COMPASS_CLEAN =
             COMPONENTS.registerComponentType("ley_compass_clean", builder -> builder
@@ -80,7 +81,7 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WAYSTONE_HOME =
             COMPONENTS.registerComponentType("waystone_home", builder -> builder
                     .persistent(GlobalPos.CODEC)
-                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+                    .networkSynchronized(ByteBufCodecs.GLOBAL_POS));
 
     /** ① 陽溜まりのランタンの燃料(tick)と、灯しているか(2026-10-16)。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> LANTERN_FUEL =
@@ -111,12 +112,12 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> CLAPPER_ROPE_ANCHOR =
             COMPONENTS.registerComponentType("clapper_rope_anchor", builder -> builder
                     .persistent(GlobalPos.CODEC)
-                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+                    .networkSynchronized(ByteBufCodecs.GLOBAL_POS));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> LIANA_ANCHOR =
             COMPONENTS.registerComponentType("liana_anchor", builder -> builder
                     .persistent(GlobalPos.CODEC)
-                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+                    .networkSynchronized(ByteBufCodecs.GLOBAL_POS));
 
     /** パワードアーマーの Mk(1.0.0 は 1 だけ。載っていなければ 1)。名前の後ろに付く。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> POWERED_ARMOR_MK =

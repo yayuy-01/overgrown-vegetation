@@ -12,6 +12,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 環境生物の飛ぶ種の登録(2026-11-16。1 体目はメガネウラ)。「飛ぶ型」の土台は {@code entity/flyer/}。
@@ -30,7 +31,7 @@ public final class ModCritterFlyers {
 
     /** 当たりは胴の芯(幅 1.0 × 高さ 0.5【仮】。退避前と同じ)。翅(翼幅 約 2.2)は厚み 0 の板で、叩ける部位は無い。 */
     public static final DeferredHolder<EntityType<?>, EntityType<MeganeuraEntity>> MEGANEURA =
-            ModEntities.ENTITY_TYPES.register(MeganeuraEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(MeganeuraEntity.ID, () -> OvEntityType.Builder
                     .<MeganeuraEntity>of(MeganeuraEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(MeganeuraEntity.ID, 1.0F), MobStats.height(MeganeuraEntity.ID, 0.5F))
                     .spawnDimensionsScale(MobStats.spawnScale(MeganeuraEntity.ID))

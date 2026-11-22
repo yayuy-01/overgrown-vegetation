@@ -11,6 +11,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * この MOD のエンティティ型の登録。
@@ -37,7 +38,7 @@ public final class ModEntities {
      * ({ com.yayuy.overgrownvegetation.entity.HiveNodeEntity})。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<HiveNodeEntity>> HIVE_NODE =
-            ENTITY_TYPES.register("hive_node", () -> EntityType.Builder
+            ENTITY_TYPES.register("hive_node", () -> OvEntityType.Builder
                     .of(HiveNodeEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width("hive_node", 3.0F), MobStats.height("hive_node", 3.0F))
                     // spawnDimensionsScale は付けない(当たり判定から SCALE を打ち消しているので、素の箱のほうが大きいか同じ。クラス javadoc)
@@ -48,7 +49,7 @@ public final class ModEntities {
 
     /** 巨大シダの寄生植物。侵食の起点。 */
     public static final DeferredHolder<EntityType<?>, EntityType<BlightFernEntity>> BLIGHT_FERN =
-            ENTITY_TYPES.register("blight_fern", () -> EntityType.Builder
+            ENTITY_TYPES.register("blight_fern", () -> OvEntityType.Builder
                     .of(BlightFernEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width("blight_fern", 1.4F), MobStats.height("blight_fern", 2.6F))
                     .spawnDimensionsScale(MobStats.spawnScale("blight_fern")) // 10-23 萌芽体は体格 1・当たり判定 1 × 2(見た目は 3.65。描画の箱は BlightFernEntity#getBoundingBoxForCulling で広げる)
@@ -63,7 +64,7 @@ public final class ModEntities {
      * 芯の外の頭・首・鎌・腹は叩ける部位({@code entity/parts/HitPart})。目の高さは前と同じ頭の高さ({@link FalcimnesEntity#EYE_HEIGHT})。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<FalcimnesEntity>> FALCIMNES =
-            ENTITY_TYPES.register("falcimnes", () -> EntityType.Builder
+            ENTITY_TYPES.register("falcimnes", () -> OvEntityType.Builder
                     .of(FalcimnesEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width("falcimnes", 1.3F), MobStats.height("falcimnes", 2.1F))
                     .eyeHeight(FalcimnesEntity.EYE_HEIGHT)
@@ -77,7 +78,7 @@ public final class ModEntities {
      * 当たり判定は 1 マスの隙間を通れる 0.98(前と同じ)。張り付きの部品は体が 1 マスに収まる前提。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.ArboraEntity>> ARBORA =
-            ENTITY_TYPES.register("arbora", () -> EntityType.Builder
+            ENTITY_TYPES.register("arbora", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.ArboraEntity>of(com.yayuy.overgrownvegetation.entity.ArboraEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width("arbora", 0.98F), MobStats.height("arbora", 0.98F))
                     .spawnDimensionsScale(MobStats.spawnScale("arbora"))
@@ -87,7 +88,7 @@ public final class ModEntities {
 
     /** ファルキムネスの飛ぶ斬撃(11-05)。当たり判定は斬撃が自分で引く(横 3 × 厚み 0.5)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity>> FALCIMNES_WAVE =
-            ENTITY_TYPES.register("falcimnes_wave", () -> EntityType.Builder
+            ENTITY_TYPES.register("falcimnes_wave", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity>of(com.yayuy.overgrownvegetation.entity.FalcimnesWaveEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
                     .clientTrackingRange(8)
@@ -98,7 +99,7 @@ public final class ModEntities {
 
     /** ファルキムネスの地走りの光の帯(11-05)。位置は鎌を刺した所、向きが筋の向き。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity>> FALCIMNES_RIFT =
-            ENTITY_TYPES.register("falcimnes_rift", () -> EntityType.Builder
+            ENTITY_TYPES.register("falcimnes_rift", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity>of(com.yayuy.overgrownvegetation.entity.FalcimnesRiftEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
                     .clientTrackingRange(10)

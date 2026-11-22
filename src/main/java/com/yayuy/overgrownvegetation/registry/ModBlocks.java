@@ -35,7 +35,7 @@ import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.WallBlock;
-import net.minecraft.world.level.block.grower.TreeGrower;
+import com.yayuy.overgrownvegetation.port.world.TreeGrower;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
@@ -75,7 +75,7 @@ public final class ModBlocks {
             // 音(設置音・破壊音)は ofFullCopy(GRASS_BLOCK) が持つ元ブロックのものを
             // そのまま使う。汚染ブロックは「汚染元と同じ足音・破壊音」にする方針なので
             // ここで .sound(...) を上書きしない(以下の汚染変換先ブロックすべて同様)。
-            BlockBehaviour.Properties.ofFullCopy(Blocks.GRASS_BLOCK)
+            BlockBehaviour.Properties.copy(Blocks.GRASS_BLOCK)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -89,20 +89,20 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_DIRT = BLOCKS.registerBlock(
             "overgrown_dirt",
             OvergrownDirtBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DIRT)
+            BlockBehaviour.Properties.copy(Blocks.DIRT)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
     /** 石・花崗岩などの基礎石 → 苔に覆われた石。 */
     public static final DeferredBlock<Block> OVERGROWN_STONE = BLOCKS.registerSimpleBlock(
             "overgrown_stone",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+            BlockBehaviour.Properties.copy(Blocks.STONE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩系 → 苔に覆われた深層岩。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE = BLOCKS.registerSimpleBlock(
             "overgrown_deepslate",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE)
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     // ------------------------------------------------------------------
@@ -117,13 +117,13 @@ public final class ModBlocks {
     /** 深層岩の丸石 → 苔に覆われた深層岩の丸石。 */
     public static final DeferredBlock<Block> OVERGROWN_COBBLED_DEEPSLATE = BLOCKS.registerSimpleBlock(
             "overgrown_cobbled_deepslate",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COBBLED_DEEPSLATE)
+            BlockBehaviour.Properties.copy(Blocks.COBBLED_DEEPSLATE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** レンガ → 苔に覆われたレンガ。 */
     public static final DeferredBlock<Block> OVERGROWN_BRICKS = BLOCKS.registerSimpleBlock(
             "overgrown_bricks",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.BRICKS)
+            BlockBehaviour.Properties.copy(Blocks.BRICKS)
                     .mapColor(MapColor.COLOR_GREEN));
 
     // ------------------------------------------------------------------
@@ -136,54 +136,54 @@ public final class ModBlocks {
     /** ダイヤモンド鉱石 → 苔に覆われたダイヤモンド鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DIAMOND_ORE = BLOCKS.registerBlock(
             "overgrown_diamond_ore",
-            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(3, 7)),
+            BlockBehaviour.Properties.copy(Blocks.DIAMOND_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩の石炭鉱石 → 苔に覆われた深層岩の石炭鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_COAL_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_coal_ore",
-            props -> new DropExperienceBlock(UniformInt.of(0, 2), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_COAL_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(0, 2)),
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_COAL_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩の銅鉱石 → 苔に覆われた深層岩の銅鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_COPPER_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_deepslate_copper_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_COPPER_ORE)
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_COPPER_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のダイヤモンド鉱石 → 苔に覆われた深層岩のダイヤモンド鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_DIAMOND_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_diamond_ore",
-            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_DIAMOND_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(3, 7)),
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_DIAMOND_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のエメラルド鉱石 → 苔に覆われた深層岩のエメラルド鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_EMERALD_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_emerald_ore",
-            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_EMERALD_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(3, 7)),
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_EMERALD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩の金鉱石 → 苔に覆われた深層岩の金鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_GOLD_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_deepslate_gold_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_GOLD_ORE)
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_GOLD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩の鉄鉱石 → 苔に覆われた深層岩の鉄鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_IRON_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_deepslate_iron_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_IRON_ORE)
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_IRON_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 深層岩のラピスラズリ鉱石 → 苔に覆われた深層岩のラピスラズリ鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_LAPIS_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_lapis_ore",
-            props -> new DropExperienceBlock(UniformInt.of(2, 5), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_LAPIS_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(2, 5)),
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_LAPIS_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -200,7 +200,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_DEEPSLATE_REDSTONE_ORE = BLOCKS.registerBlock(
             "overgrown_deepslate_redstone_ore",
             props -> new InertBlock(props, UniformInt.of(1, 5)),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.DEEPSLATE_REDSTONE_ORE)
+            BlockBehaviour.Properties.copy(Blocks.DEEPSLATE_REDSTONE_ORE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel((BlockState state) -> 0));
 
@@ -211,40 +211,40 @@ public final class ModBlocks {
     /** 石炭鉱石 → 苔に覆われた石炭鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_COAL_ORE = BLOCKS.registerBlock(
             "overgrown_coal_ore",
-            props -> new DropExperienceBlock(UniformInt.of(0, 2), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COAL_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(0, 2)),
+            BlockBehaviour.Properties.copy(Blocks.COAL_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 銅鉱石 → 苔に覆われた銅鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_COPPER_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_copper_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COPPER_ORE)
+            BlockBehaviour.Properties.copy(Blocks.COPPER_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** エメラルド鉱石 → 苔に覆われたエメラルド鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_EMERALD_ORE = BLOCKS.registerBlock(
             "overgrown_emerald_ore",
-            props -> new DropExperienceBlock(UniformInt.of(3, 7), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.EMERALD_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(3, 7)),
+            BlockBehaviour.Properties.copy(Blocks.EMERALD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 金鉱石 → 苔に覆われた金鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_GOLD_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_gold_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.GOLD_ORE)
+            BlockBehaviour.Properties.copy(Blocks.GOLD_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 鉄鉱石 → 苔に覆われた鉄鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_IRON_ORE = BLOCKS.registerSimpleBlock(
             "overgrown_iron_ore",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_ORE)
+            BlockBehaviour.Properties.copy(Blocks.IRON_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** ラピスラズリ鉱石 → 苔に覆われたラピスラズリ鉱石。 */
     public static final DeferredBlock<Block> OVERGROWN_LAPIS_ORE = BLOCKS.registerBlock(
             "overgrown_lapis_ore",
-            props -> new DropExperienceBlock(UniformInt.of(2, 5), props),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.LAPIS_ORE)
+            props -> new DropExperienceBlock(props, UniformInt.of(2, 5)),
+            BlockBehaviour.Properties.copy(Blocks.LAPIS_ORE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -257,7 +257,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_REDSTONE_ORE = BLOCKS.registerBlock(
             "overgrown_redstone_ore",
             props -> new InertBlock(props, UniformInt.of(1, 5)),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_ORE)
+            BlockBehaviour.Properties.copy(Blocks.REDSTONE_ORE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel((BlockState state) -> 0));
 
@@ -267,7 +267,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_NETHERRACK = BLOCKS.registerSimpleBlock(
             "overgrown_netherrack",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK)
+            BlockBehaviour.Properties.copy(Blocks.NETHERRACK)
                     .mapColor(MapColor.COLOR_GREEN)
                     .sound(SoundType.NYLIUM));
 
@@ -277,7 +277,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_SOUL_SAND = BLOCKS.registerSimpleBlock(
             "overgrown_soul_sand",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SOUL_SAND)
+            BlockBehaviour.Properties.copy(Blocks.SOUL_SAND)
                     .mapColor(MapColor.COLOR_GREEN)
                     .speedFactor(1.0F));
 
@@ -287,14 +287,14 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_END_STONE = BLOCKS.registerSimpleBlock(
             "overgrown_end_stone",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.END_STONE)
+            BlockBehaviour.Properties.copy(Blocks.END_STONE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .sound(SoundType.NYLIUM));
 
     /** ソウルソイル → 植物の生えたソウルソイル(2026-10-02 ユーザー指定)。 */
     public static final DeferredBlock<Block> OVERGROWN_SOUL_SOIL = BLOCKS.registerSimpleBlock(
             "overgrown_soul_soil",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.SOUL_SOIL)
+            BlockBehaviour.Properties.copy(Blocks.SOUL_SOIL)
                     .mapColor(MapColor.COLOR_GREEN));
 
     // ---- ネザーの汚染の骨組み(2026-11-11。corruption/nether/)。絵は仮の自動生成、描き直しはユーザー ----
@@ -302,12 +302,12 @@ public final class ModBlocks {
     /** 冷えた殻: 森が熱を吸って固めた溶岩の表面(溶岩の海の上・湖の底・岸のマグマ)。光らない。 */
     public static final DeferredBlock<Block> COOLED_CRUST = BLOCKS.registerSimpleBlock(
             "cooled_crust",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.BASALT).mapColor(MapColor.COLOR_BLACK));
+            BlockBehaviour.Properties.copy(Blocks.BASALT).mapColor(MapColor.COLOR_BLACK));
 
     /** 熱の結晶を含む殻: 湖の底の殻にまばらに混ざる。熱の結晶のアイテム・落とす物は装備の段(この段は自分を落とすだけ)。 */
     public static final DeferredBlock<Block> HEAT_CRYSTAL_CRUST = BLOCKS.registerSimpleBlock(
             "heat_crystal_crust",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.BASALT).mapColor(MapColor.COLOR_BLACK));
+            BlockBehaviour.Properties.copy(Blocks.BASALT).mapColor(MapColor.COLOR_BLACK));
 
     // 搾られた岩 3 種(wrung_*)は 2026-11-12 ユーザー決定でやめた(覆われたブロックにする)。
 
@@ -317,7 +317,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_NYLIUM = BLOCKS.registerSimpleBlock(
             "overgrown_nylium",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_GREEN).sound(SoundType.NYLIUM));
+            BlockBehaviour.Properties.copy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_GREEN).sound(SoundType.NYLIUM));
 
     /**
      * ネザーの汎用の過繁茂ブロック(2026-11-12 ユーザー決定): オーバーワールドの {@link #OVERGROWN_BLOCK} のネザー版。段階 3 から、対応表に無い
@@ -325,7 +325,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> NETHER_OVERGROWN_BLOCK = BLOCKS.registerSimpleBlock(
             "nether_overgrown_block",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_GREEN).sound(SoundType.NYLIUM)
+            BlockBehaviour.Properties.copy(Blocks.NETHERRACK).mapColor(MapColor.COLOR_GREEN).sound(SoundType.NYLIUM)
                     .strength(1.0F, 4.0F));
 
     /** ネザーの泥炭: 搾られた岩の上に積もる、森が作った土(オーバーワールドの {@link #PEAT} とは別)。 */
@@ -338,13 +338,13 @@ public final class ModBlocks {
     /** 根の網(太い根・枝の根): ポータルから溶岩の海へ這う森の根。原木のように向きあり。斧で速い・壊すと自分を落とす。 */
     public static final DeferredBlock<Block> NETHER_ROOT = BLOCKS.registerBlock(
             "nether_root", RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.CRIMSON_STEM).mapColor(MapColor.TERRACOTTA_BROWN).sound(SoundType.ROOTED_DIRT)
+            BlockBehaviour.Properties.copy(Blocks.CRIMSON_STEM).mapColor(MapColor.TERRACOTTA_BROWN).sound(SoundType.ROOTED_DIRT)
                     .strength(2.0F));
 
     /** 搾り殺された幹: 根に巻かれた菌の木の柄(真紅・歪んだ柄の行き先。1 種類)。2026-11-12 ユーザー決定で、白く乾いた木をやめて黒く湿って苔に覆われた木(埋もれ木)。根元から水の滴。 */
     public static final DeferredBlock<Block> STRANGLED_STEM = BLOCKS.registerBlock(
             "strangled_stem", com.yayuy.overgrownvegetation.block.StrangledStemBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.CRIMSON_STEM).mapColor(MapColor.TERRACOTTA_BLACK));
+            BlockBehaviour.Properties.copy(Blocks.CRIMSON_STEM).mapColor(MapColor.TERRACOTTA_BLACK));
 
     // 枯れたウォートブロック・枯れた傘(withered_*)は 2026-11-12 ユーザー決定でやめた(傘は消えて幹だけが残る)。
 
@@ -377,7 +377,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_END_PORTAL_FRAME = BLOCKS.registerBlock(
             "overgrown_end_portal_frame",
             com.yayuy.overgrownvegetation.block.OvergrownEndPortalFrameBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL_FRAME)
+            BlockBehaviour.Properties.copy(Blocks.END_PORTAL_FRAME)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel(state -> 0)); // 光は模型の面の発光だけ(2026-10-23、光の更新を増やさない)
 
@@ -385,7 +385,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_LOG = BLOCKS.registerBlock(
             "overgrown_log",
             com.yayuy.overgrownvegetation.block.OvergrownLogBlock::new, // 2026-10-31 から幹の苔のスカート・木の洞の変種を持つ
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -395,7 +395,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_BRANCH = BLOCKS.registerBlock(
             "overgrown_branch",
             com.yayuy.overgrownvegetation.block.BranchJointBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN)
                     .noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -408,7 +408,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_WOOD = BLOCKS.registerBlock(
             "overgrown_wood",
             RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
+            BlockBehaviour.Properties.copy(Blocks.OAK_WOOD)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -422,7 +422,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> GIANT_OVERGROWN_LOG = BLOCKS.registerBlock(
             "giant_overgrown_log",
             RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn(ModBlocks::noGiantTreeSpawn));
 
@@ -474,7 +474,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> HARDENED_GIANT_TRUNK = BLOCKS.registerBlock(
             "hardened_giant_trunk",
             com.yayuy.overgrownvegetation.block.HardenedGiantTrunkBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_BROWN)
                     .requiresCorrectToolForDrops()
                     // 硬さはネザライトブロック級、爆発耐性は黒曜石級(クリーパー・TNT で穴が開かない)。
@@ -489,7 +489,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> GIANT_OVERGROWN_CAMBIUM = BLOCKS.registerSimpleBlock(
             "giant_overgrown_cambium",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn(ModBlocks::noGiantTreeSpawn));
 
@@ -504,7 +504,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> ROOT_ARCH_LOG = BLOCKS.registerBlock(
             "root_arch_log",
             RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn(ModBlocks::noGiantTreeSpawn));
 
@@ -517,7 +517,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_LEAVES = BLOCKS.registerBlock(
             "overgrown_leaves",
             com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
@@ -531,7 +531,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> GIANT_CANOPY_LEAVES = BLOCKS.registerBlock(
             "giant_canopy_leaves",
             com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
@@ -542,7 +542,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_LEAVES_TUFT = BLOCKS.registerBlock(
             "overgrown_leaves_tuft",
             com.yayuy.overgrownvegetation.block.SigillariaFringeBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .noCollission().noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -551,7 +551,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> CORDAITES_BUTTRESS = BLOCKS.registerBlock(
             "cordaites_buttress",
             com.yayuy.overgrownvegetation.block.CordaitesButtressBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
+            BlockBehaviour.Properties.copy(Blocks.OAK_WOOD)
                     .mapColor(MapColor.COLOR_GREEN)
                     .noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -560,7 +560,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> STIGMARIA = BLOCKS.registerBlock(
             "stigmaria",
             com.yayuy.overgrownvegetation.block.StigmariaBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_WOOD)
+            BlockBehaviour.Properties.copy(Blocks.OAK_WOOD)
                     .mapColor(MapColor.TERRACOTTA_GREEN)
                     .noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -573,7 +573,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> SIGILLARIA_LOG = BLOCKS.registerBlock(
             "sigillaria_log",
             RotatedPillarBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.TERRACOTTA_GREEN));
 
     /**
@@ -583,7 +583,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> SIGILLARIA_BRANCH = BLOCKS.registerBlock(
             "sigillaria_branch",
             com.yayuy.overgrownvegetation.block.BranchJointBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.TERRACOTTA_GREEN)
                     .noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -592,7 +592,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> SIGILLARIA_LEAVES = BLOCKS.registerBlock(
             "sigillaria_leaves",
             com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
@@ -600,7 +600,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> SIGILLARIA_LEAVES_FRINGE = BLOCKS.registerBlock(
             "sigillaria_leaves_fringe",
             com.yayuy.overgrownvegetation.block.SigillariaFringeBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .noCollission().noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -628,7 +628,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> TREE_FERN_TRUNK = BLOCKS.registerBlock(
             "tree_fern_trunk",
             com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LOG)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LOG)
                     .mapColor(MapColor.TERRACOTTA_GREEN)
                     .sound(SoundType.ROOTED_DIRT));
 
@@ -636,7 +636,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> TREE_FERN_LEAVES = BLOCKS.registerBlock(
             "tree_fern_leaves",
             com.yayuy.overgrownvegetation.block.TreeFernLeavesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .isValidSpawn((state, getter, pos, type) -> false));
 
@@ -644,7 +644,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> TREE_FERN_FROND = BLOCKS.registerBlock(
             "tree_fern_frond",
             com.yayuy.overgrownvegetation.block.TreeFernFrondBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_LEAVES)
+            BlockBehaviour.Properties.copy(Blocks.OAK_LEAVES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .noCollission().noOcclusion()
                     .isValidSpawn((state, getter, pos, type) -> false));
@@ -673,7 +673,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_SAPLING = BLOCKS.registerBlock(
             "overgrown_sapling",
             properties -> new CorruptedSaplingBlock(OVERGROWN_TREE_GROWER, properties),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_SAPLING)
+            BlockBehaviour.Properties.copy(Blocks.OAK_SAPLING)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -704,7 +704,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> GIANT_OVERGROWN_SAPLING = BLOCKS.registerBlock(
             "giant_overgrown_sapling",
             properties -> new GiantOvergrownSaplingBlock(GIANT_OVERGROWN_TREE_GROWER, properties),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_SAPLING)
+            BlockBehaviour.Properties.copy(Blocks.OAK_SAPLING)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -717,7 +717,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_DOOR = BLOCKS.registerBlock(
             "overgrown_door",
             com.yayuy.overgrownvegetation.block.OvergrownDoorBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_DOOR)
+            BlockBehaviour.Properties.copy(Blocks.OAK_DOOR)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -729,7 +729,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_CHEST = BLOCKS.registerBlock(
             "overgrown_chest",
             com.yayuy.overgrownvegetation.block.OvergrownChestBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.CHEST)
+            BlockBehaviour.Properties.copy(Blocks.CHEST)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -737,7 +737,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_BARREL = BLOCKS.registerBlock(
             "overgrown_barrel",
             com.yayuy.overgrownvegetation.block.OvergrownBarrelBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.BARREL)
+            BlockBehaviour.Properties.copy(Blocks.BARREL)
                     .mapColor(MapColor.COLOR_GREEN)
                     .randomTicks());
 
@@ -747,7 +747,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_PLANKS = BLOCKS.registerSimpleBlock(
             "overgrown_planks",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /*
@@ -759,28 +759,28 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> CORDAITES_PLANKS = BLOCKS.registerBlock(
             "cordaites_planks",
             com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.TERRACOTTA_GREEN));
 
     /** 封印木(sigillaria_log)の板材。絵はユーザーの仮案のまま。 */
     public static final DeferredBlock<Block> SIGILLARIA_PLANKS = BLOCKS.registerBlock(
             "sigillaria_planks",
             com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.TERRACOTTA_GREEN));
 
     /** 巨大樹の外皮(giant_overgrown_log)の板材。 */
     public static final DeferredBlock<Block> GIANT_BARK_PLANKS = BLOCKS.registerBlock(
             "giant_bark_planks",
             com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.TERRACOTTA_BROWN));
 
     /** 巨大樹の板材(形成層 giant_overgrown_cambium から)。 */
     public static final DeferredBlock<Block> GIANT_PLANKS = BLOCKS.registerBlock(
             "giant_planks",
             com.yayuy.overgrownvegetation.block.WoodPlanksBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_PLANKS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_PLANKS)
                     .mapColor(MapColor.WOOD));
 
     /**
@@ -793,7 +793,7 @@ public final class ModBlocks {
             // baseState は足音/ブロック破壊パーティクルの参照用なので、
             // 自分自身の登録順に依存しないよう既存のバニラブロックを渡す。
             properties -> new StairBlock(Blocks.OAK_PLANKS.defaultBlockState(), properties),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_STAIRS)
+            BlockBehaviour.Properties.copy(Blocks.OAK_STAIRS)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -803,7 +803,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_SLAB = BLOCKS.registerBlock(
             "overgrown_slab",
             SlabBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_SLAB)
+            BlockBehaviour.Properties.copy(Blocks.OAK_SLAB)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -813,7 +813,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_STONE_STAIRS = BLOCKS.registerBlock(
             "overgrown_stone_stairs",
             properties -> new StairBlock(Blocks.COBBLESTONE.defaultBlockState(), properties),
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COBBLESTONE_STAIRS)
+            BlockBehaviour.Properties.copy(Blocks.COBBLESTONE_STAIRS)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -827,7 +827,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_FENCE = BLOCKS.registerBlock(
             "overgrown_fence",
             FenceBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.OAK_FENCE)
+            BlockBehaviour.Properties.copy(Blocks.OAK_FENCE)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /**
@@ -839,7 +839,7 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> OVERGROWN_WALL = BLOCKS.registerBlock(
             "overgrown_wall",
             WallBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.COBBLESTONE_WALL)
+            BlockBehaviour.Properties.copy(Blocks.COBBLESTONE_WALL)
                     .mapColor(MapColor.COLOR_GREEN));
 
     /** 草・花などの薄い植物 → 汚染された下草(当たり判定なし)。 */
@@ -885,7 +885,7 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> OVERGROWN_BLOCK = BLOCKS.registerSimpleBlock(
             "overgrown_block",
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+            BlockBehaviour.Properties.copy(Blocks.STONE)
                     .mapColor(MapColor.COLOR_GREEN)
                     .strength(1.5F, 6.0F));
 
@@ -895,7 +895,7 @@ public final class ModBlocks {
      * 性質は過繁茂しているブロックの写しなので、その登録より後ろに置く。2026-10-30 に退避した covered/CoveredBlocks から移した。
      */
     public static final DeferredBlock<Block> OVERGROWN_TRUNK_BLOCK = BLOCKS.register("overgrown_trunk_block",
-            () -> new com.yayuy.overgrownvegetation.block.OvergrownTrunkBlock(BlockBehaviour.Properties.ofFullCopy(OVERGROWN_BLOCK.get())));
+            () -> new com.yayuy.overgrownvegetation.block.OvergrownTrunkBlock(BlockBehaviour.Properties.copy(OVERGROWN_BLOCK.get())));
 
     /**
      * 火の消えた松明(2026-10-05、{@link com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock})。汚染が松明に届くとこれになる。
@@ -903,16 +903,16 @@ public final class ModBlocks {
      */
     public static final DeferredBlock<Block> EXTINGUISHED_TORCH = BLOCKS.register("extinguished_torch",
             () -> new com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock(
-                    BlockBehaviour.Properties.ofFullCopy(Blocks.TORCH).lightLevel(state -> 0)));
+                    BlockBehaviour.Properties.copy(Blocks.TORCH).lightLevel(state -> 0)));
     public static final DeferredBlock<Block> EXTINGUISHED_WALL_TORCH = BLOCKS.register("extinguished_wall_torch",
             () -> new com.yayuy.overgrownvegetation.block.ExtinguishedTorchBlock.Wall(
-                    BlockBehaviour.Properties.ofFullCopy(Blocks.WALL_TORCH).lightLevel(state -> 0)));
+                    BlockBehaviour.Properties.copy(Blocks.WALL_TORCH).lightLevel(state -> 0)));
 
     /** 過繁茂しているブロックのハーフブロック(2026-10-05、ユーザー要望)。硬さ・道具は過繁茂しているブロックと同じ。 */
     public static final DeferredBlock<Block> OVERGROWN_BLOCK_SLAB = BLOCKS.registerBlock(
             "overgrown_block_slab",
             SlabBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.STONE_SLAB)
+            BlockBehaviour.Properties.copy(Blocks.STONE_SLAB)
                     .mapColor(MapColor.COLOR_GREEN)
                     .strength(1.5F, 6.0F));
 
@@ -1306,14 +1306,14 @@ public final class ModBlocks {
     /** 光るツタの先端(下へ成長する。{@code BERRIES=true} で光量14)。 */
     public static final DeferredBlock<Block> OVERGROWN_GLOW_VINES = BLOCKS.registerBlock(
             "overgrown_glow_vines", OvergrownGlowVinesBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.CAVE_VINES)
+            BlockBehaviour.Properties.copy(Blocks.CAVE_VINES)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel(OvergrownGlowVines.emission(14)));
 
     /** 光るツタの本体(先端が下へ進んだあとに残る部分)。 */
     public static final DeferredBlock<Block> OVERGROWN_GLOW_VINES_PLANT = BLOCKS.registerBlock(
             "overgrown_glow_vines_plant", OvergrownGlowVinesPlantBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.CAVE_VINES_PLANT)
+            BlockBehaviour.Properties.copy(Blocks.CAVE_VINES_PLANT)
                     .mapColor(MapColor.COLOR_GREEN)
                     .lightLevel(OvergrownGlowVines.emission(14)));
 
@@ -1534,7 +1534,7 @@ public final class ModBlocks {
     // 隙間だらけのこのブロック越しに地形が透けて見えてしまう。全種族に付けておく。
     // ------------------------------------------------------------------
 
-    private static final BlockBehaviour.Properties CORPSE_PROPERTIES = BlockBehaviour.Properties.ofFullCopy(Blocks.STONE)
+    private static final BlockBehaviour.Properties CORPSE_PROPERTIES = BlockBehaviour.Properties.copy(Blocks.STONE)
             .mapColor(MapColor.COLOR_PURPLE)
             .strength(1.5F, 6.0F)
             .sound(SoundType.MOSS)

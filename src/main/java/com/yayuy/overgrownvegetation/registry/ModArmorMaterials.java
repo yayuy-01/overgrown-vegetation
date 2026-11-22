@@ -13,6 +13,8 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 
 import java.util.EnumMap;
 import java.util.List;
+import com.yayuy.overgrownvegetation.port.item.OvArmorMaterial;
+import com.yayuy.overgrownvegetation.port.registries.NeoForgeRegistries;
 
 /**
  * MOD の防具素材。2026-11-04 に<b>防護マスクだけ</b>で戻した(10-30 に退避した前の版
@@ -22,7 +24,7 @@ import java.util.List;
 public final class ModArmorMaterials {
 
     public static final DeferredRegister<ArmorMaterial> ARMOR_MATERIALS =
-            DeferredRegister.create(Registries.ARMOR_MATERIAL, OvergrownVegetation.MODID);
+            DeferredRegister.create(NeoForgeRegistries.Keys.ARMOR_MATERIAL, OvergrownVegetation.MODID);
 
     /**
      * 「防護マスク」({@link com.yayuy.overgrownvegetation.item.ProtectiveMaskItem})専用。数値は前の gear.json の
@@ -35,8 +37,8 @@ public final class ModArmorMaterials {
                 for (ArmorItem.Type type : ArmorItem.Type.values()) {
                     defense.put(type, type == ArmorItem.Type.HELMET ? 1 : 0);
                 }
-                return new ArmorMaterial(defense, 10, SoundEvents.ARMOR_EQUIP_LEATHER, () -> Ingredient.of(Items.LEATHER),
-                        List.of(new ArmorMaterial.Layer(OvergrownVegetation.id("protective_mask"))), 0.0F, 0.0F);
+                return new OvArmorMaterial(defense, 10, SoundEvents.ARMOR_EQUIP_LEATHER, () -> Ingredient.of(Items.LEATHER),
+                        List.of(new OvArmorMaterial.Layer(OvergrownVegetation.id("protective_mask"))), 0.0F, 0.0F);
             });
 
     public static void register(IEventBus modBus) {

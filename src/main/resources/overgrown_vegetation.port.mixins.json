@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.yayuy.overgrownvegetation.port.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "overgrown_vegetation.refmap.json",
+  "mixins": [
+    "LivingEntityPortMixin",
+    "ServerLevelEntityTickMixin"
+  ],
+  "client": [
+    "ClientLevelEntityTickMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

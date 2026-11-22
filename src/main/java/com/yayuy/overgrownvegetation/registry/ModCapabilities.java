@@ -3,8 +3,8 @@ package com.yayuy.overgrownvegetation.registry;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import com.yayuy.overgrownvegetation.port.capabilities.Capabilities;
+import com.yayuy.overgrownvegetation.port.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.items.wrapper.InvWrapper;
 
 /**

@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 竹馬型の Mob の登録(2026-11-10。1 体目はフィロセンスの竹馬の体)。共有の登録クラス(ModEntities・ModItems・ModEvents)は並行するセッションが
@@ -31,7 +32,7 @@ public final class ModStilt {
 
     /** 竹馬の体(内部用。11-14 まではこれが {@code phyllosens} だった)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<StiltPhyllosensEntity>> PHYLLOSENS_STILT =
-            ModEntities.ENTITY_TYPES.register(StiltPhyllosensEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(StiltPhyllosensEntity.ID, () -> OvEntityType.Builder
                     .<StiltPhyllosensEntity>of(StiltPhyllosensEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(StiltPhyllosensEntity.ID, 1.5F), MobStats.height(StiltPhyllosensEntity.ID, 1.5F))
                     .clientTrackingRange(10)

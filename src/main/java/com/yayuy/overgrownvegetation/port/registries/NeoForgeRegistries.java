@@ -22,6 +22,10 @@ public final class NeoForgeRegistries {
         public static final ResourceKey<Registry<AttachmentType<?>>> ATTACHMENT_TYPES =
                 ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath("overgrown_vegetation", "port_attachment_types"));
 
+        /** バニラ 1.20.5 の {@code Registries.ARMOR_MATERIAL} の代わり(1.20.1 の防具の素材は登録簿に載らない)。 */
+        public static final ResourceKey<Registry<net.minecraft.world.item.ArmorMaterial>> ARMOR_MATERIAL =
+                ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath("overgrown_vegetation", "port_armor_materials"));
+
         /** バニラ 1.20.5 の {@code Registries.DATA_COMPONENT_TYPE} の代わり。 */
         public static final ResourceKey<Registry<DataComponentType<?>>> DATA_COMPONENT_TYPE =
                 ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath("overgrown_vegetation", "port_data_component_types"));

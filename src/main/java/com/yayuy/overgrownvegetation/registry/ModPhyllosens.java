@@ -15,6 +15,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredSpawnEggItem;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * 監視塔フィロセンス(G4「森の目」、2026-11-14 に竹馬型から作り直し)の登録。共有の登録クラスは並行するセッションが触るので、
@@ -33,7 +34,7 @@ public final class ModPhyllosens {
     }
 
     public static final DeferredHolder<EntityType<?>, EntityType<PhyllosensEntity>> PHYLLOSENS =
-            ModEntities.ENTITY_TYPES.register(PhyllosensEntity.ID, () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register(PhyllosensEntity.ID, () -> OvEntityType.Builder
                     .<PhyllosensEntity>of(PhyllosensEntity::new, MobCategory.MONSTER)
                     .sized(MobStats.width(PhyllosensEntity.ID, 2.6F), MobStats.height(PhyllosensEntity.ID, 13.0F))
                     .clientTrackingRange(12)

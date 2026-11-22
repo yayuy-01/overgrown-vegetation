@@ -30,6 +30,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredItem;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import com.yayuy.overgrownvegetation.port.entity.OvEntityType;
 
 /**
  * G1 段階 0(作り直し 2 回目、2026-11-08)の登録をまとめた所: 種ごとの死体ブロック・死体のブロックエンティティ・G1 の Mob・スポーンエッグ・属性。
@@ -85,7 +86,7 @@ public final class ModG1 {
     private static <T extends AbstractParasitizedMonster> DeferredHolder<EntityType<?>, EntityType<T>> entity(
             G1Species s, EntityType.EntityFactory<T> factory, float width, float height, Supplier<AttributeSupplier.Builder> attributes) {
         String id = s.entityId();
-        DeferredHolder<EntityType<?>, EntityType<T>> holder = ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+        DeferredHolder<EntityType<?>, EntityType<T>> holder = ModEntities.ENTITY_TYPES.register(id, () -> OvEntityType.Builder
                 .of(factory, MobCategory.MONSTER)
                 .sized(MobStats.width(id, width), MobStats.height(id, height))
                 .spawnDimensionsScale(MobStats.spawnScale(id))
@@ -183,7 +184,7 @@ public final class ModG1 {
     static {
         for (G1Developed d : G1Developed.values()) {
             String id = d.id();
-            DeferredHolder<EntityType<?>, EntityType<DevelopedParasitized>> holder = ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+            DeferredHolder<EntityType<?>, EntityType<DevelopedParasitized>> holder = ModEntities.ENTITY_TYPES.register(id, () -> OvEntityType.Builder
                     .of(DevelopedParasitized::new, MobCategory.MONSTER)
                     .sized(MobStats.width(id, d.width), MobStats.height(id, d.height))
                     .spawnDimensionsScale(MobStats.spawnScale(id))
@@ -200,7 +201,7 @@ public final class ModG1 {
      * {@link com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud}。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud>> SPORE_CLOUD =
-            ModEntities.ENTITY_TYPES.register("g1_spore_cloud", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_spore_cloud", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
                     .noSummon()
@@ -211,7 +212,7 @@ public final class ModG1 {
 
     /** G1 が投げる胞子の塊(2026-11-13、村人の 1 段目の「胞子を配る」)。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeLump}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeLump>> SPORE_LUMP =
-            ModEntities.ENTITY_TYPES.register("g1_spore_lump", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_spore_lump", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeLump>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeLump::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)
                     .noSummon()
@@ -222,7 +223,7 @@ public final class ModG1 {
     // ------------------------------------------------------------------ 能力の第 2 回(2026-11-13: 牛・羊・鶏)
     /** 胞子の乳だまり(牛の 1 段目の (b)。地面に貼り付いた平たい円)。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle>> MILK_PUDDLE =
-            ModEntities.ENTITY_TYPES.register("g1_milk_puddle", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_milk_puddle", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle::new, MobCategory.MISC)
                     .sized(2.4F, 0.1F)
                     .noSummon()
@@ -251,7 +252,7 @@ public final class ModG1 {
     // ------------------------------------------------------------------ 能力の第 3 回(2026-11-13: クリーパー・スケルトン)
     /** 地面に落ちた熟した莢(クリーパーの 1 段目の (c)。10 秒で膨らんで割れる・叩けば潰れる)。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1SeedPod}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1SeedPod>> SEED_POD =
-            ModEntities.ENTITY_TYPES.register("g1_seed_pod", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_seed_pod", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1SeedPod>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1SeedPod::new, MobCategory.MISC)
                     .sized(0.4F, 0.45F)
                     .clientTrackingRange(6)
@@ -260,7 +261,7 @@ public final class ModG1 {
 
     /** 植物の弓が射る胞子の塊(スケルトンの 1 段目の (b))。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt>> SPORE_BOLT =
-            ModEntities.ENTITY_TYPES.register("g1_spore_bolt", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_spore_bolt", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)
                     .noSummon()
@@ -288,7 +289,7 @@ public final class ModG1 {
 
     /** クモの 1 段目が吐く根糸の束(弾)。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1RootsilkBolt}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1RootsilkBolt>> ROOTSILK_BOLT =
-            ModEntities.ENTITY_TYPES.register("g1_rootsilk_bolt", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_rootsilk_bolt", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1RootsilkBolt>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1RootsilkBolt::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)
                     .noSummon()
@@ -298,7 +299,7 @@ public final class ModG1 {
 
     /** エンダーマンの 1 段目の (c-2) で汚染した地面から突き上がる根(見た目だけの短命の実体)。{@link com.yayuy.overgrownvegetation.entity.g1.skill.G1RootSpike}。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.g1.skill.G1RootSpike>> ROOT_SPIKE =
-            ModEntities.ENTITY_TYPES.register("g1_root_spike", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("g1_root_spike", () -> OvEntityType.Builder
                     .<com.yayuy.overgrownvegetation.entity.g1.skill.G1RootSpike>of(com.yayuy.overgrownvegetation.entity.g1.skill.G1RootSpike::new, MobCategory.MISC)
                     .sized(0.4F, 1.4F)
                     .noSave()
@@ -327,7 +328,7 @@ public final class ModG1 {
         for (com.yayuy.overgrownvegetation.entity.g1.G1Rooted r : com.yayuy.overgrownvegetation.entity.g1.G1Rooted.values()) {
             String id = r.id();
             DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootedParasitized>> holder =
-                    ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+                    ModEntities.ENTITY_TYPES.register(id, () -> OvEntityType.Builder
                             .of(com.yayuy.overgrownvegetation.entity.RootedParasitized::new, MobCategory.MONSTER)
                             .sized(MobStats.width(id, r.width), MobStats.height(id, r.height))
                             .clientTrackingRange(10)
@@ -354,7 +355,7 @@ public final class ModG1 {
         for (com.yayuy.overgrownvegetation.entity.g1.G1Nursery n : com.yayuy.overgrownvegetation.entity.g1.G1Nursery.values()) {
             String id = n.id();
             DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.NurseryParasitized>> holder =
-                    ModEntities.ENTITY_TYPES.register(id, () -> EntityType.Builder
+                    ModEntities.ENTITY_TYPES.register(id, () -> OvEntityType.Builder
                             .of(com.yayuy.overgrownvegetation.entity.NurseryParasitized::new, MobCategory.MONSTER)
                             .sized(MobStats.width(id, n.width), MobStats.height(id, n.height))
                             .clientTrackingRange(8)
@@ -373,7 +374,7 @@ public final class ModG1 {
 
     /** 根の守り手(根付きの村人が育てる根のゴーレム。2026-11-13)。素材 g1_root_guardian。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.RootGuardian>> ROOT_GUARDIAN =
-            ModEntities.ENTITY_TYPES.register("root_guardian", () -> EntityType.Builder
+            ModEntities.ENTITY_TYPES.register("root_guardian", () -> OvEntityType.Builder
                     .of(com.yayuy.overgrownvegetation.entity.RootGuardian::new, MobCategory.MONSTER)
                     .sized(MobStats.width("root_guardian", 1.3F), MobStats.height("root_guardian", 1.9F))
                     .clientTrackingRange(8)
