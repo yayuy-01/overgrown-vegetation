@@ -1,38 +1,23 @@
 package com.yayuy.overgrownvegetation;
 
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.registry.ModArmorMaterials;
-import com.yayuy.overgrownvegetation.registry.ModAttachments;
-import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
-import com.yayuy.overgrownvegetation.registry.ModBlocks;
-import com.yayuy.overgrownvegetation.registry.ModCreativeTabs;
-import com.yayuy.overgrownvegetation.registry.ModDataComponents;
-import com.yayuy.overgrownvegetation.registry.ModEntities;
-import com.yayuy.overgrownvegetation.registry.ModFeatures;
-import com.yayuy.overgrownvegetation.registry.ModItems;
-import com.yayuy.overgrownvegetation.registry.ModMenus;
-import com.yayuy.overgrownvegetation.registry.ModMobEffects;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
-import com.yayuy.overgrownvegetation.registry.ModRecipes;
-import com.yayuy.overgrownvegetation.registry.ModSounds;
-import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * OvergrownVegetation — 寄生植物が世界を侵食していく MOD。
+ * OvergrownVegetation — 寄生植物が世界を侵食していく MOD(Forge 1.20.1 版)。
  *
- * <p>第一段階の内容:
+ * <p>2026-10-10 時点では土台だけ(起動してタイトル画面まで行くことの確認用)。
+ * 登録は 1.21.1 版の同じクラス(DesignData.load → ShapedRecipePattern の 5×5 → ModBlocks … ModDataComponents → config)の順に、
+ * 移植したものから足していく。1.20.1 での主な読み替え:
  * <ul>
- *     <li>{@code blight_fern} — 巨大シダの寄生植物 Mob。侵食の起点になる。</li>
- *     <li>周囲を球状にスキャンして、露出面のあるブロック → 内部のブロックの順に汚染ブロックへ置き換える。</li>
- *     <li>元ブロックに対応する汚染ブロックが無い場合は汎用の「汚染されたブロック」に置き換える。</li>
+ *     <li>{@code ModAttachments}(NeoForge の attachment)→ Forge の Capability</li>
+ *     <li>{@code ModDataComponents} → アイテムの NBT(1.20.5 より前はデータコンポーネントが無い)</li>
+ *     <li>{@code ShapedRecipePattern.setCraftingSize(5, 5)} → {@code ShapedRecipe.setCraftingSize(5, 5)}(Forge が足したもの)</li>
+ *     <li>{@code container.registerConfig} → {@code ModLoadingContext.get().registerConfig}</li>
  * </ul>
  */
 @Mod(OvergrownVegetation.MODID)
@@ -41,36 +26,14 @@ public class OvergrownVegetation {
     public static final String MODID = "overgrown_vegetation";
     public static final Logger LOGGER = LoggerFactory.getLogger("OvergrownVegetation");
 
-    public OvergrownVegetation(IEventBus modBus, ModContainer container) {
-        // 設計データ(Mob ステータス・捕食表・フェーズ・デバフ)を最初に読む。
-        // エンティティ登録・EntityAttributeCreationEvent・MobEffect 生成より前に走る必要がある。
-        DesignData.load();
+    public OvergrownVegetation(FMLJavaModLoadingContext context) {
+        IEventBus modBus = context.getModEventBus();
 
-        // 研究台の 5×5 作業台レシピ({@link com.yayuy.overgrownvegetation.crafting.SizedCraftingRecipe})を
-        // ロードできるよう、定形レシピパターンの上限を 5×5 に広げる(バニラの作業台は 3×3 のまま)。
-        ShapedRecipePattern.setCraftingSize(5, 5);
-
-        ModBlocks.register(modBus);
-        ModBlockEntities.register(modBus);
-        ModArmorMaterials.register(modBus);
-        ModItems.register(modBus);
-        ModEntities.register(modBus);
-        ModFeatures.register(modBus);
-        ModCreativeTabs.register(modBus);
-        ModMobEffects.register(modBus);
-        ModMenus.register(modBus);
-        ModRecipes.register(modBus);
-        ModSounds.register(modBus);
-        ModParticles.register(modBus);
-        ModAttachments.register(modBus);
-        ModDataComponents.register(modBus);
-
-        container.registerConfig(ModConfig.Type.COMMON, OvergrownVegetationConfig.SPEC);
-
-        LOGGER.info("OvergrownVegetation loaded.");
+        LOGGER.info("OvergrownVegetation (Forge 1.20.1) loaded.");
     }
 
     public static ResourceLocation id(String path) {
+        // Forge 47.4 には 1.21 の作り方が逆輸入されている(new ResourceLocation(..) は非推奨)
         return ResourceLocation.fromNamespaceAndPath(MODID, path);
     }
 }

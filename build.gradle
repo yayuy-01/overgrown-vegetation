@@ -1,23 +1,37 @@
+// Overgrown Vegetation — Forge 1.20.1 版(2026-10-10 に土台を作成)。
+// 本流は 1.21.1 NeoForge 版(../../overgrown/parasitica/parasitica)。こちらは公開のたびに本流から機能を移す。
+// ビルドは ModDevGradle の legacyforge プラグイン(Forge 1.17〜1.20.1 用。reobf と mixin の refmap を作る)。
 plugins {
     id 'java-library'
     id 'eclipse'
     id 'idea'
-    id 'net.neoforged.moddev' version '2.0.78'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.78'
 }
 
-version = mod_version
+version = "${mod_version}+${minecraft_version}"
 group = mod_group_id
 
 base {
-    archivesName = mod_id
+    archivesName = "${mod_id}-forge"
 }
 
+// 1.20.1 の遊び手は Java 17。手元に無ければ foojay(settings.gradle)が自動で取ってくる。
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
 }
 
-neoForge {
-    version = project.neo_version
+// ── 移植済みのソースだけをコンパイルする ──
+// このブランチの src/main/java には、まだ 1.21.1 のままのクラスも残っている(移植の元として同じ場所に置いてある)。
+// ported-sources.txt に書いたパス(Ant 形式。com/yayuy/... から)だけをコンパイルし、移植した分だけ増やす。
+// 全部を移し終えたら、このブロックとファイルを消す。
+def portedSources = file('ported-sources.txt').readLines('UTF-8')
+        .collect { it.trim() }
+        .findAll { it && !it.startsWith('#') }
+sourceSets.main.java.include(portedSources)
+
+legacyForge {
+    version = "${minecraft_version}-${forge_version}"
+    validateAccessTransformers = true
 
     parchment {
         mappingsVersion = project.parchment_mappings_version
@@ -32,15 +46,20 @@ neoForge {
             server()
             programArgument '--nogui'
         }
-        // GameTest(自動テスト)。src/main/java/.../gametest/ の @GameTestHolder クラスをヘッドレスサーバーで実行する。
-        //   gradlew.bat runGameTestServer
-        // 結果は run/gametest 以下ではなくコンソール(失敗なら非 0 で終了)。
+        // GameTest(自動テスト)。gradlew.bat runGameTestServer
         gameTestServer {
             type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+        // Claude が自分で起動して確かめる用のクライアント。ゲームフォルダは runs/claude。
+        claudeClient {
+            client()
+            gameDirectory = project.file('runs/claude')
+            systemProperty 'ov.devbridge', 'true'
+            programArguments.addAll('--width', '1280', '--height', '720')
         }
         configureEach {
-            systemProperty 'forge.logging.markers', ''
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
             logLevel = org.slf4j.event.Level.DEBUG
         }
     }
@@ -52,15 +71,16 @@ neoForge {
     }
 }
 
+// Mixin: 1.20.1 の Forge は実行時の名前が SRG なので、refmap を作って jar に入れる。
+mixin {
+    // 【最初の mixin を移したら戻す】mixin が 1 つも無いと注釈処理が refmap の対応表(build/mixin/*.mappings.tsrg)を作らず、
+    // それを読みにいく reobfJar が落ちる(2026-10-10 に確認)。今は mixins.json が空なので外してある。
+    // add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
 repositories {
     mavenLocal()
-    maven {
-        name = "RedlanceMinecraft" // PAL (Player Animation Library)
-        url = "https://repo.redlance.org/public"
-        content {
-            includeGroupByRegex('com\\.zigythebird.*')
-        }
-    }
     maven {
         name = 'GeckoLib'
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
@@ -69,46 +89,69 @@ repositories {
             includeGroup('com.eliotlash.mclib')
         }
     }
-}
-
-// structure-grammar エンジンのゴールデンテスト(tools/structure-grammar/SPEC.md §9)専用の
-// 隔離クラスパス。エンジン中核(worldgen.grammar.*)は Minecraft 非依存なので、FML を起動する
-// moddev の test 統合ではなく素の JavaExec で回す。
-configurations {
-    grammarTest
+    maven {
+        name = 'KosmX' // playerAnimator
+        url = 'https://maven.kosmx.dev/'
+        content {
+            includeGroup('dev.kosmx.player-anim')
+        }
+    }
 }
 
 dependencies {
-    // Blockbench製モデル/アニメーションを読み込むための GeckoLib
-    implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
-    // プレイヤーの体を動かすアニメ(寄生植物装備の儀式)用の PAL
-    // transitive = false が必須: PAL の POM は Minecraft より新しい netty / fastutil / slf4j を要求していて、
-    // そのままだと runtimeClasspath の解決に失敗して runClient が起動できない(2026-09-18 に実際に起きた)。
-    // 必要なもの(Core / mochafloats / javassist)は PAL の jar に同梱(jar-in-jar)されているので切ってよい。
-    implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${pal_version}") {
-        transitive = false
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // mod の依存は SRG の名前で配られているので、mod〜 の構成で開発用の名前に直して読む(推移的には引かない)
+    modImplementation "software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}"
+    // プレイヤーの体を動かすアニメ(寄生植物装備の儀式)。1.21.1 版の PAL の代わり
+    modImplementation "dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}"
+}
+
+// ── 素材を本流(1.21.1)から写す ──
+// 絵・モデル・アニメ・音は git の外(.gitignore)なので、このブランチには入っていない。
+// 公開のための移植のときに、その時点の本流の素材を写す(写した後は本流を変えてもここは変わらない)。
+//   gradlew.bat syncAssetsFrom121
+// 素材のフォルダがまだ無いときだけは、ビルドの前に自動で写す。
+def assetDirs = ['textures', 'models', 'geo', 'animations', 'player_animations', 'sounds']
+def assetsHere = 'src/main/resources/assets/overgrown_vegetation'
+def syncAssets = tasks.register('syncAssetsFrom121', Sync) {
+    group = 'overgrown'
+    description = '本流(1.21.1)の素材フォルダ 6 つを、このブランチの assets へ写す'
+    from(file("${ov121_dir}/src/main/resources/assets/overgrown_vegetation")) {
+        include assetDirs.collect { "${it}/**" }
+    }
+    into file(assetsHere)
+    // 6 つのフォルダの外(blockstates・lang など git で追跡しているもの)は消さない
+    preserve {
+        include '**'
+        exclude assetDirs.collect { "${it}/**" }
+    }
+    onlyIf { !file("${assetsHere}/textures").exists() || gradle.startParameter.taskNames.any { it.endsWith('syncAssetsFrom121') } }
+}
+tasks.named('processResources', ProcessResources) {
+    dependsOn syncAssets
+
+    // META-INF/mods.toml の版などを gradle.properties から埋める
+    def props = [
+            mod_id               : mod_id,
+            mod_name             : mod_name,
+            mod_license          : mod_license,
+            mod_version          : mod_version,
+            mod_authors          : mod_authors,
+            mod_description      : mod_description,
+            minecraft_version_range: minecraft_version_range,
+            forge_version_range  : forge_version_range,
+            loader_version_range : loader_version_range,
+    ]
+    inputs.properties props
+    filesMatching('META-INF/mods.toml') {
+        expand props
     }
 
-    grammarTest 'com.google.code.gson:gson:2.10.1' // Minecraft 1.21.1 と同じ版
+    // data/ は 1.21.1 の書き方のまま(フォルダ名が単数形・レシピの result など)。
+    // 1.20.1 の書き方へ直したものを入れるまで、jar にも runClient にも載せない。
+    exclude 'data/**'
 }
-
-// tools/structure-grammar/fixtures/p1-baseline.json の SHA-256 に Java エンジンを一致させる。
-// 実行: ./gradlew grammarGoldenTest
-tasks.register('grammarGoldenTest', JavaExec) {
-    group = 'verification'
-    description = 'structure-grammar: ブラウザ側 P1 fixtures と Java エンジンの出力を照合'
-    dependsOn 'compileJava'
-    mainClass = 'com.yayuy.overgrownvegetation.worldgen.grammar.GrammarGoldenMain'
-    classpath = files(
-            sourceSets.main.output.classesDirs,
-            configurations.grammarTest
-    )
-    workingDir = projectDir
-    // fixtures/examples は tools/structure-grammar (ローカル専用、公開リポジトリには含めない) にある。
-    // 無い環境では check が落ちないようスキップする。
-    onlyIf { file('tools/structure-grammar').exists() }
-}
-check.dependsOn 'grammarGoldenTest'
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -119,6 +162,10 @@ tasks.withType(Javadoc).configureEach {
 }
 
 tasks.named('jar', Jar).configure {
+    // GameTest と Claude 用の操作口は開発用なので配布 jar から外す(1.21.1 版と同じ)
+    exclude 'com/yayuy/overgrownvegetation/gametest/**'
+    exclude 'data/overgrown_vegetation/structures/gametest_*'
+    exclude 'com/yayuy/overgrownvegetation/devbridge/**'
     manifest {
         attributes([
                 'Specification-Title'     : mod_id,
@@ -126,7 +173,9 @@ tasks.named('jar', Jar).configure {
                 'Specification-Version'   : '1',
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors
+                'Implementation-Vendor'   : mod_authors,
+                // 1.20.1 の Forge は mods.toml の [[mixins]] を読まない。jar の manifest で知らせる
+                'MixinConfigs'            : "${mod_id}.mixins.json"
         ])
     }
 }

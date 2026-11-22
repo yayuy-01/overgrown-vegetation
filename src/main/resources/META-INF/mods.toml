@@ -1,0 +1,46 @@
+# Forge 1.20.1 用(1.21.1 版は neoforge.mods.toml)。ドル記号と波かっこの所は build.gradle の processResources が gradle.properties から埋める
+# (Groovy のテンプレートなので、コメントの中でもドル記号を書くと式として読まれて落ちる)。
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "${mod_license}"
+issueTrackerURL = "https://github.com/yayuy-01/overgrown-vegetation/issues"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}"
+displayName = "${mod_name}"
+authors = "${mod_authors}"
+description = '''
+${mod_description}
+'''
+
+# 1.20.1 の Forge は [[mixins]] を読まない(mixin の設定は jar の manifest の MixinConfigs で渡す)。
+
+[[dependencies.${mod_id}]]
+modId = "forge"
+mandatory = true
+versionRange = "${forge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "geckolib"
+mandatory = true
+versionRange = "[4.8,)"
+ordering = "AFTER"
+side = "BOTH"
+
+# 1.21.1 版の PAL の代わり。儀式のアニメを移植するまでは使わないが、移植後に要るので今から必須にしておく
+[[dependencies.${mod_id}]]
+modId = "playeranimator"
+mandatory = true
+versionRange = "[1.0.2-rc1,)"
+ordering = "AFTER"
+side = "BOTH"
