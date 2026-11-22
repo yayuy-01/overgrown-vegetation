@@ -9,7 +9,7 @@ import com.yayuy.overgrownvegetation.port.registries.DeferredRegister;
 import com.yayuy.overgrownvegetation.port.registries.NeoForgeRegistries;
 
 /**
- * エンティティに付随させる一時データ({@link net.neoforged.neoforge.attachment.IAttachmentHolder}経由)。
+ * エンティティに付随させる一時データ(1.20.1 では互換の層 {@link com.yayuy.overgrownvegetation.port.attachment.OvAttach} 経由。本流は NeoForge の IAttachmentHolder)。
  */
 public final class ModAttachments {
 
