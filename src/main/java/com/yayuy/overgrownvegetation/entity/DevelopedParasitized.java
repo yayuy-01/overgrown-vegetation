@@ -1771,7 +1771,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     // 【1.20.1】1.20.5 の getPassengerAttachmentPoint の代わりに、乗り手の高さ(getPassengersRidingOffset)を変える
     @Override
     public double getPassengersRidingOffset() {
-        return dev() == G1Developed.PIG ? PIG_BACK_HEIGHT : super.getPassengersRidingOffset();
+        return dev() == G1Developed.PIG ? PIG_BACK_HEIGHT : this.getBbHeight();   // 1.20.5 の既定は箱の天辺(1.20.1 の既定は 0.75 倍)
     }
 
     /** 乗り手(小さな G1)に豚を操らせない(豚の AI が運ぶ)。 */
