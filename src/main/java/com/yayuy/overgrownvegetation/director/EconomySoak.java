@@ -358,7 +358,7 @@ public final class EconomySoak {
 
     private static String storageStats(ServerLevel level) {
         var t = DesignData.director();
-        double hives = PhaseData.get(level).livingGiantTreeCount(); // 11-22: 生きている巨大樹 = ハイヴノード
+        double hives = com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level); // 11-22: 生きている巨大樹 = ハイヴノード
         double sacs = com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
         var organs = com.yayuy.overgrownvegetation.organ.ForestOrgans.get(level);
         int sacBig = organs.livingCount(com.yayuy.overgrownvegetation.organ.OrganKind.SAC, false), sacSmall = organs.livingCount(com.yayuy.overgrownvegetation.organ.OrganKind.SAC, true);

@@ -13,7 +13,7 @@ public final class FrontTable {
         public Double unitSpeed, mountainSpeedFactor;
         public Integer unitMin;
         public int[] unitMaxByPhase;
-        public Double producePerFrontPerSecond, reserveIncomeDays, unitTargetPerChunk;
+        public Double producePerFrontPerSecond, reserveIncomeDays, reserveCapMaxShare, unitTargetPerChunk;
         public Integer unitTargetMin;
         public Boolean frontWatchersEnabled;
         public Double frontWatcherSpacingBlocks, frontWatcherVisionBlocks;
@@ -54,6 +54,8 @@ public final class FrontTable {
     public final double producePerFrontPerSecond;
     /** 11-22 ユーザー決定: 作る・苗床・進化・根付きは「予算 − 値段 ≥ 1 日の稼ぎ × reserveIncomeDays」のときだけ(半日分を取り置く)。日数は【仮】でなくユーザー決定の 0.5。 */
     public final double reserveIncomeDays;
+    /** 11-22 全体管理２: 取り置きは上限 × これを超えない(上限が低いときの歯止め。超えると作るのも進化も止まって抜けられない)。【仮】 */
+    public final double reserveCapMaxShare;
     /** 11-22 ユーザー決定: 樹域ごとの部隊の目標の頭数 = その樹域の過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。届いた樹域は作る・苗床の補充をやめて貯める。係数は【仮】。 */
     public final double unitTargetPerChunk;
     public final int unitTargetMin;
@@ -127,6 +129,7 @@ public final class FrontTable {
                 : new int[]{10, 10, 15, 20, 25, 30, 40, 50, 50, 50, 50};
         producePerFrontPerSecond = nn(s.producePerFrontPerSecond, 0.5D);
         reserveIncomeDays = nn(s.reserveIncomeDays, 0.5D);
+        reserveCapMaxShare = Math.min(1.0D, nn(s.reserveCapMaxShare, 0.5D));
         unitTargetPerChunk = nn(s.unitTargetPerChunk, 0.2D);
         unitTargetMin = Math.max(0, s.unitTargetMin != null ? s.unitTargetMin : 50);
         frontWatchersEnabled = s.frontWatchersEnabled == null || s.frontWatchersEnabled;

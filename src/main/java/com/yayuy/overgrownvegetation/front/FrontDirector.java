@@ -283,9 +283,11 @@ public final class FrontDirector {
 
     // ---------------------------------------------------------------- 取り置きと目標の頭数(11-22 ユーザー決定)
 
-    /** 作る・苗床の補充・進化・根付きで残す予算 = 1 日の稼ぎの見積もり × reserveIncomeDays(半日分)。 */
+    /** 作る・苗床の補充・進化・根付きで残す予算 = 1 日の稼ぎの見積もり × reserveIncomeDays(半日分)。ただし上限 × reserveCapMaxShare を超えない。 */
     public static double reserve(ServerLevel level) {
-        return ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * DesignData.front().reserveIncomeDays;
+        FrontTable t = DesignData.front();
+        double byIncome = ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * t.reserveIncomeDays;
+        return Math.min(byIncome, ForestDirector.cap(level) * t.reserveCapMaxShare); // 11-22: 上限が低いときの歯止め(上限 × reserveCapMaxShare まで)
     }
 
     /** 樹域ごとの過繁茂のチャンク数(いちばん近い樹域に数える)・守る + 広げるの頭数。run が数え直す。 */

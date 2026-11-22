@@ -53,7 +53,7 @@ public final class StorageCapGameTests {
         try {
             StorageOverflow.resetForTests();
             double cap = ForestDirector.cap(level);
-            int hives = PhaseData.get(level).livingGiantTreeCount(); // 生きている巨大樹 = ハイヴノード
+            int hives = com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level); // 生きている巨大樹 = ハイヴノード
             double plain = DesignData.director().cap(hives);
             helper.assertTrue(cap + 1.0E-6D >= plain, "上限が基礎値 + ハイヴノードより小さい: " + cap + " < " + plain);
             double over = cap * 0.5D; // 150% たまっていた
@@ -83,7 +83,7 @@ public final class StorageCapGameTests {
             }
         }
         helper.assertTrue(t.limit(7, 10, false) > t.limit(7, 0, false) && t.limit(7, 10, true) > t.limit(7, 0, true), "巨大樹で上限が増えない");
-        int trees = PhaseData.get(level).livingGiantTreeCount();
+        int trees = com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level);
         int phase = com.yayuy.overgrownvegetation.director.DirectorGates.phase(level);
         double factor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
         helper.assertTrue(OrganPlanner.limit(level, true) == Math.round(t.limit(phase, trees, true) * factor), "計画の上限が表と合わない");

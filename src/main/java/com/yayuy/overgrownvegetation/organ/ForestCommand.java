@@ -137,7 +137,7 @@ public final class ForestCommand {
             }
             case SAC -> {
                 double hives = OrganWorld.sacHiveEquivalent(level);
-                double base = DesignData.director().cap(PhaseData.get(level).livingGiantTreeCount()); // 11-22: 基礎値 + 生きている巨大樹(= ハイヴノード)
+                double base = DesignData.director().cap(com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level)); // 11-22: 基礎値 + 生きている巨大樹(= ハイヴノード)
                 double add = DesignData.director().capPerHiveNode * hives;
                 String pct = base > 0.0D ? f0(100.0D * add / base) : "?";
                 return Component.translatable(K + "effect.sac", pct, f1(hives));

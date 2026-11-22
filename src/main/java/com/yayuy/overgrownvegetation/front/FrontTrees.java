@@ -187,6 +187,22 @@ public final class FrontTrees extends SavedData {
 
     // ---------------------------------------------------------------- 管理された森
 
+    /**
+     * 生きている巨大樹の数 = 置かれて倒されていない巨大樹 + 育ち切って置く待ち(読み込まれていない)の巨大樹(11-22。貯蓄の上限・器官の上限のハイヴノード。
+     * 置く待ちの巨大樹も樹域になって稼ぐので、上限でも数える。置かれた分と重ならないように数える)。
+     */
+    public static int livingTreeCount(ServerLevel level) {
+        PhaseData pd = PhaseData.get(level);
+        int n = pd.livingGiantTreeCount();
+        long[] origins = pd.giantTreeOriginSnapshot();
+        for (long k : pendingTreeKeys(level)) {
+            boolean placed = false;
+            for (long o : origins) if (o == k) { placed = true; break; }
+            if (!placed) n++;
+        }
+        return n;
+    }
+
     /** (x, z) が生きている巨大樹から treeManageBlocks 以内か(森の視界の縁はここだけ効く)。 */
     public static boolean managed(ServerLevel level, double x, double z) {
         PhaseData pd = PhaseData.get(level);

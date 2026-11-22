@@ -58,7 +58,7 @@ public final class OrganPlanner {
     public static long limit(ServerLevel level, boolean small) {
         OrganTable t = DesignData.organs();
         double countFactor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
-        int trees = com.yayuy.overgrownvegetation.phase.PhaseData.get(level).livingGiantTreeCount();
+        int trees = com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level);
         return Math.round(t.limit(DirectorGates.phase(level), trees, small) * countFactor);
     }
 

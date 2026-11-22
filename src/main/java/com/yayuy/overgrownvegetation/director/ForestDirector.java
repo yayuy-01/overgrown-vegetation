@@ -195,7 +195,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     public static double cap(ServerLevel level) {
         // 11-22 ユーザー決定: 上限 = 基礎値 + ハイヴノード × a + 蓄えの嚢(ハイヴノード sacHiveNodes 個分。11-17)× a。1 日の稼ぎには比例しない
         // ハイヴノードは「生きている巨大樹の数」で数える(仕様の「巨大樹 1 本 = ハイヴノード 1 つ」。記録されたノードは読み込まれた所でしか増えないため。11-22 全体管理了承)
-        double base = DesignData.director().cap(PhaseData.get(level).livingGiantTreeCount()
+        double base = DesignData.director().cap(com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level)
                 + com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level));
         // MOD の設定「森の予算の上限」(11-19。難易度の段で変わる)。収入の倍率は accrue で掛けるので、ここは上限の倍率だけ
         base *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestCap(level.getServer());

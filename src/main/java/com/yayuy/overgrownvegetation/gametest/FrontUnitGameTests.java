@@ -249,8 +249,9 @@ public final class FrontUnitGameTests {
             ForestEconomy.setIncomeForTests(1.0E7D);
             ForestUpkeep.setSampleForTests(0.0D, 0.0D);
             var t = DesignData.front();
-            double want = ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * t.reserveIncomeDays;
-            helper.assertTrue(Math.abs(FrontDirector.reserve(level) - want) < 1.0E-6D * Math.max(1.0D, want), "取り置きが半日分の稼ぎでない: " + FrontDirector.reserve(level) + "(欲しい " + want + ")");
+            double want = Math.min(ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * t.reserveIncomeDays,
+                    ForestDirector.cap(level) * t.reserveCapMaxShare);
+            helper.assertTrue(Math.abs(FrontDirector.reserve(level) - want) < 1.0E-6D * Math.max(1.0D, want), "取り置きが 半日分の稼ぎ・上限 × reserveCapMaxShare の小さい方でない: " + FrontDirector.reserve(level) + "(欲しい " + want + ")");
             d.setBudget(level, 1.0E12D);
             Fronts.Front f = fronts.addSourceForTests(9_000_000.5D, 9_000_000.5D);
             int chunks = 1000;
@@ -279,6 +280,31 @@ public final class FrontUnitGameTests {
             ForestEconomy.setIncomeForTests(income);
             DirectorGates.setPhaseForTests(phase);
             d.setBudget(level, budget);
+        }
+    }
+
+    /**
+     * 11-22 全体管理２: 取り置きは上限 × reserveCapMaxShare を超えない(稼ぎが上限に比べて大きくても、作るのが止まって抜けられなくならない)。
+     * 稼ぎが小さいときは半日分のまま。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void reserveNeverExceedsCap(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Double income = ForestEconomy.incomeOverride();
+        try {
+            var t = DesignData.front();
+            double cap = ForestDirector.cap(level);
+            ForestEconomy.setIncomeForTests(cap * 100.0D); // 1 日の稼ぎが上限の 100 倍
+            double r = FrontDirector.reserve(level);
+            helper.assertTrue(r <= cap * t.reserveCapMaxShare + 1.0E-6D, "取り置きが上限 × " + t.reserveCapMaxShare + " を超えた: " + r + " / 上限 " + cap);
+            helper.assertTrue(r < cap, "取り置きが上限に届いた: " + r);
+            ForestEconomy.setIncomeForTests(1200.0D); // 小さい稼ぎ: 半日分のまま
+            double small = ForestDirector.incomePerSecond(level) * com.yayuy.overgrownvegetation.data.EconomyTable.SECONDS_PER_DAY * t.reserveIncomeDays;
+            helper.assertTrue(small < cap * t.reserveCapMaxShare, "前提: 小さい稼ぎの半日分が上限の割合より小さい");
+            helper.assertTrue(Math.abs(FrontDirector.reserve(level) - small) < 1.0E-6D, "稼ぎが小さいのに半日分にならない: " + FrontDirector.reserve(level));
+            helper.succeed();
+        } finally {
+            ForestEconomy.setIncomeForTests(income);
         }
     }
 

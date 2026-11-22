@@ -8,6 +8,8 @@
   "producePerFrontPerSecond": 0.5,
   "_comment_reserveIncomeDays": "11-22 ユーザー決定「取り置き = 半日分」。作る・苗床の補充・進化・根付きは、予算 − 値段 ≥ 1 日の稼ぎの見積もり × この日数 のときだけ(上限 × 割合はやめた)。",
   "reserveIncomeDays": 0.5,
+  "_comment_reserveCapMaxShare": "11-22 全体管理２: 取り置きは 上限 × reserveCapMaxShare(0.5【仮】)を超えない。取り置きが上限を超えると、予算が取り置きより上に行けず、作る・進化・根付きが止まって抜けられなくなる(実測 D1 の 1 回目で、置く待ちの巨大樹を上限に数えていなかったために起きた)。ふだんは半日分の稼ぎのまま効き、上限が低いときだけ働く歯止め。",
+  "reserveCapMaxShare": 0.5,
   "_comment_unitTarget": "11-22 ユーザー決定「樹域ごとの部隊の目標数」。目標の頭数 = その樹域の過繁茂のチャンク数(いちばん近い樹域に数える)× unitTargetPerChunk、下限 unitTargetMin。守る + 広げるの頭数が目標に届いた樹域は、作るのと苗床の補充をやめて予算を貯める。倒されて減ったらまた作る。係数と下限は【仮】(計測 1 回目と司令塔の試算から)。",
   "unitTargetPerChunk": 0.2,
   "unitTargetMin": 50,
