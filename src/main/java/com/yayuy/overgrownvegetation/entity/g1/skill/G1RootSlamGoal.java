@@ -112,7 +112,7 @@ public class G1RootSlamGoal extends G1TechniqueGoal {
         if (cells.isEmpty()) collectCells(level);
         // 叩きつけ: 腕の先の地面
         Vec3 face = Vec3.directionFromRotation(0.0F, lockedYaw);
-        level.playSound(null, mob.getX() + face.x, mob.getY(), mob.getZ() + face.z, SoundEvents.GENERIC_BIG_FALL, SoundSource.HOSTILE, 0.8F, 0.6F); // 【1.20.1】メイスの音は無い(決定 3)。仮の音。ユーザーの決定待ち
+        level.playSound(null, mob.getX() + face.x, mob.getY(), mob.getZ() + face.z, SoundEvents.GENERIC_BIG_FALL, SoundSource.HOSTILE, 0.8F, 0.6F); // 【1.20.1】メイスの音は無い。重い着地の音にする(決定 3、11-23 ユーザー決定)
         // 当たる相手
         List<BlockPos> spikes = new ArrayList<>();
         AABB box = mob.getBoundingBox().inflate(radius() + 1.0D, 3.0D, radius() + 1.0D);
