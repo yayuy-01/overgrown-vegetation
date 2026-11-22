@@ -1,0 +1,49 @@
+{
+  "_comment": "重さを軽くする仕組みの設計値(2026-11-18 大群のための軽量化 B)。数はどれも【仮】。",
+  "aiTiers": {
+    "_comment": "AI の段階化(11-18 ユーザー決定「入れる。背中側の 2 倍は外す」)。この MOD の Mob は、いちばん近いプレイヤーからの距離で行動の選び直し(標的・逃げ先・歩く先を探す)の間隔を変える。nearBlocks までは毎回(バニラの 2 tick)、midBlocks までは midIntervalTicks、それより遠くは farIntervalTicks に 1 回。今している行動(歩く・追う・群れに付いていく)と移動は毎 tick 続く。間引かないのは、標的がいる・叩かれてから hurtGraceTicks の間・動いている群れ(CrawlerPack.inMovingPack)の Mob。入り切りは common toml の mobThinkThrottleEnabled。",
+    "nearBlocks": 24,
+    "midBlocks": 64,
+    "midIntervalTicks": 4,
+    "farIntervalTicks": 12,
+    "hurtGraceTicks": 60
+  },
+  "push": {
+    "_comment": "植物側の押し合いを間引く(11-18 朝ユーザー決定「入れる」。common toml の plantPushThinEnabled は既定 true)。植物側の Mob は自分からの押し合いを intervalTicks に 1 回探す。プレイヤー・ほかの Mob とは相手の押し合いで今までどおり離れ、植物側どうしは約 1/4 の力で軽く離れ合う。",
+    "intervalTicks": 4
+  },
+  "flowField": {
+    "_comment": "流れの地図(11-18 大群の軽量化 A。common toml の flowFieldEnabled は 11-18 ユーザー決定で既定 true)。拠点へ歩く Mob と群れの持ち場から遠い後続は、行き先ごとに 1 枚作った地図(行き先のまわり radiusBlocks の、歩ける床と行き先までの道のり)を下って歩く。地図は rebuildTicks ごとに別スレッドで作り直し、dropUnusedTicks 使われなければ捨てる。stuckTicks の間ほとんど進まなければ、その Mob は fallbackTicks の間だけ今までの経路探索に戻る。lookaheadCells は平らな所で何升先を目指すか。laneSpreadBlocks は列の幅: Mob ごとに進む向きの横へ最大これだけずらす(0 = ずらさない。列が細過ぎたら上げる)。数はどれも【仮】。",
+    "radiusBlocks": 160,
+    "rebuildTicks": 200,
+    "dropUnusedTicks": 600,
+    "stuckTicks": 40,
+    "fallbackTicks": 100,
+    "lookaheadCells": 4,
+    "laneSpreadBlocks": 0,
+    "chaseNearBlocks": 20,
+    "chaseMoveBlocks": 8,
+    "chaseRebuildTicks": 40,
+    "chaseSpecies": []
+  },
+  "virtualHorde": {
+    "_comment": "仮想の群れ(11-18 大群の軽量化 A。ユーザー決定: 遠くから来る群れは仮想で進め、読み込み範囲に入ったら本物に・0.2.0 に入れる)。読み込み範囲の外は必ず仮想。内側では、プレイヤーから materializeBlocks で本物にし(materializeIntervalTicks ごとに spawnPerRun 体まで・本物の総数は realCap まで。出し切れない分は仮想のまま待つ)、dematerializeBlocks より遠い行進中・無傷の本物は仮想へ戻す。仮想の群れは moveIntervalTicks ごとに speed(ブロック/tick)で行き先へまっすぐ進み、着いて lifeAfterArriveTicks 誰も来なければ消える。仮想の頭数は virtualCap まで。大規模レイド(11-18 ユーザー決定): raidIntervalTicks に 1 回、割合 raidShare で、拠点から raidSpawnMin〜raidSpawnMax ブロックに raidSwarmMin〜raidSwarmMax 体の群れを出して歩かせる(値段は出す時に払う。仮想は maxAlive に数えず、本物になった分を数える。襲撃が終わったら引き返して消える)。maxAlive のうち raidReserveShare は仮想の群れのために空けておき、近くに出す本物は残りの枠だけ(11-18 ユーザー決定 案 B)。G1 の段階 0 も持てる(出す襲撃はまだ無い)。64・128・300・2000・0.5・200〜320・32〜64 はユーザー了承の【仮】、ほかも【仮】。",
+    "speed": 0.12,
+    "moveIntervalTicks": 5,
+    "materializeIntervalTicks": 5,
+    "dematerializeIntervalTicks": 40,
+    "materializeBlocks": 64,
+    "dematerializeBlocks": 128,
+    "realCap": 300,
+    "spawnPerRun": 6,
+    "lifeAfterArriveTicks": 24000,
+    "virtualCap": 2000,
+    "raidIntervalTicks": 200,
+    "raidShare": 0.5,
+    "raidSwarmMin": 32,
+    "raidSwarmMax": 64,
+    "raidSpawnMin": 200,
+    "raidSpawnMax": 320,
+    "raidReserveShare": 0.5
+  }
+}

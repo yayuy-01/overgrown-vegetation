@@ -1,57 +1,94 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.effect.ParasitizedTargetGoal;
-import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import com.yayuy.overgrownvegetation.block.CorruptedCorpseBlockEntity;
+import com.yayuy.overgrownvegetation.corpse.G1Species;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Sheep;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
-import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
-import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * 「寄生された羊」— フェーズ4以降の進化型感染 Mob。敵対化しており他の Mob や
- * プレイヤーを見つけ次第攻撃する({@link ParasitizedTargetGoal} 参照。攻撃されると「胞子感染2」に感染する)。
- *
- * <p>バニラの {@link Sheep} が持つ平和的な習性(殴られて逃げる/繁殖/餌でおびき寄せられる/親について歩く)は
- * 「ゾンビなどと同じ完全な敵対 Mob」というユーザー要望に反するため全て取り除いている
- * ({@link ParasitizedTargetGoal#stripPassiveAnimalGoals}）。草を食べて毛を再生する
- * {@code eatBlockGoal} は敵対性に直接関わらない資源系の習性なので残してある。
- *
- * <p>見た目は GeckoLib 経由の専用モデル(Blockbench 製、寄生植物が生えた羊。{@link ParasitizedPig} と
- * 同じ構成)に差し替えている。モデル/アニメーション/テクスチャの実体は
- * {@code assets/overgrown_vegetation/geo/overgrown_sheep.geo.json}・
- * {@code animations/overgrown_sheep.animation.json}・
- * {@code textures/entity/overgrown_sheep.png}（モデル・テクスチャはユーザー提供の本物。
- * アニメーションはバニラの羊に準じた idle/walk を Claude が作成、体から生えたシダ
- * ({@code fern1}〜{@code fern3})には待機中に風で揺れる緩やかなスウェイを付けている）。
- * 差し替え時はこのクラスの変更は不要（アニメーション名を変える場合は下の
- * {@code IDLE_ANIM}/{@code WALK_ANIM} だけ合わせる）。
+ * 寄生された羊(G1 段階 0、2026-11-08 組み込み。仕様は Vault「G1 羊(段階 0)」)。攻撃は体当たり(少し押し返す)。寄生の中心は羊毛の中。
+ * 毛は元の羊の色(16 色)を引き継ぎ、苔でくすませる(描画は毛の層に色を掛けて重ねる、{@code client/G1WoolLayer})。
+ * 毛は刈れない(皮と根で癒着している。Monster なので鋏は効かない)。倒したときだけ覆われた羊毛が出る(ルート表)。
  */
-public class ParasitizedSheep extends Sheep implements ParasitizedMob, GeoEntity {
+public class ParasitizedSheep extends AbstractParasitizedMonster {
 
-    private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
-
-    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+    private static final EntityDataAccessor<Byte> COLOR =
+            SynchedEntityData.defineId(ParasitizedSheep.class, EntityDataSerializers.BYTE);
 
     public ParasitizedSheep(EntityType<? extends ParasitizedSheep> type, Level level) {
         super(type, level);
-        ParasitizedTargetGoal.stripPassiveAnimalGoals(this);
-        ParasitizedTargetGoal.install(this);
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 8.0D)
+                .add(Attributes.ATTACK_DAMAGE, 3.0D)
+                .add(Attributes.ATTACK_KNOCKBACK, 0.5D)
+                .add(Attributes.MOVEMENT_SPEED, 0.23D)
+                .add(Attributes.FOLLOW_RANGE, 35.0D);
     }
 
     @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "move", 5,
-                state -> state.setAndContinue(MobAnimation.isWalking(state) ? WALK_ANIM : IDLE_ANIM)));
+    public G1Species species() {
+        return G1Species.SHEEP;
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return this.geoCache;
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(COLOR, (byte) 0);
+    }
+
+    public DyeColor getColor() {
+        return DyeColor.byId(this.entityData.get(COLOR) & 15);
+    }
+
+    public void setColor(DyeColor color) {
+        this.entityData.set(COLOR, (byte) color.getId());
+    }
+
+    @Override
+    public void inheritCorpse(CorruptedCorpseBlockEntity corpse) {
+        if (corpse.woolColor() >= 0) {
+            setColor(DyeColor.byId(corpse.woolColor()));
+        }
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putByte("Color", (byte) getColor().getId());
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setColor(DyeColor.byId(tag.getByte("Color")));
+    }
+
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.SHEEP_AMBIENT;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.SHEEP_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.SHEEP_DEATH;
     }
 }

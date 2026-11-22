@@ -1,10 +1,12 @@
 {
   "variants": {
-    "half=lower": {
-      "model": "overgrown_vegetation:block/overgrown_spore_reed_bottom"
-    },
-    "half=upper": {
-      "model": "overgrown_vegetation:block/overgrown_spore_reed_top"
-    }
+    "half=lower": [
+      { "model": "overgrown_vegetation:block/overgrown_spore_reed_bottom" },
+      { "model": "overgrown_vegetation:block/overgrown_spore_reed_b_bottom" }
+    ],
+    "half=upper": [
+      { "model": "overgrown_vegetation:block/overgrown_spore_reed_top" },
+      { "model": "overgrown_vegetation:block/overgrown_spore_reed_b_top" }
+    ]
   }
 }

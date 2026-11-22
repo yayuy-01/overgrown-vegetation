@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "corner=false,facing=down": { "model": "overgrown_vegetation:block/spore_kelp_frond_rise" },
+    "corner=false,facing=up": { "model": "overgrown_vegetation:block/spore_kelp_frond_hang" },
+    "corner=false,facing=north": { "model": "overgrown_vegetation:block/spore_kelp_frond_side" },
+    "corner=false,facing=east": { "model": "overgrown_vegetation:block/spore_kelp_frond_side", "y": 90 },
+    "corner=false,facing=south": { "model": "overgrown_vegetation:block/spore_kelp_frond_side", "y": 180 },
+    "corner=false,facing=west": { "model": "overgrown_vegetation:block/spore_kelp_frond_side", "y": 270 },
+    "corner=true,facing=down": { "model": "overgrown_vegetation:block/spore_kelp_frond_rise" },
+    "corner=true,facing=up": { "model": "overgrown_vegetation:block/spore_kelp_frond_hang" },
+    "corner=true,facing=north": { "model": "overgrown_vegetation:block/spore_kelp_frond_cross" },
+    "corner=true,facing=east": { "model": "overgrown_vegetation:block/spore_kelp_frond_cross", "y": 90 },
+    "corner=true,facing=south": { "model": "overgrown_vegetation:block/spore_kelp_frond_cross", "y": 180 },
+    "corner=true,facing=west": { "model": "overgrown_vegetation:block/spore_kelp_frond_cross", "y": 270 }
+  }
+}

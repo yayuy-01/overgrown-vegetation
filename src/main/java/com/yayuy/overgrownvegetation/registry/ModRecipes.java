@@ -1,8 +1,6 @@
 package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.crafting.SapCrystalTreatmentRecipe;
-import com.yayuy.overgrownvegetation.crafting.SizedCraftingRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -23,15 +21,6 @@ public final class ModRecipes {
             DeferredRegister.create(Registries.RECIPE_SERIALIZER, OvergrownVegetation.MODID);
     public static final DeferredRegister<RecipeType<?>> TYPES =
             DeferredRegister.create(Registries.RECIPE_TYPE, OvergrownVegetation.MODID);
-
-    public static final DeferredHolder<RecipeSerializer<?>, SizedCraftingRecipe.Serializer> SIZED_CRAFTING_SERIALIZER =
-            SERIALIZERS.register("sized_crafting", SizedCraftingRecipe.Serializer::new);
-
-    public static final DeferredHolder<RecipeType<?>, RecipeType<SizedCraftingRecipe>> SIZED_CRAFTING_TYPE =
-            TYPES.register("sized_crafting", () -> RecipeType.simple(OvergrownVegetation.id("sized_crafting")));
-
-    public static final DeferredHolder<RecipeSerializer<?>, SapCrystalTreatmentRecipe.Serializer> SAP_CRYSTAL_TREATMENT_SERIALIZER =
-            SERIALIZERS.register("sap_crystal_treatment", SapCrystalTreatmentRecipe.Serializer::new);
 
     public static void register(IEventBus modBus) {
         SERIALIZERS.register(modBus);

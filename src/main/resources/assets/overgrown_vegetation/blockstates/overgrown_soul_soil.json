@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_soul_soil" },
+      { "model": "overgrown_vegetation:block/overgrown_soul_soil_2" },
+      { "model": "overgrown_vegetation:block/overgrown_soul_soil_3" }
+    ]
+  }
+}

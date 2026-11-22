@@ -42,6 +42,9 @@ import net.minecraft.world.level.block.state.BlockState;
  *       {@link GiantTreeFeature#beginSaplingGrowth()} でその判定を飛ばす
  *       (config {@code giantTreeSaplingForceGrowth} で従来どおりに戻せる)。</li>
  * </ul>
+ *
+ * <p>ただし <b>TD の侵攻の間(予告中も)は育たず</b>、苗木のまま侵攻が終わるのを待つ
+ * ({@link GiantTreeFeature#pausedByTd}。ユーザー指定 2026-09-26「TD 時のみ苗木が巨大樹にならないように」)。
  */
 public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
 
@@ -83,13 +86,19 @@ public class GiantOvergrownSaplingBlock extends CorruptedSaplingBlock {
             super.advanceTree(level, pos, state, random);
             return;
         }
+        if (GiantTreeFeature.pausedByTd(level)) {
+            // TD の侵攻の間は育たずに苗木のまま待つ(ユーザー指定 2026-09-26)。終わってからの抽選・骨粉で育つ。
+            // 育たなかった警告も出さない(理由は分かっている)。
+            return;
+        }
         GiantTreeFeature.beginSaplingGrowth();
         try {
             super.advanceTree(level, pos, state, random);
         } finally {
             GiantTreeFeature.endSaplingGrowth();
         }
-        if (level.getBlockState(pos).is(this)) {
+        // 計画を別スレッドで作っている間は苗木のまま(2026-11-18 案 A)。それは「育たなかった」ではない
+        if (level.getBlockState(pos).is(this) && !com.yayuy.overgrownvegetation.worldgen.GiantTreePlanner.inFlightAt(level, pos)) {
             OvergrownVegetation.LOGGER.warn("巨大樹の苗木 {} が育ちませんでした(苗木のまま)。"
                     + "configured_feature overgrown_vegetation:overgrown_tree_giant が読み込まれているか、"
                     + "ワールドの高さ上限までの余裕があるかを確認してください。", pos);

@@ -1,0 +1,50 @@
+{
+  "_comment": "漂流する擬態 Mob と腫れた島(2026-11-20)。値はどれも【仮・Claude】。意味は drift/DriftTable.java のコメント。",
+  "enabled": true,
+  "drift": {
+    "blocksPerWind": 0.03,
+    "windCap": 2.0,
+    "paddleSpeed": 0.06,
+    "inertia": 0.06,
+    "seekRadius": 32,
+    "seekEvery": 40,
+    "seekRingStep": 3,
+    "ignoreHomeTicks": 1200,
+    "strandedRootTicks": 60,
+    "minDepth": 10,
+    "bodyRadius": 7.5,
+    "gripReach": 11.0,
+    "revealDistance": 24.0,
+    "lifetimeDays": 4.0
+  },
+  "root": {
+    "deposit": 1.5,
+    "extraPoints": 3,
+    "extraPointReach": 6,
+    "islandMaxColumns": 900,
+    "islandScanRadius": 40
+  },
+  "swell": {
+    "growDays": 2.0,
+    "maxHeight": 14,
+    "blocksPerStep": 24,
+    "modelRadius": 8.8,
+    "minScale": 0.35,
+    "maxScale": 1.4,
+    "maxIslands": 16
+  },
+  "launch": {
+    "minPhase": 4,
+    "intervalDays": 0.5,
+    "chance": 0.6,
+    "perLaunch": 1,
+    "maxAlive": 6,
+    "scanChunks": 8,
+    "samples": 48,
+    "landRange": 192,
+    "minOpenWater": 8
+  },
+  "ferry": {
+    "seats": 6
+  }
+}

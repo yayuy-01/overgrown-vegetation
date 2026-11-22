@@ -1,0 +1,13 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:bloom_bright",
+    "samplers": [
+        { "name": "SceneTex" },
+        { "name": "SmallTex" },
+        { "name": "DepthTex" }
+    ],
+    "uniforms": [
+        { "name": "BloomA", "type": "float", "count": 4, "values": [ 0.72, 0.18, 0.10, 0.35 ] },
+        { "name": "BloomB", "type": "float", "count": 4, "values": [ 0.35, 0.60, 0.0, 0.0 ] }
+    ]
+}

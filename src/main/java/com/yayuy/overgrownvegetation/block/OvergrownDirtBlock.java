@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.block;
 
 import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.corruption.CorruptionDropSuppressor;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -53,14 +54,18 @@ public class OvergrownDirtBlock extends Block {
         if (!canBecomeGrass(level, pos)) {
             return;
         }
-        level.setBlockAndUpdate(pos, ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState());
+        // 上に取り残された植物がこの更新で壊れても、アイテムは落とさない(CorruptionDropSuppressor)
+        CorruptionDropSuppressor.run(() -> level.setBlockAndUpdate(pos, ModBlocks.OVERGROWN_GRASS_BLOCK.get().defaultBlockState()));
     }
 
     /**
      * 直接草ブロックへ変わってよいか。{@link OvergrownGrassBlock} の伝染条件
-     * (頭上が深い水中でない・最低限の明るさがある)と揃えてある。
+     * (上がふさがっていない・頭上が深い水中でない・最低限の明るさがある)と揃えてある。
      */
     private static boolean canBecomeGrass(ServerLevel level, BlockPos pos) {
+        if (!OvergrownGrassBlock.canStayGrass(level, pos)) {
+            return false; // 上がふさがっている(草ブロックが土に戻る規則と同じ判定。11-02)
+        }
         BlockPos abovePos = pos.above();
         BlockState aboveState = level.getBlockState(abovePos);
         if (aboveState.getFluidState().getAmount() >= 8) {

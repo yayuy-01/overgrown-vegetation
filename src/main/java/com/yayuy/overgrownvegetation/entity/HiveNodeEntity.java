@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.entity;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
+import com.yayuy.overgrownvegetation.registry.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -58,23 +59,19 @@ import java.util.List;
  *   <li><b>鼓動</b> — {@code hiveNodePulseIntervalTicks}(既定 80 = 4秒)ごとに 1 回脈打ち、
  *       胞子のパーティクルと低い鼓動音を出す。<b>周囲には何の影響も与えない</b>
  *       (2026-09-19 にユーザー指定で、周囲の mob へ再生能力・攻撃力上昇を配る処理を
- *       設定 2 つごと撤去した。今後はグループ9(侵略級)の出現条件として作り直す予定)。</li>
+ *       設定 2 つごと撤去した。今後はグループ7(侵略級)の出現条件として作り直す予定)。</li>
  * </ul>
  *
  * <p>動かない(AI ゴールを一切持たない)。見た目は GeckoLib 経由で、
  * {@code geo/hive_node.geo.json} / {@code animations/hive_node.animation.json} /
  * {@code textures/entity/hive_node.png}(+ 発光用 {@code hive_node_glowmask.png})を差し替えれば
  * このクラスを触らずに作り直せる。現状のモデルは参考画像を元にした<b>仮モデル</b>
- * (球体のみ —— 吊っている蔦は実際のブロックとして広間に置かれる)。
+ * (球体のみ。2026-10-23 に巣の蔦 hive_vine を削除し、ノードは小部屋に据わって殴って倒す。体力 1000・防御 20)。
  */
 public class HiveNodeEntity extends PathfinderMob
-        implements GeoEntity, com.yayuy.overgrownvegetation.phase.ParasitizedMob {
+        implements GeoEntity {
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
-
-    /** 蔦を切られて落下したか。落ちると 99% のダメージカットが外れて倒せるようになる。 */
-    private static final EntityDataAccessor<Boolean> DATA_FALLEN =
-            SynchedEntityData.defineId(HiveNodeEntity.class, EntityDataSerializers.BOOLEAN);
 
     /**
      * 儀式のときプレイヤーがノードを見る向き(Minecraft の yaw、度)。ノード自身はその逆(+180°)を向く。
@@ -92,9 +89,6 @@ public class HiveNodeEntity extends PathfinderMob
     /** {@link PhaseData} への登録済みか(毎 tick 登録し直さないためのフラグ)。 */
     private boolean registered;
 
-    /** 湧いたときに張られた蔦の本数。生き残りの割合を出すための分母。 */
-    private int vineTotal;
-
     public HiveNodeEntity(EntityType<? extends HiveNodeEntity> type, Level level) {
         super(type, level);
         this.setPersistenceRequired();
@@ -108,13 +102,7 @@ public class HiveNodeEntity extends PathfinderMob
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_FALLEN, false);
         builder.define(DATA_RITUAL_YAW, Float.NaN);
-    }
-
-    /** 張られた蔦の本数を覚える({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeGrowthQueue} が湧かせた直後に呼ぶ)。 */
-    public void setVineTotal(int total) {
-        this.vineTotal = total;
     }
 
     /**
@@ -171,21 +159,12 @@ public class HiveNodeEntity extends PathfinderMob
         if (this.level().isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (player instanceof ServerPlayer serverPlayer && this.level() instanceof ServerLevel serverLevel
-                && HiveRitualEntity.start(serverLevel, this, serverPlayer)) {
-            return InteractionResult.CONSUME;
-        }
         return InteractionResult.PASS;
-    }
-
-    /** 蔦を切られて落ちたか。 */
-    public boolean hasFallen() {
-        return this.entityData.get(DATA_FALLEN);
     }
 
     @Override
     protected void registerGoals() {
-        // 蔦で吊られたまま動かないので AI ゴールは持たせない。
+        // 広間に据わったまま動かないので AI ゴールは持たせない。
     }
 
     @Override
@@ -268,60 +247,6 @@ public class HiveNodeEntity extends PathfinderMob
         if (this.tickCount % interval == 0) {
             pulse(serverLevel);
         }
-        if (!hasFallen() && this.tickCount % 20 == 0) {
-            checkVines(serverLevel);
-        }
-        if (hasFallen() && this.onGround()) {
-            // 落ちて地面(広間の床)に当たった —— その時点で潰れて即死する。
-            crash(serverLevel);
-        }
-    }
-
-    /**
-     * 吊っている蔦({@link HiveVineEntity})の生き残りを数え、{@code hiveNodeFallThreshold}
-     * (既定 0.7 = 7 割)を超えて切られていたら落下させる。落下すると 99% のダメージカットが
-     * 外れる({@link #hurt})ので、そこで初めて倒せるようになる。
-     */
-    private void checkVines(ServerLevel level) {
-        if (vineTotal <= 0) {
-            return;
-        }
-        double reach = OvergrownVegetationConfig.COMMON.giantTreeHiveChamberRadius.get() + 48.0D;
-        List<HiveVineEntity> vines = level.getEntitiesOfClass(HiveVineEntity.class,
-                this.getBoundingBox().inflate(reach),
-                v -> v.isAlive() && this.getUUID().equals(v.getNodeId()));
-        double cutRatio = 1.0D - (double) vines.size() / vineTotal;
-        if (cutRatio >= OvergrownVegetationConfig.COMMON.hiveNodeFallThreshold.get()) {
-            fall(level, vines);
-        }
-    }
-
-    /** 支えを失って落下する。残った蔦は引きちぎれる。 */
-    private void fall(ServerLevel level, List<HiveVineEntity> remaining) {
-        this.entityData.set(DATA_FALLEN, true);
-        this.setNoGravity(false);
-        for (HiveVineEntity vine : remaining) {
-            vine.snap(level);
-        }
-        level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.SCULK_CATALYST_BREAK, this.getSoundSource(), 2.0F, 0.5F);
-        level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
-                this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
-                120, 2.0D, 2.0D, 2.0D, 0.05D);
-    }
-
-    /**
-     * 落下して床に激突した —— 即死する。蔦を切り落として落とすことが、このノードの本来の倒し方。
-     * {@link #hurt} の 99% カットを通さずに直接 0 にするので、カットを 100% にしていても確実に死ぬ。
-     */
-    private void crash(ServerLevel level) {
-        level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
-                this.getX(), this.getY() + this.getBbHeight() * 0.4D, this.getZ(),
-                200, 2.4D, 1.2D, 2.4D, 0.08D);
-        level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.SCULK_SHRIEKER_BREAK, this.getSoundSource(), 3.0F, 0.5F);
-        this.setHealth(0.0F);
-        this.die(level.damageSources().fellOutOfWorld());
     }
 
     /**
@@ -329,17 +254,15 @@ public class HiveNodeEntity extends PathfinderMob
      *
      * <p>2026-09-19 にユーザー指定で、周囲の Mob へ再生能力・攻撃力上昇を配る処理を撤去した
      * ({@code hiveNodeBuffRadius} / {@code hiveNodeBuffDurationTicks} の 2 つの設定ごと削除)。
-     * ハイヴノードは今後<b>グループ9(侵略級)の出現条件</b>として作り直す予定で、それまでは
-     * 「巨大樹の中に居る、蔦を切って落とすと倒せる置物」として振る舞う。
-     *
-     * <p>アルボラの巣の最奥に置く<b>巣核</b>(湧いた瞬間に恒久的な強化を焼き付ける)とは別物。
+     * ハイヴノードは今後<b>グループ7(侵略級)の出現条件</b>として作り直す予定で、それまでは
+     * 「巨大樹の中に居る、殴って倒せる置物」として振る舞う(倒すとその巨大樹の胞子の生産が止まる)。
      */
     private void pulse(ServerLevel level) {
         level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
                 this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
                 40, 1.6D, 1.6D, 1.6D, 0.02D);
         level.playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.WARDEN_HEARTBEAT, this.getSoundSource(), 2.0F, 0.6F);
+                ModSounds.HIVE_NODE_PULSE.get(), this.getSoundSource(), 2.0F, 1.0F);
     }
 
     /** 緑に光っている雰囲気を出すための、球の周りに漂うパーティクル(クライアント側だけ)。 */
@@ -357,8 +280,6 @@ public class HiveNodeEntity extends PathfinderMob
     @Override
     public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putInt("vineTotal", vineTotal);
-        tag.putBoolean("fallen", hasFallen());
         if (ritualCenter != null) {
             tag.putIntArray("ritualCenter", new int[] {ritualCenter.getX(), ritualCenter.getY(), ritualCenter.getZ()});
         }
@@ -370,19 +291,36 @@ public class HiveNodeEntity extends PathfinderMob
     @Override
     public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        vineTotal = tag.getInt("vineTotal");
-        this.entityData.set(DATA_FALLEN, tag.getBoolean("fallen"));
-        this.setNoGravity(!hasFallen());
+        this.setNoGravity(true);
+        reapplyBaseStats();
         int[] rc = tag.getIntArray("ritualCenter");
         ritualCenter = rc.length == 3 ? new BlockPos(rc[0], rc[1], rc[2]) : null;
         this.entityData.set(DATA_RITUAL_YAW, tag.contains("ritualYaw") ? tag.getFloat("ritualYaw") : Float.NaN);
         lockFacing();
     }
 
-    /** 倒された = 核が壊された。強制感染ゾーンの登録を外す。 */
+    /**
+     * 2026-10-23 E1: 体力・防御は mobs.json の値(既定 体力 1000・防御 20)。属性の基本値は個体ごとにセーブされるので
+     * (memory mob-attributes-saved-per-entity)、読み込むたびに今の設計値へ置き直す(前の 体力 10000 の個体も倒せるように)。
+     */
+    private void reapplyBaseStats() {
+        AttributeSupplier fresh = createAttributes().build();
+        for (var attr : java.util.List.of(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH, net.minecraft.world.entity.ai.attributes.Attributes.ARMOR, net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS)) {
+            var inst = this.getAttribute(attr);
+            if (inst != null && fresh.hasAttribute(attr)) inst.setBaseValue(fresh.getBaseValue(attr));
+        }
+        if (this.getHealth() > this.getMaxHealth()) this.setHealth(this.getMaxHealth());
+    }
+
+    /**
+     * 倒された = 核が壊された。強制感染ゾーンの登録を外し、その巨大樹の胞子の生産を止める(2026-10-23 E2、再生なし)。
+     */
     @Override
     public void die(DamageSource source) {
         if (this.level() instanceof ServerLevel serverLevel) {
+            // 見直し ④(11-16): 先に巨大樹を止め、それからノードの記録を外す(順番を入れ替えた)
+            PhaseData.get(serverLevel).killGiantTreeNear(this.blockPosition(),
+                    com.yayuy.overgrownvegetation.data.DesignData.sporeField().giantTreeKillRadius());
             PhaseData.get(serverLevel).removeHiveNode(this.blockPosition());
             removeLight(serverLevel);
         }
@@ -403,7 +341,7 @@ public class HiveNodeEntity extends PathfinderMob
         return false;
     }
 
-    /** 吊られているので押されない・ノックバックも受けない。 */
+    /** 広間に据わっているので押されない・ノックバックも受けない。 */
     @Override
     public boolean isPushable() {
         return false;
@@ -426,12 +364,12 @@ public class HiveNodeEntity extends PathfinderMob
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.SLIME_HURT;
+        return ModSounds.HIVE_NODE_HURT.get();
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.SCULK_SHRIEKER_BREAK;
+        return ModSounds.HIVE_NODE_DEATH.get();
     }
 
     @Override
@@ -446,24 +384,14 @@ public class HiveNodeEntity extends PathfinderMob
     }
 
     /**
-     * 蔦に埋まっていても窒息しない。ハイヴノードを吊る蔦({@code buildHiveVines})は球の表面から
-     * 伸びるので、目の位置が蔦のブロックと重なって窒息ダメージが入り続けることがある。
-     * 落下・押し潰しも同様に無視する(倒せるのはプレイヤー/mob の攻撃だけ)。
+     * 壁に埋まっても窒息しない・押し潰しと落下も無視する(倒せるのはプレイヤー・Mob の攻撃だけ)。
+     * 2026-10-23 E1: 前の「99% カット・蔦を 7 割切り落として落とすと即死」はやめ、ふつうに殴って倒せる(体力 1000・防御 20)。
      */
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.CRAMMING) || source.is(DamageTypes.FALL)) {
             return false;
         }
-        // すべての攻撃を 99%(hiveNodeDamageReduction)カットする。体力 10000 と合わせて
-        // 「殴って倒すのは事実上不可能」だが、理屈のうえでは倒せる状態のまま。
-        // 本来の倒し方は蔦を 7 割切り落として落下させること(落ちた瞬間に即死する。{ #crash})。
-        double cut = OvergrownVegetationConfig.COMMON.hiveNodeDamageReduction.get();
-        float reduced = (float) (amount * (1.0D - Mth.clamp(cut, 0.0D, 1.0D)));
-        if (reduced <= 0.0F && amount > 0.0F) {
-            // 完全に 0 にすると無敵時間すら発生しないので、最低でも 1 ダメージの 1/100 は通す。
-            reduced = 0.01F;
-        }
-        return super.hurt(source, reduced);
+        return super.hurt(source, amount);
     }
 }

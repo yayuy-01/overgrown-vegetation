@@ -55,7 +55,9 @@ import java.util.Set;
  * ({@code canSurvive} を上書きしていない=常に存在し続けられる、
  * {@code minecraft:chain} などと同じ考え方)。
  *
- * <p>通常の採掘(左クリック長押し)は硬さ 0.2F(バニラの蔦と同じ)でどの道具でも一瞬で終わるが、
+ * <p>通常の採掘(左クリック長押し)は 2026-11-08 から素手で約 1.2 秒・ハサミで約 0.15 秒({@link #destroyProgress}、config の
+ * {@code vineHandBreakSeconds}・{@code vineShearsBreakSeconds})。壊れると蔦 1 本ぶんをまとめて消す({@link #playerWillDestroy})。
+ * 登る蔓は経路の全部のマスに狙い用の {@link LianaSegmentBlock} を置く。
  * それとは別に「切る」動作として即座に反応する2つの入り口を持たせてある。
  * <ul>
  *     <li>{@link #attack}: 剣を持って左クリック(攻撃)した瞬間に即座に切れる。</li>
@@ -101,7 +103,31 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        // 登る蔓の主アンカーは、そのマスの中を通る蔓の所だけ(2026-11-08。前の 8/16 の箱は幹から 4/16 離れていて、幹沿いの蔓に当たらなかった)
+        if (level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana && liana.hasClimb()) {
+            VoxelShape s = liana.getShapeCache();
+            if (s == null) {
+                s = LianaSegmentBlock.markerShape(liana.getClimbPath(), CorruptedLianaBlockEntity.CLIMB_STRIDE,
+                        liana.getClimbScale() * com.yayuy.overgrownvegetation.worldgen.ClimbingVine.RADIUS_ROOT + 0.04D);
+                if (s == null) {
+                    s = SHAPE;
+                }
+                liana.setShapeCache(s);
+            }
+            return s;
+        }
         return SHAPE;
+    }
+
+    /** 光を遮らない(経路から求めた箱がマス全体になっても、見えない印が林床を暗くしないように。2026-11-08)。 */
+    @Override
+    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+        return true;
+    }
+
+    @Override
+    protected int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
+        return 0;
     }
 
     /** 右クリック位置からこの距離(ブロック)以内にある発光中の垂れ蔦だけを収穫対象にする。 */
@@ -117,6 +143,9 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
      * 主アンカーだけがサーバーティックで動く({@link CorruptedLianaBlockEntity#serverTick} が
      * 副アンカー・垂れ蔦なしの蔦では即座に何もしない)。「蔦の実」の熟成(発光していない垂れ蔦を
      * 時間経過で発光させる)にだけ使う。
+     *
+     * <p>ここではブロックの状態しか見られないので副アンカーにもティッカーを返すが、副アンカーは
+     * 最初の 1 tick で自分のティッカーを外す({@code CorruptedLianaBlockEntity#detachTicker})。
      */
     @Nullable
     @Override
@@ -136,11 +165,13 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
-        if (!(level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity clicked)) {
-            return InteractionResult.PASS;
-        }
-        BlockPos primaryPos = clicked.getPrimaryPos() != null ? clicked.getPrimaryPos() : pos;
-        if (!(level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primary)) {
+        return harvest(level, pos, hitResult);
+    }
+
+    /** 実を摘む(主アンカー・副アンカー・{@link LianaSegmentBlock} 共通)。 */
+    static InteractionResult harvest(Level level, BlockPos pos, BlockHitResult hitResult) {
+        BlockPos primaryPos = level.isClientSide() ? clientPrimaryOf(level, pos) : primaryOf(level, pos);
+        if (primaryPos == null || !(level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primary)) {
             return InteractionResult.PASS;
         }
 
@@ -152,9 +183,7 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
         if (level instanceof ServerLevel serverLevel) {
             Vec3 dropAt = primary.harvestDroop(serverLevel, droopIndex);
             BlockPos dropPos = BlockPos.containing(dropAt);
-            // 寄生植物装備の 2 段階目以降は実が倍。
-            Block.popResource(serverLevel, dropPos, new ItemStack(ModItems.VINE_FRUIT.get(),
-                    com.yayuy.overgrownvegetation.item.PlantArmor.fruitCount(player, 1)));
+            Block.popResource(serverLevel, dropPos, new ItemStack(ModItems.VINE_FRUIT.get(), 1));
             float pitch = Mth.randomBetween(serverLevel.random, 0.8F, 1.2F);
             serverLevel.playSound(null, dropPos, SoundEvents.CAVE_VINES_PICK_BERRIES, SoundSource.BLOCKS, 1.0F, pitch);
         }
@@ -164,6 +193,10 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
     /** 剣で殴った(左クリックした)瞬間、通常の採掘進捗を待たずに即座に切る。 */
     @Override
     protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
+        attackCut(state, level, pos, player);
+    }
+
+    static void attackCut(BlockState state, Level level, BlockPos pos, Player player) {
         ItemStack heldItem = player.getMainHandItem();
         if (heldItem.getItem() instanceof SwordItem) {
             cut(state, level, pos, player, heldItem, EquipmentSlot.MAINHAND);
@@ -174,11 +207,164 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (stack.getItem() instanceof ShearsItem) {
+        ItemInteractionResult r = shearCut(stack, state, level, pos, player, hand);
+        return r != null ? r : super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    /** ハサミなら切って結果を返す。ハサミでなければ null。 */
+    @Nullable
+    static ItemInteractionResult shearCut(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand) {
+        if (isShears(stack)) {
             cut(state, level, pos, player, stack, LivingEntity.getSlotForHand(hand));
             return ItemInteractionResult.sidedSuccess(level.isClientSide());
         }
-        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        return null;
+    }
+
+    static boolean isShears(ItemStack stack) {
+        return stack.getItem() instanceof ShearsItem
+                || stack.canPerformAction(net.neoforged.neoforge.common.ItemAbilities.SHEARS_DIG);
+    }
+
+    // ---- ふつうに壊す(左クリック長押し。2026-11-08)----
+
+    /**
+     * 壊す速さ(2026-11-08、ユーザー依頼「ハサミで速く・素手は少し時間がかかる」)。素手は {@code vineHandBreakSeconds}(仮決め 1.2 秒)、
+     * ハサミは {@code vineShearsBreakSeconds}(仮決め 0.15 秒 = バニラの蔦と同じ)。{@link Player#getDestroySpeed} を掛けるので、
+     * 剣(sword_efficient のタグで 1.5 倍)・急ぎ・採掘速度低下・水中・空中の倍率はバニラどおり効く。
+     * ハサミのツールルールは {@code Blocks.VINE} を名指しで、タグで足せない(ModBlocks の蔦の注を参照)ので、ここで秒数から決める。
+     */
+    @Override
+    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        return destroyProgress(state, player);
+    }
+
+    static float destroyProgress(BlockState state, Player player) {
+        double seconds = isShears(player.getMainHandItem())
+                ? com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.vineShearsBreakSeconds.get()
+                : com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.vineHandBreakSeconds.get();
+        if (seconds <= 0.0D) {
+            return 1.0F;
+        }
+        return (float) (player.getDestroySpeed(state) / (seconds * 20.0D));
+    }
+
+    /**
+     * ふつうに壊した(長押しで壊れた)ときも、蔦 1 本ぶんをまとめて消す(前は叩いた 1 マスだけが消え、主アンカーなら副アンカーが、
+     * 副アンカーなら曲線が残っていた)。叩いた 1 マスはバニラが壊してルート(ハサミ・シルクタッチなら蔦)を落とす。
+     */
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        removeRestOfVine(level, pos);
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    /** {@code pos}(主アンカー・副アンカー・{@link LianaSegmentBlock})を含む蔦 1 本の、{@code pos} 以外の全部を静かに消す。サーバー側だけ。 */
+    static void removeRestOfVine(Level level, BlockPos pos) {
+        if (level.isClientSide()) {
+            return;
+        }
+        BlockPos primaryPos = primaryOf(level, pos);
+        if (primaryPos == null) {
+            return;
+        }
+        // 登る蔓の束(本体 + 添う細い蔓 + 渡る区間・U から垂れる綱)は見た目が 1 本なので、どこを切っても束ごと消す(2026-11-08。
+        // 添う細い蔓のマスを叩くと細い蔓だけが消えて本体が残っていた)。前の掛け渡しの蔦(登る蔓でない)は前どおり、切った蔦とその子だけ
+        for (int guard = 0; guard < 8 && level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity l
+                && l.hasClimb() && !l.getParentPositions().isEmpty(); guard++) {
+            BlockPos parent = l.getParentPositions().get(0);
+            if (!(level.getBlockEntity(parent) instanceof CorruptedLianaBlockEntity)) {
+                break;
+            }
+            primaryPos = parent;
+        }
+        if (level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primaryLiana) {
+            for (BlockPos secondaryPos : primaryLiana.getSecondaryPositions()) {
+                if (!secondaryPos.equals(pos) && isLianaPart(level.getBlockState(secondaryPos))) {
+                    level.removeBlock(secondaryPos, false);
+                }
+            }
+            for (BlockPos lightPos : primaryLiana.getLightBlockPositions()) {
+                if (level.getBlockState(lightPos).is(net.minecraft.world.level.block.Blocks.LIGHT)) {
+                    level.removeBlock(lightPos, false);
+                }
+            }
+            removeDependentVines(level, primaryLiana, pos, primaryPos);
+        }
+        if (!primaryPos.equals(pos)) {
+            level.removeBlock(primaryPos, false);
+        }
+    }
+
+    /** 蔦の一部(主アンカー・前の副アンカー・{@link LianaSegmentBlock})か。 */
+    public static boolean isLianaPart(BlockState state) {
+        return state.getBlock() instanceof CorruptedLianaBlock || state.getBlock() instanceof LianaSegmentBlock;
+    }
+
+    /**
+     * {@code pos} を含む蔦の主アンカー(サーバー側)。主アンカーならそのまま、前の副アンカーは持っている {@code Primary}、
+     * {@link LianaSegmentBlock}(BlockEntity が無い)は周りのチャンクの主アンカーから、副アンカーの一覧に {@code pos} を持つものを探す。
+     * 見つからなければ null。
+     */
+    @Nullable
+    public static BlockPos primaryOf(Level level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana) {
+            return liana.getPrimaryPos() != null ? liana.getPrimaryPos() : pos;
+        }
+        if (!(level.getBlockState(pos).getBlock() instanceof LianaSegmentBlock)) {
+            return null;
+        }
+        int cx = pos.getX() >> 4;
+        int cz = pos.getZ() >> 4;
+        // 蔓の経路は主アンカーから水平に約 16 まで(渡る区間 8 + 林冠の U 10)。近いチャンクから見る
+        for (int ring = 0; ring <= SEGMENT_SEARCH_CHUNKS; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx + dx, cz + dz)) {
+                        continue;
+                    }
+                    for (BlockEntity be : level.getChunk(cx + dx, cz + dz).getBlockEntities().values()) {
+                        if (be instanceof CorruptedLianaBlockEntity liana && liana.getPrimaryPos() == null
+                                && liana.getSecondaryPositions().contains(pos)) {
+                            return be.getBlockPos();
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** {@link LianaSegmentBlock} の持ち主を探すチャンクの半径。 */
+    private static final int SEGMENT_SEARCH_CHUNKS = 2;
+
+    /**
+     * クライアント側の持ち主(右クリックで実を摘むときの手応えだけに使う)。副アンカーの一覧はクライアントに送らないので、
+     * {@link LianaSegmentBlock} は叩いた所から {@link #HARVEST_REACH} 以内に熟した垂れ蔦を持つ主アンカーを近くから探す。
+     */
+    @Nullable
+    private static BlockPos clientPrimaryOf(Level level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana) {
+            return liana.getPrimaryPos() != null ? liana.getPrimaryPos() : pos;
+        }
+        int cx = pos.getX() >> 4;
+        int cz = pos.getZ() >> 4;
+        Vec3 at = Vec3.atCenterOf(pos);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, cx + dx, cz + dz)) {
+                    continue;
+                }
+                for (BlockEntity be : level.getChunk(cx + dx, cz + dz).getBlockEntities().values()) {
+                    if (be instanceof CorruptedLianaBlockEntity liana && liana.getPrimaryPos() == null
+                            && liana.findNearestRipeDroop(at, HARVEST_REACH) >= 0) {
+                        return be.getBlockPos();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -197,29 +383,47 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
             return;
         }
         BlockEntity blockEntity = level.getBlockEntity(pos);
-
-        if (blockEntity instanceof CorruptedLianaBlockEntity liana) {
-            BlockPos primaryPos = liana.getPrimaryPos() != null ? liana.getPrimaryPos() : pos;
-            if (level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primaryLiana) {
-                for (BlockPos secondaryPos : primaryLiana.getSecondaryPositions()) {
-                    if (!secondaryPos.equals(pos)) {
-                        level.removeBlock(secondaryPos, false);
-                    }
-                }
-                for (BlockPos lightPos : primaryLiana.getLightBlockPositions()) {
-                    level.removeBlock(lightPos, false);
-                }
-                removeDependentVines(level, primaryLiana, pos, primaryPos);
-            }
-            if (!primaryPos.equals(pos)) {
-                level.removeBlock(primaryPos, false);
-            }
-        }
+        removeRestOfVine(level, pos); // 主アンカー・副アンカー・LianaSegmentBlock・光源・依存している蔦(2026-11-08 に playerWillDestroy と共通に)
 
         level.levelEvent(player, 2001, pos, Block.getId(state));
         Block.dropResources(state, level, pos, blockEntity, player, tool);
         level.removeBlock(pos, false);
         tool.hurtAndBreak(1, player, slot);
+    }
+
+    /**
+     * 蔦 1 本(主アンカー {@code primaryPos})を、副アンカー・光源ブロック・依存している蔦ごと<b>静かに</b>消す
+     * (2026-10-16、ユーザー報告「木を消す処理の後に垂れ蔦が空中に浮いてしまう」)。{@link #cut} から
+     * 破壊演出・ドロップ・道具の消耗を除いたもの。近隣更新・形状更新も出さない(周りの植物を巻き込んで壊さない)。
+     * 端の木が消えたときに {@code corruption.SwampTreeFall} が呼ぶ。
+     */
+    public static void removeQuietly(Level level, BlockPos primaryPos) {
+        if (!(level.getBlockEntity(primaryPos) instanceof CorruptedLianaBlockEntity primaryLiana)) {
+            return;
+        }
+        int flags = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
+        BlockState air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        Set<BlockPos> visited = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(primaryPos);
+        while (!queue.isEmpty()) {
+            BlockPos pos = queue.poll();
+            if (!visited.add(pos) || !(level.getBlockEntity(pos) instanceof CorruptedLianaBlockEntity liana)) {
+                continue;
+            }
+            for (BlockPos secondaryPos : liana.getSecondaryPositions()) {
+                if (isLianaPart(level.getBlockState(secondaryPos))) {
+                    level.setBlock(secondaryPos, air, flags);
+                }
+            }
+            for (BlockPos lightPos : liana.getLightBlockPositions()) {
+                if (level.getBlockState(lightPos).is(net.minecraft.world.level.block.Blocks.LIGHT)) {
+                    level.setBlock(lightPos, air, flags);
+                }
+            }
+            queue.addAll(liana.getChildPositions());
+            level.setBlock(pos, air, flags);
+        }
     }
 
     /**
@@ -237,7 +441,6 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
             return;
         }
         Set<BlockPos> visited = new HashSet<>();
-        visited.add(clickedPos);
         visited.add(primaryPos);
         ArrayDeque<BlockPos> queue = new ArrayDeque<>(primaryLiana.getChildPositions());
         while (!queue.isEmpty()) {
@@ -250,13 +453,19 @@ public class CorruptedLianaBlock extends BaseEntityBlock {
                 continue;
             }
             for (BlockPos secondaryPos : childLiana.getSecondaryPositions()) {
-                level.removeBlock(secondaryPos, false);
+                if (!secondaryPos.equals(clickedPos) && isLianaPart(level.getBlockState(secondaryPos))) {
+                    level.removeBlock(secondaryPos, false);
+                }
             }
             for (BlockPos lightPos : childLiana.getLightBlockPositions()) {
-                level.removeBlock(lightPos, false);
+                if (level.getBlockState(lightPos).is(net.minecraft.world.level.block.Blocks.LIGHT)) {
+                    level.removeBlock(lightPos, false);
+                }
             }
             queue.addAll(childLiana.getChildPositions());
-            level.removeBlock(childPos, false);
+            if (!childPos.equals(clickedPos)) { // 叩いたのが子の印なら、その 1 マスは呼び手(バニラの破壊・cut)が消す
+                level.removeBlock(childPos, false);
+            }
         }
     }
 }

@@ -16,10 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * 露出面から、汚染されたときに生えるのと同じ装飾植物(シダ・苔・蔦・下草・茂みの塊など)を
  * 一気に生やす。中心に近いブロックほど高い確率で対象になる。
  *
- * <p>骨粉アイテムの使用時({@link CorruptedBonemealHandler})のほか、
- * 胞子感染で死んだスケルトンの死亡地点
- * ({@link com.yayuy.overgrownvegetation.effect.SporeInfectionDeathHandler})からも
- * 「その場所に骨粉を使ったのと同じ効果」として呼ばれる。
+ * <p>骨粉アイテムの使用時({@link CorruptedBonemealHandler})に呼ばれる。
+ * (胞子感染で死んだスケルトンの死亡地点からも呼んでいた SporeInfectionDeathHandler は 2026-10-30 に parked/ へ退避した。)
  */
 public final class CorruptedBonemeal {
 
@@ -46,7 +44,7 @@ public final class CorruptedBonemeal {
             for (int dz = -RADIUS; dz <= RADIUS; dz++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     cursor.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
-                    if (!level.isLoaded(cursor)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                         continue;
                     }
 
@@ -62,7 +60,13 @@ public final class CorruptedBonemeal {
                     }
 
                     BlockPos pos = cursor.immutable();
-                    CorruptionSpreader.growSurfacePlants(level, pos, state, growthChance);
+                    // 骨粉で同じ岩を何度も装飾しても鉱石は増やさない(2026-11-17。鉱石は汚染が来たときだけ)
+                    com.yayuy.overgrownvegetation.gear.FungalOre.suppressed = true;
+                    try {
+                        CorruptionSpreader.growSurfacePlants(level, pos, state, growthChance);
+                    } finally {
+                        com.yayuy.overgrownvegetation.gear.FungalOre.suppressed = false;
+                    }
                     LeafClumpGrowth.tryGrow(level, pos, random);
                     any = true;
                 }

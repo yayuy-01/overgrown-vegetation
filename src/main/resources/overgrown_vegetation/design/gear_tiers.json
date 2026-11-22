@@ -1,0 +1,53 @@
+{
+  "_comment": "装備・鉱石の設計値(2026-11-17 作成・11-21 に段 1〜3 の装備を消して作り直し)。値はどれも【仮】。11-21 夜に導晶の剣・弩・防具(sword・crossbow・armor)を足した。道具の硬さ・速さ・壊れにくさは再起動で効く。説明は tools/mod-manager2/fields/gear_tiers.json。Java は gear/GearTierTable。",
+  "ore": {
+    "leyReach": 8.0,
+    "chance": 0.03,
+    "veinMin": 1,
+    "veinMax": 4
+  },
+  "conduit": {
+    "leyReach": 12.0,
+    "veinsPerChunk": 8,
+    "veinSize": 8,
+    "minY": -48,
+    "maxY": 48,
+    "budChance": 0.3,
+    "budMax": 2,
+    "durability": 1200,
+    "speed": 7.0,
+    "attackBonus": 3.0,
+    "enchantability": 14,
+    "capacity": 50000,
+    "maxReceive": 1000,
+    "pourPerClick": 50000,
+    "chargedSpeedMultiplier": 1.5,
+    "fePerBlock": 100
+  },
+  "sword": {
+    "damage": 6.0,
+    "attackSpeed": 1.6,
+    "chargedBonus": 2.0,
+    "fePerHit": 100,
+    "capacity": 50000
+  },
+  "crossbow": {
+    "chargedLoadMultiplier": 0.5,
+    "fePerShot": 200,
+    "capacity": 50000,
+    "durability": 1200
+  },
+  "armor": {
+    "helmetDefense": 2,
+    "chestplateDefense": 7,
+    "leggingsDefense": 5,
+    "bootsDefense": 2,
+    "toughness": 1.0,
+    "knockbackResistance": 0.0,
+    "durabilityMultiplier": 24,
+    "enchantability": 12,
+    "reductionPerPiece": 0.04,
+    "fePerHit": 50,
+    "capacity": 20000
+  }
+}

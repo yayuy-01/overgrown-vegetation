@@ -12,18 +12,23 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class ProtectiveMaskModel extends GeoModel<ProtectiveMaskItem> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/armor/protective_mask.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/armor/protective_mask.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/armor/protective_mask.animation.json");
+
     @Override
     public ResourceLocation getModelResource(ProtectiveMaskItem animatable) {
-        return OvergrownVegetation.id("geo/armor/protective_mask.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(ProtectiveMaskItem animatable) {
-        return OvergrownVegetation.id("textures/armor/protective_mask.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(ProtectiveMaskItem animatable) {
-        return OvergrownVegetation.id("animations/armor/protective_mask.animation.json");
+        return ANIMATION;
     }
 }

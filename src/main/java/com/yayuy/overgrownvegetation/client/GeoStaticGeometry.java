@@ -9,7 +9,6 @@ import com.mojang.math.Axis;
 import com.mojang.math.Transformation;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.CurledFernDetail;
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
@@ -24,7 +23,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.Mth;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.RenderTypeGroup;
+import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
 import net.neoforged.neoforge.client.model.geometry.IGeometryLoader;
 import net.neoforged.neoforge.client.model.geometry.IUnbakedGeometry;
@@ -51,6 +54,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
@@ -115,8 +119,8 @@ import java.util.function.Function;
  *     <li><b>閉じた箱の裏面</b> — 6 面すべてが残る厚みのある直方体(茎など)は内側が見えないので表の 1 枚だけ。</li>
  * </ul>
  * <p>巻きシダの場合これで 1 本あたり 188 面 → 86 面になる(見た目は変わらない)。
- * さらに落としたいときは {@code curledFernDetail}({@link CurledFernDetail})で葉を間引く / 十字板にする。
- * FULL と REDUCED の切り替えはバニラのビデオ設定「シダをすべて表示する」({@link CurledFernOption})
+ * さらに落としたいときは {@code curledFernDetail}({@link CurledFernDetail})で葉を軽い形にする(十字板の SIMPLE は 2026-11-03 に削除)。
+ * FULL と REDUCED の切り替えはバニラのビデオ設定「シダの葉を立体で描く」({@link CurledFernOption})
  * からも行える(同じ設定を触っている)。
  */
 public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeometry> {
@@ -150,6 +154,9 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      */
     private static volatile boolean showAllFronds = false;
 
+    /** {@code reduced_geo} の面の数を 1 回だけログへ出したか。 */
+    private static volatile boolean loggedReducedGeo = false;
+
     private final ResourceLocation geoLocation;
     private final float scale;
     private final float yRotationDegrees;
@@ -165,9 +172,20 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      */
     private final List<List<String>> reducedBoneGroups;
 
+    /**
+     * 品質 {@link CurledFernDetail#REDUCED} のときに<b>代わりに焼く geo.json</b>(葉を間引かず、軽い形の別の模型)。指定があれば
+     * {@link #reducedBoneGroups}・{@link #reducedSkipBones} より優先。巻きシダは葉の折れ目の 2 枚の板を 1 枚にまとめた
+     * {@code overgrown_curled_fern_flat.geo.json}(tools/curled-fern-flat が元の geo.json から作る)で、葉 6 本のまま42 面
+     * (2026-10-15 夜、ユーザー「1 枚の板で表現した低キューブ版を。キューブ数が半分になるので、最初から 6 枚の葉で今の fps にできる」)。
+     */
+    @Nullable
+    private final ResourceLocation reducedGeoLocation;
+
     private GeoStaticGeometry(ResourceLocation geoLocation, float scale, float yRotationDegrees,
-                              Set<String> reducedSkipBones, List<List<String>> reducedBoneGroups) {
+                              Set<String> reducedSkipBones, List<List<String>> reducedBoneGroups,
+                              @Nullable ResourceLocation reducedGeoLocation) {
         this.geoLocation = geoLocation;
+        this.reducedGeoLocation = reducedGeoLocation;
         this.scale = scale;
         this.yRotationDegrees = yRotationDegrees;
         this.reducedSkipBones = reducedSkipBones;
@@ -210,7 +228,9 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
                     }
                 }
             }
-            return new GeoStaticGeometry(geo, scale, rotation, Set.copyOf(skip), List.copyOf(groups));
+            String reducedGeo = GsonHelper.getAsString(json, "reduced_geo", null);
+            return new GeoStaticGeometry(geo, scale, rotation, Set.copyOf(skip), List.copyOf(groups),
+                    reducedGeo == null ? null : ResourceLocation.parse(reducedGeo));
         }
     }
 
@@ -222,10 +242,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      * 「最初の焼き込みだけ古い品質」という食い違いが起きないようにするため。
      */
     public static CurledFernDetail detail() {
-        if (!OvergrownVegetationConfig.SPEC.isLoaded()) {
-            return OvergrownVegetationConfig.COMMON.curledFernDetail.getDefault();
-        }
-        return OvergrownVegetationConfig.COMMON.curledFernDetail.get();
+        return VisualQuality.curledFern(); // 2026-10-23 にクライアント設定へ移した
     }
 
     /**
@@ -233,14 +250,10 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
      * ビデオ設定のトグル({@link CurledFernOption})と、config ファイルを直接編集したとき
      * ({@code OvergrownVegetationClient#reloadOnCurledFernDetailChange})の両方から来る。
      *
-     * <p>やることは変更の種類で 2 段階に分かれる。
-     * <ul>
-     *     <li><b>FULL ⇄ REDUCED</b> — {@link RandomBoneGroupModel} が両方の面を持っているので、
-     *     焼いたモデルはそのまま使える。<b>チャンクメッシュの焼き直しだけ</b>
-     *     ({@code levelRenderer.allChanged()}、バニラの「グラフィック描画」と同じ重さ)。</li>
-     *     <li><b>SIMPLE との行き来</b> — 十字の板は形そのものが別で、モデルを焼く時点で
-     *     決まっている。<b>リソース再読み込み</b>(数秒固まる)が要る。</li>
-     * </ul>
+     * <p>FULL ⇄ REDUCED は {@link RandomBoneGroupModel} が両方の面を持っているので、
+     * 焼いたモデルはそのまま使える。<b>チャンクメッシュの焼き直しだけ</b>
+     * ({@code levelRenderer.allChanged()}、バニラの「グラフィック描画」と同じ重さ)。
+     * (2026-11-03 までは十字の板の SIMPLE があり、その行き来だけはリソース再読み込みへ回していた。)
      *
      * <p>一度も焼いていない(= まだリソース読み込み前)なら、次の読み込みで新しい値が使われるので何もしない。
      */
@@ -252,10 +265,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null) {
-            return;
-        }
-        if (baked == CurledFernDetail.SIMPLE || current == CurledFernDetail.SIMPLE) {
-            minecraft.execute(minecraft::reloadResourcePacks);
             return;
         }
         // FULL ⇄ REDUCED。焼いたモデルは両方を持っているので、チャンクを積み直せばよい。
@@ -308,12 +317,28 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         ResourceLocation renderTypeHint = context.getRenderTypeHint();
         RenderTypeGroup renderTypes = renderTypeHint != null ? context.getRenderType(renderTypeHint) : RenderTypeGroup.EMPTY;
 
+        // reduced_geo があれば、FULL は元の模型・REDUCED はその軽い模型(どちらも葉を間引かない)を両方焼いて持つ。
+        // 切り替えは RandomBoneGroupModel がどちらを返すかだけ(組み合わせは 1 通り)なので、焼き直しは要らない。
+        if (reducedGeoLocation != null) {
+            List<BakedQuad> full = new ArrayList<>();
+            bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, Set.of(), Map.of(), full);
+            List<BakedQuad> light = new ArrayList<>();
+            bakeAllBones(reducedGeoLocation, pose, sprite, stateRotation, ambientOcclusion, Set.of(), Map.of(), light);
+            if (!loggedReducedGeo) {
+                loggedReducedGeo = true;
+                OvergrownVegetation.LOGGER.info("巻きシダの面の数: 立体 {} 面・軽い形 {} 面({})", full.size(), light.size(), reducedGeoLocation);
+            }
+            if (!light.isEmpty()) {
+                return new RandomBoneGroupModel(buildSimple(context, overrides, particle, renderTypes, full),
+                        List.copyOf(full), List.of(List.copyOf(light)));
+            }
+        }
+
         // reduced_bone_groups が指定されていれば、FULL / REDUCED <b>両方</b>の面を持つモデルを返す。
-        // ビデオ設定の「シダをすべて表示する」はどちらを返すかの分岐だけなので、
+        // ビデオ設定の「シダの葉を立体で描く」はどちらを返すかの分岐だけなので、
         // 切り替えてもモデルの焼き直しが要らない(CurledFernOption 参照)。
-        // SIMPLE は形そのものが別(十字の板)なので、ここには入らず下の従来の焼き方へ行く。
-        // 空が返るのはボーン名が geo.json に 1 つも無かったときだけで、その場合も下へ落ちる。
-        if (detail != CurledFernDetail.SIMPLE && !reducedBoneGroups.isEmpty()) {
+        // 空が返るのはボーン名が geo.json に 1 つも無かったときだけで、その場合は下へ落ちる。
+        if (!reducedBoneGroups.isEmpty()) {
             GroupBake groups = bakeGroupCombos(pose, sprite, stateRotation, ambientOcclusion);
             if (groups != null) {
                 // 1 通りしか作れなかった(グループがどれも 1 本)なら、わざわざ包む意味がない。
@@ -328,14 +353,9 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
 
         List<BakedQuad> quads = new ArrayList<>();
-        if (detail == CurledFernDetail.SIMPLE) {
-            // 立体モデルをやめて、バニラの草と同じ十字の板 1 組(4面)だけにする。
-            bakeCross(pose, particle, stateRotation, ambientOcclusion, quads);
-        } else {
-            // REDUCED でグループ指定が無いモデルは、従来どおり固定のボーンを省く。
-            Set<String> skip = detail == CurledFernDetail.REDUCED ? reducedSkipBones : Set.of();
-            bakeAllBones(pose, sprite, stateRotation, ambientOcclusion, skip, Map.of(), quads);
-        }
+        // REDUCED でグループ指定が無いモデルは、従来どおり固定のボーンを省く。
+        Set<String> skip = detail == CurledFernDetail.REDUCED ? reducedSkipBones : Set.of();
+        bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, skip, Map.of(), quads);
         return buildSimple(context, overrides, particle, renderTypes, quads);
     }
 
@@ -353,10 +373,10 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
     }
 
     /** geo.json を読み込み、最上位ボーンから順に焼く。 */
-    private void bakeAllBones(PoseStack pose, TextureAtlasSprite sprite, Transformation stateRotation,
+    private void bakeAllBones(ResourceLocation location, PoseStack pose, TextureAtlasSprite sprite, Transformation stateRotation,
                               boolean ambientOcclusion, Set<String> skip,
                               Map<String, List<BakedQuad>> poolTargets, List<BakedQuad> out) {
-        BakedGeoModel geo = loadGeoModel(geoLocation);
+        BakedGeoModel geo = loadGeoModel(location);
         for (GeoBone bone : geo.topLevelBones()) {
             bakeBone(pose, bone, sprite, stateRotation, ambientOcclusion, skip, poolTargets, out);
         }
@@ -382,7 +402,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
             }
         }
         List<BakedQuad> shared = new ArrayList<>();
-        bakeAllBones(pose, sprite, stateRotation, ambientOcclusion, Set.of(), perBone, shared);
+        bakeAllBones(geoLocation, pose, sprite, stateRotation, ambientOcclusion, Set.of(), perBone, shared);
 
         // 各グループから 1 本ずつ選ぶ直積。空のグループ(名前が geo.json に無かった等)は飛ばす。
         List<List<BakedQuad>> combos = new ArrayList<>();
@@ -421,7 +441,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
             immutable.add(List.copyOf(combo));
         }
 
-        // 「シダをすべて表示する」が ON のとき返すぶん: 共有部分 + 葉を 1 本も省かない全部。
+        // 「シダの葉を立体で描く」が ON のとき返すぶん: 共有部分 + 葉を 1 本も省かない全部。
         List<BakedQuad> allFronds = new ArrayList<>(shared);
         for (List<BakedQuad> boneQuads : perBone.values()) {
             allFronds.addAll(boneQuads);
@@ -440,10 +460,48 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
     private record GroupBake(List<BakedQuad> allFronds, List<List<BakedQuad>> combos) {
     }
 
+    /**
+     * 読み込み 1 回ぶんの、解析済みの geo.json。
+     *
+     * <p>2026-09-24 軽量化(監査 1384): 巻きシダの 16 モデル × 回転 4 = 64 回の焼き込みが全部同じ
+     * geo.json を指しているのに、焼くたびに読み直して解析していた。焼き込みの間だけ覚えておき、
+     * 読み込みの頭({@link ModelEvent.RegisterAdditional}、ModelBakery を作るたびに来る)と焼き終わり
+     * ({@link ModelEvent.ModifyBakingResult})で捨てる —— 次の読み込み(リソースパックの差し替え)で古い
+     * 解析結果を使わないため・焼き終わった後まで抱えないため。焼き込みは骨を読むだけで書き換えない
+     * ({@link #bakeBone})ので、同じものを使い回しても焼き上がりは同じ。
+     * 焼き込みはワーカースレッドで走るので {@link ConcurrentHashMap}。
+     */
+    private static final Map<ResourceLocation, BakedGeoModel> PARSED_GEO = new ConcurrentHashMap<>();
+
     /** geo.json を GeckoLib 自身の読み込み器で {@link BakedGeoModel} にする(GeckoLib のキャッシュには頼らない)。 */
     private static BakedGeoModel loadGeoModel(ResourceLocation location) {
+        BakedGeoModel cached = PARSED_GEO.get(location);
+        if (cached != null) {
+            return cached;
+        }
         Model raw = FileLoader.loadModelFile(location, Minecraft.getInstance().getResourceManager());
-        return BakedModelFactory.getForNamespace(location.getNamespace()).constructGeoModel(GeometryTree.fromModel(raw));
+        BakedGeoModel parsed = BakedModelFactory.getForNamespace(location.getNamespace())
+                .constructGeoModel(GeometryTree.fromModel(raw));
+        PARSED_GEO.put(location, parsed);
+        return parsed;
+    }
+
+    /** {@link #PARSED_GEO} を捨てる時機(MOD バス・クライアント)。 */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static final class ParsedGeoLifecycle {
+
+        @SubscribeEvent
+        public static void onRegisterAdditional(ModelEvent.RegisterAdditional event) {
+            PARSED_GEO.clear();
+        }
+
+        @SubscribeEvent
+        public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+            PARSED_GEO.clear();
+        }
+
+        private ParsedGeoLifecycle() {
+        }
     }
 
     /**
@@ -600,37 +658,6 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
             // 例: 葉(厚み 0 の直方体)の下面 UV は透明で、下から見えていたのは上面の裏側。
             // 同じ見た目にするため裏も焼く(頂点順を逆にしただけで、陰影・法線は表と同じ)。
             out.add(bakeOneSide(positions, us, vs, back, sprite, shadeDirection, shadingNormal, ambientOcclusion));
-        }
-    }
-
-    /** 品質 {@link CurledFernDetail#SIMPLE} 用。バニラの {@code block/cross} と同じ十字の板を焼く。 */
-    private static void bakeCross(PoseStack pose, TextureAtlasSprite sprite, Transformation stateRotation,
-                                  boolean ambientOcclusion, List<BakedQuad> out) {
-        // ブロック底面中央を原点とした、対角線上に立つ 2 枚の板(バニラの草と同じく縁を内側へ寄せる)。
-        float r = 0.45F;
-        float[][][] planes = {
-                {{-r, 1.0F, -r}, {-r, 0.0F, -r}, {r, 0.0F, r}, {r, 1.0F, r}},
-                {{r, 1.0F, -r}, {r, 0.0F, -r}, {-r, 0.0F, r}, {-r, 1.0F, r}},
-        };
-        float[] us = {0.0F, 0.0F, 1.0F, 1.0F};
-        float[] vs = {0.0F, 1.0F, 1.0F, 0.0F};
-
-        Matrix4f poseMatrix = pose.last().pose();
-        for (float[][] plane : planes) {
-            Vector3f[] positions = new Vector3f[4];
-            for (int i = 0; i < 4; i++) {
-                Vector3f position = new Vector3f(plane[i][0], plane[i][1], plane[i][2]);
-                poseMatrix.transformPosition(position);
-                applyStateRotation(position, stateRotation);
-                positions[i] = position;
-            }
-            Vector3f normal = new Vector3f(positions[2]).sub(positions[0])
-                    .cross(new Vector3f(positions[3]).sub(positions[1])).normalize();
-            Direction shadeDirection = Direction.getNearest(normal.x(), normal.y(), normal.z());
-            out.add(bakeOneSide(positions, us, vs, new int[] {0, 1, 2, 3},
-                    sprite, shadeDirection, normal, ambientOcclusion));
-            out.add(bakeOneSide(positions, us, vs, new int[] {0, 3, 2, 1},
-                    sprite, shadeDirection, normal, ambientOcclusion));
         }
     }
 

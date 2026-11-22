@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/lycopsid_carpet" },
+      { "model": "overgrown_vegetation:block/lycopsid_carpet", "y": 90 },
+      { "model": "overgrown_vegetation:block/lycopsid_carpet", "y": 180 },
+      { "model": "overgrown_vegetation:block/lycopsid_carpet", "y": 270 }
+    ]
+  }
+}

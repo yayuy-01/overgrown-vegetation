@@ -7,74 +7,72 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 /**
- * 「ヴェロフィル」の描画。
- *
- * <h2>全身の傾きはここで付ける</h2>
- * このモデルは<b>根ボーンが {@code head}</b> で、{@code head} を回すと全身が頭を支点に回ってしまう
- * ({@code velophyll.geo.json} は Blockbench の出力そのまま)。そのため
- * 「エリトラで飛ぶような動き」の要である<b>機首の上げ下げと旋回のバンク</b>は
- * アニメーション JSON ではなくここで、<b>体の中心を支点に</b>付ける。
- * 値は速度から作って本体側で平滑してある({@link VelophyllEntity#getPitchAmount} /
- * {@link VelophyllEntity#getBankAmount})ので、ここでは掛け算するだけ。
- *
- * <h2>地上では体を持ち上げる</h2>
- * モデルは飛んでいる姿で作られていて、<b>翼の膜が原点(足元の高さ)より 0.5 ブロックほど下へ
- * 垂れている</b>。そのまま地面に置くと膜が床に沈むので、地上にいる間だけ持ち上げる。
- * 飛行中は持ち上げない(当たり判定と体の位置がずれるため)。切り替えは
- * {@link VelophyllEntity#getGroundAmount} が補間してあるのでガクッと跳ねない。
+ * 「ヴェロフィル」の描画。描画倍率 1(テクスチャは 1 単位 1 テクセル = ブロックの 1 画素)。発光マスクは段 1 では重ねない(光るのは爆撃の構え。次の段)。
+ * 飛んでいる間は、曲がり方から出した体の傾き(ロール)と機首の上下(ピッチ)で全体を回す({@code SkyFlyer#bank}・{@code #pitch})。
+ * 回す中心は胴の高さ(足元から {@link #PIVOT_Y})。
  */
 public class VelophyllRenderer extends GeoEntityRenderer<VelophyllEntity> {
 
-    /** 機首の上げ下げの最大角(度)。 */
-    private static final float MAX_PITCH = 45.0F;
-    /** 旋回のバンクの最大角(度)。 */
-    private static final float MAX_BANK = 35.0F;
-    /** 傾きの支点にする高さ(ブロック)。だいたい胴の中心。 */
-    private static final float PIVOT_HEIGHT = 0.35F;
-    /** 地上にいる間、体を持ち上げる高さ(ブロック)。垂れている膜のぶん。 */
-    private static final float GROUND_LIFT = 0.5F;
+    /** 回す中心の高さ(ブロック)。胴の骨の付け根 y 8 単位。 */
+    static final float PIVOT_Y = 0.5F;
 
-    public VelophyllRenderer(EntityRendererProvider.Context context) {
-        super(context, new VelophyllModel());
-        this.shadowRadius = 0.9F;
+    /** 急降下の影の絵(バニラの影)・濃さ・大きさ(半径。遠いと小さく薄く、近づくと大きく濃く)【仮・Claude 11-15】。 */
+    static final net.minecraft.resources.ResourceLocation SHADOW = net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/misc/shadow.png");
+    static final float SHADOW_ALPHA_MIN = 0.25F, SHADOW_ALPHA_MAX = 0.75F, SHADOW_R_MIN = 1.2F, SHADOW_R_MAX = 3.0F;
+    /** 影が一番濃く大きくなる高さの差(ブロック)。 */
+    static final float SHADOW_NEAR = 6.0F, SHADOW_FAR = 40.0F;
+
+    @Override
+    public void render(VelophyllEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
+                       net.minecraft.client.renderer.MultiBufferSource bufferSource, int packedLight) {
+        super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        net.minecraft.world.entity.Entity t = entity.shadowTarget();
+        if (t != null) renderDiveShadow(entity, t, partialTick, poseStack, bufferSource);
     }
 
     /**
-     * {@code super.applyRotations} のあと、モデルローカルでは <b>-Z が進行方向・+X が右</b>
-     * ({@code ArboraRenderer} と同じ前提)。そこから:
-     * <ul>
-     *     <li>X 軸まわりに正で回すと -Z 側(機首)が<b>上がる</b> → {@code pitchAmount} をそのまま掛ける
-     *         ({@code pitchAmount} は上昇中が +)。</li>
-     *     <li>Z 軸まわりに正で回すと +X 側(右翼)が<b>上がる</b> → 右へ旋回するときは右翼を下げたいので
-     *         {@code bankAmount} に<b>マイナス</b>を掛ける。</li>
-     * </ul>
-     * 座標は {@code nativeScale} で割る({@code SCALE} 属性が入っていても支点がずれないように)。
+     * 急降下の前触れ・落ちる間、狙う相手の足元に影を描く(能力の決定 11-14「前触れ・地面に影」)。
+     * 影は相手と一緒に動き、ヴェロフィルが近づくほど大きく濃くなる(地面の起伏には沿わない平らな円)。
      */
+    private static void renderDiveShadow(VelophyllEntity e, net.minecraft.world.entity.Entity t, float pt, PoseStack ps,
+                                         net.minecraft.client.renderer.MultiBufferSource buffers) {
+        double ex = net.minecraft.util.Mth.lerp(pt, e.xo, e.getX()), ey = net.minecraft.util.Mth.lerp(pt, e.yo, e.getY()), ez = net.minecraft.util.Mth.lerp(pt, e.zo, e.getZ());
+        double tx = net.minecraft.util.Mth.lerp(pt, t.xo, t.getX()), ty = net.minecraft.util.Mth.lerp(pt, t.yo, t.getY()), tz = net.minecraft.util.Mth.lerp(pt, t.zo, t.getZ());
+        float near = (float) net.minecraft.util.Mth.clamp((SHADOW_FAR - (ey - ty)) / (SHADOW_FAR - SHADOW_NEAR), 0.0D, 1.0D);
+        float r = net.minecraft.util.Mth.lerp(near, SHADOW_R_MIN, SHADOW_R_MAX);
+        float a = net.minecraft.util.Mth.lerp(near, SHADOW_ALPHA_MIN, SHADOW_ALPHA_MAX);
+        ps.pushPose();
+        ps.translate(tx - ex, ty - ey + 0.03D, tz - ez);
+        PoseStack.Pose pose = ps.last();
+        com.mojang.blaze3d.vertex.VertexConsumer vc = buffers.getBuffer(net.minecraft.client.renderer.RenderType.entityShadow(SHADOW));
+        int alpha = (int) (a * 255.0F);
+        vertex(vc, pose, -r, -r, 0.0F, 0.0F, alpha);
+        vertex(vc, pose, -r, r, 0.0F, 1.0F, alpha);
+        vertex(vc, pose, r, r, 1.0F, 1.0F, alpha);
+        vertex(vc, pose, r, -r, 1.0F, 0.0F, alpha);
+        ps.popPose();
+    }
+
+    private static void vertex(com.mojang.blaze3d.vertex.VertexConsumer vc, PoseStack.Pose pose, float x, float z, float u, float v, int alpha) {
+        vc.addVertex(pose, x, 0.0F, z).setColor(255, 255, 255, alpha).setUv(u, v)
+                .setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).setNormal(pose, 0.0F, 1.0F, 0.0F);
+    }
+
+    public VelophyllRenderer(EntityRendererProvider.Context context) {
+        super(context, new VelophyllModel());
+        this.shadowRadius = 0.8F;
+    }
+
     @Override
     protected void applyRotations(VelophyllEntity animatable, PoseStack poseStack, float ageInTicks,
                                   float rotationYaw, float partialTick, float nativeScale) {
         super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
-
-        float ground = animatable.getGroundAmount(partialTick);
-        if (ground > 0.001F) {
-            poseStack.translate(0.0F, GROUND_LIFT * ground / nativeScale, 0.0F);
-        }
-
-        float pitch = animatable.getPitchAmount(partialTick) * MAX_PITCH;
-        float bank = animatable.getBankAmount(partialTick) * -MAX_BANK;
-        if (Math.abs(pitch) < 0.05F && Math.abs(bank) < 0.05F) {
-            return;
-        }
-        float pivot = PIVOT_HEIGHT / nativeScale;
-        poseStack.translate(0.0F, pivot, 0.0F);
-        poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(bank));
-        poseStack.translate(0.0F, -pivot, 0.0F);
-    }
-
-    /** 影だけは {@code SCALE} 属性が掛からないので、ここで掛ける。 */
-    @Override
-    protected float getShadowRadius(VelophyllEntity entity) {
-        return this.shadowRadius * entity.getScale();
+        float bank = animatable.bank(partialTick), pitch = animatable.pitch(partialTick);
+        if (Math.abs(bank) < 0.01F && Math.abs(pitch) < 0.01F) return;
+        poseStack.translate(0.0F, PIVOT_Y, 0.0F);
+        poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-bank));   // 11-15 テストクライアント: 回したモデルの前は −Z なので、左へ曲がる(bank 負)とき左の翼を下げるには符号を返す
+        poseStack.translate(0.0F, -PIVOT_Y, 0.0F);
     }
 }

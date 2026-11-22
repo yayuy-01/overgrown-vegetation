@@ -1,0 +1,16 @@
+{
+  "multipart": [
+    { "when": { "north": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true } },
+    { "when": { "east": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true, "y": 90 } },
+    { "when": { "south": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true, "y": 180 } },
+    { "when": { "west": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true, "y": 270 } },
+    { "when": { "up": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true, "x": 270 } },
+    { "when": { "down": "true", "withered": "false" }, "apply": { "model": "overgrown_vegetation:block/organ_vein", "uvlock": true, "x": 90 } },
+    { "when": { "north": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true } },
+    { "when": { "east": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true, "y": 90 } },
+    { "when": { "south": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true, "y": 180 } },
+    { "when": { "west": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true, "y": 270 } },
+    { "when": { "up": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true, "x": 270 } },
+    { "when": { "down": "true", "withered": "true" }, "apply": { "model": "overgrown_vegetation:block/organ_vein_withered", "uvlock": true, "x": 90 } }
+  ]
+}

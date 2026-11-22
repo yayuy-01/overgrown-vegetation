@@ -1,0 +1,201 @@
+{
+  "_comment": "空と雲の設計値(2026-11-08 雲の段階 1「土台」。data/SkyTable)。ユーザー指定: 雲の層 y 300〜350(コードの定数)・高空の晴天 300〜350。ほかは全部仮決め(前の COMMON 設定の既定値のまま)。オン/オフはクライアント設定 clouds、重さは atmosphereQuality。反映は再起動。",
+  "clouds": {
+    "_comment": "coverage = 雲の量の固定(-1 = 日ごとに変わる)。style = 並び方(1 群れ / 2 谷のある雲の海 / 3 壁と橋。積乱雲は段階 2 まで出ないので 1 と 3 の違いは小さい)。ほかは見た目の強さ 0〜1。floorThickness = 谷のある雲の海の厚さの上限(y 300 から。ユーザー指定 11-08「y 300〜350 を守る」で 50。空のボスが戻るときは 252 = 前の厚さ)。floorFlatness = 雲の海の上面の平らさ(0 丘のまま〜1 平ら。11-08 ユーザーの見本「なめらかな床」と雲の床を水面のように使う決定から。仮決め 0.75)。lit*/shade* = 時間帯ごとに日の当たる側・影の側へ掛ける色 [r, g, b](昼・夕方・夜。仮決め。色はユーザーと風景を見て決める)。",
+    "coverage": -1.0,
+    "style": 2,
+    "celShading": 1.0,
+    "softEdges": 1.0,
+    "roughWeather": 1.0,
+    "windStreaks": 1.0,
+    "blueHaze": 1.0,
+    "texture": 1.0,
+    "nightClouds": 1.0,
+    "curvature": 1.0,
+    "farClouds": 1.0,
+    "floorThickness": 50.0,
+    "floorFlatness": 0.75,
+    "litDay": [1.0, 1.0, 1.0],
+    "litDusk": [1.0, 0.84, 0.74],
+    "litNight": [1.0, 1.0, 1.0],
+    "shadeDay": [1.0, 1.0, 1.0],
+    "shadeDusk": [0.86, 0.82, 1.0],
+    "shadeNight": [1.0, 1.0, 1.0]
+  },
+  "wind": {
+    "_comment": "雲は世界に 1 つの卓越風(spore/field/PrevailingWind)で流れる。速さ = clamp(風の強さ, minStrength, maxStrength) × blocksPerTick(ブロック/tick)。",
+    "blocksPerTick": 0.05,
+    "minStrength": 0.5,
+    "maxStrength": 2.0
+  },
+  "shadows": {
+    "_comment": "流れる雲の影の強さ(0〜1)。地下(洞窟の地図で地下と分かる面)には落とさない。",
+    "strength": 1.0
+  },
+  "rays": {
+    "_comment": "薄明光線(天使の梯子)の強さ(0〜1)。",
+    "strength": 1.0
+  },
+  "storms": {
+    "_comment": "積乱雲・入道雲(2026-11-09 雲の段階 2a。parked から戻した)。形の値なのでサーバーの値をクライアントへ送る。enabled = 立てるか(0/1)。chance = 1 升に立つ確率の固定(-1 = 日の雲の量で 0.03〜0.45)。giantChance = 立つ雲のうち巨大(まわりにボスが潜れる深い雲海)になる割合(-1 = 0.12)。footScale = 足元の裾野(雲の海から山へつなぐ坂)の高さの倍率。形(雄大積雲・山脈・雲の谷・湧いては崩れる・時刻や天気で消えない)はユーザー指定 10-17〜18、数値は全部仮決め(前の COMMON 設定の既定値)。",
+    "enabled": 1.0,
+    "chance": -1.0,
+    "giantChance": -1.0,
+    "footScale": 1.0,
+    "_commentRealistic": "realistic = 現実寄りの並び(2026-11-18 ユーザー決定。1 = ふつうの積乱雲は少なく・尾根はいちばん近い隣とだけつなぐ足元の低い棚・近い組の一部はつながず雲の谷間・浮いた雲は 1 つの段 / 0 = 前の山並みとトンネル)。share = そのとき、ふつうの積乱雲の立つ確率に掛ける値(ユーザー指定 0.6。巨大な積乱雲・入道雲・晴れの積雲には掛けない)。どちらも形の値なのでサーバーの値をクライアントへ送る。",
+    "realistic": 1.0,
+    "share": 0.6,
+    "_commentBig": "big = ふつうの積乱雲のうち、ずっと大きくする割合(空の目印。2026-11-18 ユーザー決定 0.2: 胴 2 倍・天辺 y 1900〜2500・金床つき。0 = 出さない)。nest = 嵐の巣のまれさの倍率(2026-11-18 ユーザー決定。1 = 約 22 km 四方に 1 つ・0 = 出さない。世界に固定・消えない・芯は空洞(目)・壁の塔の輪と渦の腕・ゆっくり回る・壁の中で絶えず雷・近づくと強い突風)。どちらも雲の形なので、サーバーの値をクライアントへ送る。",
+    "big": 0.2,
+    "nest": 1.0
+  },
+  "cirrus": {
+    "_comment": "巻雲(高い空の筋の雲。2026-11-09 雲の段階 2a)。見た目だけ(送らない)。strength = 濃さ(0〜1)。amount = 量の固定(-1 = 日ごと: 無い日 3 割)。height = 高さ(10-18 ユーザー「積乱雲の拡大に合わせて上げる」から 3500。仮決め)。windScale = 下の雲に対する流れる速さ(ユーザー指定「1.5 倍以下」。仮決め 1.0)。出る所と出ない所がある(ユーザー指定 10-18)。",
+    "strength": 1.0,
+    "amount": -1.0,
+    "height": 3500.0,
+    "windScale": 1.0,
+    "_commentCurve": "curve = 板を遠くで下げる丸みの半径(2026-11-18 ユーザー決定「巻雲を地平線の近くまで」。21000 で板の端が地平線の近くまで下がる。0 = 下げない。仮決め・見た目だけ)。",
+    "curve": 21000.0
+  },
+  "weather": {
+    "_comment": "天気(2026-11-09 雲の段階 2a-5)。ユーザー決定: バニラの雨を雲の多い日だけに合わせる・/weather はそのまま使える・雨の前にだんだん曇る。syncRain = 合わせるか(0 ならバニラのまま)。rainDays = 雲の多い日のうち雨の日の割合(11-09 ユーザー決定で 0.75。雨の時間をバニラ並みの約 15% に)。thunderShare = 雨のうち雷雨の割合。preRainTicks = 雨の前に曇っていく長さ(tick)。数値は仮決め。サーバーの値を送る。",
+    "syncRain": 1.0,
+    "rainDays": 0.75,
+    "thunderShare": 0.3,
+    "preRainTicks": 4000.0
+  },
+  "skyColor": {
+    "_comment": "空の色(2026-11-13 シェーダーの仕上げ A。ユーザー決定: 普通の世界は「鮮やか」・汚染地域の森の中は「太陽がにじむ + 天頂が少し抜ける」。色と強さの中身は仮決め = 見本 tools/sky-color の案 2・案 イ)。見た目だけ(送らない)。strength = 強さ(0 = バニラの空のまま)。昼と夜はバニラの空の色のままで、その間の 3 つの時刻(金の時間 Gold・日の入り Sunset・日没後 = 夜明け前 Twilight。切り替わる太陽の高さは atmosphere.json の skyTintHeights と同じ)の色を決める: zenith = 天頂・away = 太陽の反対側の地平・toward = 太陽の側の地平・glow = 太陽のまわりの暈の色、glow…Strength = 暈の強さ。空のいちばん下の輪は霧の色のまま(地形と継ぎ目を作らない)。hazeGlow = 森の中の霞ごしの太陽のにじみ(0 = 今までの平らな空)・hazeZenith = 真上で霞が薄れる割合。",
+    "strength": 1.0,
+    "zenithGold": [0.36, 0.52, 0.92],
+    "awayGold": [0.78, 0.78, 0.92],
+    "towardGold": [1.00, 0.82, 0.55],
+    "glowGold": [1.00, 0.85, 0.55],
+    "glowGoldStrength": 0.6,
+    "zenithSunset": [0.22, 0.30, 0.62],
+    "awaySunset": [0.62, 0.52, 0.70],
+    "towardSunset": [1.00, 0.50, 0.22],
+    "glowSunset": [1.00, 0.55, 0.25],
+    "glowSunsetStrength": 0.9,
+    "zenithTwilight": [0.07, 0.10, 0.26],
+    "awayTwilight": [0.16, 0.19, 0.36],
+    "towardTwilight": [0.75, 0.38, 0.30],
+    "glowTwilight": [0.90, 0.40, 0.30],
+    "glowTwilightStrength": 0.5,
+    "hazeGlow": 1.0,
+    "hazeZenith": 0.3
+  },
+  "highSky": {
+    "_comment": "高空の晴天: clearFrom〜clearTo で雨が消え、空がバニラの晴れた色へ(ユーザー指定 300〜350)。clarity = 強さ。",
+    "clarity": 1.0,
+    "clearFrom": 300.0,
+    "clearTo": 350.0
+  },
+  "worldEvents": {
+    "_comment": "ワールドイベント 7 つとフェーズの合図 F3・F7 の見た目(2026-11-16。受け皿 data/WorldEventLooks、描くのは client/worldevent/)。見た目だけ(送らない)。値はすべて【仮】(ユーザーが絵を見て決める)。決まっている中身は Vault「ワールドイベント 7 つの中身の案」の【決定】、作り方と絵は「ワールドイベントの見た目(実装の記録)」。どの節も strength = 全体の強さ(0 で出さない)。",
+    "aurora": {
+      "_comment": "胞子のオーロラ。base = 森の無い所の明るさ・forestBoost = 森の上で足す明るさ・forestRadius = 森の明るい所の広がり(ブロック)。bottom・top = 幕の下の縁と上の端の高さ(世界の y)。scale = 模様の大きさ・drift = 流れる速さ(ブロック/秒)・shimmer = 縦の筋の揺らぎの速さ。colorLow・colorHigh = 幕の下の色と上の色。riseTicks・fallTicks = 出る・消えるのに掛ける tick(ゲーム内 1 時間 = 1000)。hazeDim = 森の霞の中で薄くする割合。フェーズ 3 の合図の短いオーロラの長さは world_events.json の omens。",
+      "strength": 1.0,
+      "base": 0.45,
+      "forestBoost": 0.9,
+      "forestRadius": 900.0,
+      "bottom": 1800.0,
+      "top": 3600.0,
+      "scale": 2600.0,
+      "drift": 14.0,
+      "shimmer": 1.0,
+      "colorLow": [0.20, 1.00, 0.38],
+      "colorHigh": [0.72, 0.95, 0.22],
+      "riseTicks": 1000.0,
+      "fallTicks": 1000.0,
+      "hazeDim": 0.35
+    },
+    "sporeRise": {
+      "_comment": "オーロラの盛りに森の梢の上へ昇るまばらな光の粒(ユーザー決定: 弱く匂わせる程度・粒はまばら)。count = 同時の粒の上限・range = カメラからの範囲・speed = 昇る速さ(ブロック/秒)・height = 梢の上どこまで昇るか・size = 粒の大きさ(ブロック)。",
+      "strength": 1.0,
+      "count": 70,
+      "range": 96.0,
+      "speed": 0.7,
+      "height": 42.0,
+      "size": 0.16,
+      "color": [0.62, 0.95, 0.30]
+    },
+    "pillars": {
+      "_comment": "フェーズ 7 の合図: 一夜だけ森の方角の地平線に立つ胞子の柱。count = 本数・heightDeg = 見かけの高さ(仰角。度)・widthDeg = 太さ(度)・spreadDeg = 横に広がる角度(度)。",
+      "strength": 1.0,
+      "count": 7,
+      "heightDeg": 26.0,
+      "widthDeg": 2.2,
+      "spreadDeg": 70.0,
+      "color": [0.60, 0.92, 0.28]
+    },
+    "halo": {
+      "_comment": "日暈。radiusDeg・widthDeg = 輪の半径と太さ(度。本物は 22 度)。dogs = 幻日の強さ・veil = 太陽のまわりの乳白色の膜・rainbow = 虹色の付き具合(0 で白い輪)。riseTicks・fallTicks = 出る・消えるのに掛ける tick。",
+      "strength": 1.0,
+      "radiusDeg": 22.0,
+      "widthDeg": 1.6,
+      "dogs": 1.0,
+      "veil": 0.3,
+      "rainbow": 0.7,
+      "riseTicks": 300.0,
+      "fallTicks": 300.0
+    },
+    "meteors": {
+      "_comment": "流星群(音は付けない = ユーザー決定)。perMinute = 盛り(真夜中)の 1 分あたりの流れ星の数・fireballMinutes = 火球の間の平均(分)。",
+      "strength": 1.0,
+      "perMinute": 40.0,
+      "fireballMinutes": 2.5,
+      "color": [0.92, 0.96, 1.0],
+      "fireballColor": [1.0, 0.82, 0.45]
+    },
+    "eclipse": {
+      "_comment": "日食(ユーザー決定: 夜と同じ真っ暗 = darkness 1・星が出る・地平線だけ夕焼け色。見た目だけ)。sunSize = 太陽の絵の芯の大きさ(空の描画の単位。絵は幅 60。月はこの 1.67 倍)。horizonColor・horizonStrength・horizonHeight・horizonToward = 地平線の夕焼け色・強さ・帯の高さ・太陽の側の明るさ。fogColor = 真っ暗な間の霧の色。corona = 月のまわりの光の強さ。",
+      "darkness": 1.0,
+      "sunSize": 17.0,
+      "horizonColor": [1.0, 0.42, 0.14],
+      "horizonStrength": 0.5,
+      "horizonHeight": 0.10,
+      "horizonToward": 0.6,
+      "fogColor": [0.085, 0.045, 0.035],
+      "corona": 1.0
+    },
+    "leyTide": {
+      "_comment": "地脈の大潮の見た目(効き目はサーバー側 world_events.json の leyTidePumpMultiplier)。dayStrength = 昼の強さ(夜を 1 として)。range = 光を立てる範囲(ブロック)・lineWidth = 線からの幅・density = 線の上の升のうち光を立てる割合。height・width = 光の帯の高さと幅(ブロック)。color = 通常世界の色・pollutedColor = 汚染地域の色(地脈の根の色)。veinBoost = 岩肌の地脈の筋の明るさの倍率。",
+      "strength": 1.0,
+      "dayStrength": 0.45,
+      "range": 64.0,
+      "lineWidth": 3.0,
+      "density": 0.30,
+      "height": 7.0,
+      "width": 1.3,
+      "color": [0.38, 0.86, 1.0],
+      "pollutedColor": [0.675, 0.89, 0.10],
+      "veinBoost": 2.2
+    },
+    "shadow": {
+      "_comment": "地平線を歩く影(監視塔に似せた影絵 = ユーザー決定)。heightDeg = 見かけの高さ(度)・baseDeg = 足元の仰角(負 = 地平線の下)。darken = 霧の色からどれだけ暗くするか・opacity = 影の濃さ。fogFrom・fogFull = 濃霧の度合いがここから見え始め・ここで見えきる。stepSeconds = 1 歩の秒・stepsPerWalk = 何歩ごとに止まるか・pauseSeconds = 止まる秒・stride = 1 歩で進む幅(体の高さを 1 として)。",
+      "strength": 1.0,
+      "heightDeg": 24.0,
+      "baseDeg": -5.0,
+      "darken": 0.42,
+      "opacity": 0.62,
+      "fogFrom": 0.15,
+      "fogFull": 0.35,
+      "stepSeconds": 14.0,
+      "stepsPerWalk": 2,
+      "pauseSeconds": 12.0,
+      "stride": 0.10
+    },
+    "tide": {
+      "_comment": "光る潮。color = 光の色。shore = 岸へ寄せる光・sparks = 1 画素の火花・wake = 泳いだ跡の光の強さ。wakeRadius = 跡の広さ(ブロック)・wakeSeconds = 跡の残る秒。",
+      "strength": 1.0,
+      "color": [0.16, 0.92, 0.78],
+      "shore": 1.0,
+      "sparks": 0.9,
+      "wake": 1.2,
+      "wakeRadius": 1.4,
+      "wakeSeconds": 8.0
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "variants": {
+    "facing=north,part=big": { "model": "overgrown_vegetation:block/cordaites_buttress_big" },
+    "facing=east,part=big": { "model": "overgrown_vegetation:block/cordaites_buttress_big", "y": 90 },
+    "facing=south,part=big": { "model": "overgrown_vegetation:block/cordaites_buttress_big", "y": 180 },
+    "facing=west,part=big": { "model": "overgrown_vegetation:block/cordaites_buttress_big", "y": 270 },
+    "facing=north,part=mid": { "model": "overgrown_vegetation:block/cordaites_buttress_mid" },
+    "facing=east,part=mid": { "model": "overgrown_vegetation:block/cordaites_buttress_mid", "y": 90 },
+    "facing=south,part=mid": { "model": "overgrown_vegetation:block/cordaites_buttress_mid", "y": 180 },
+    "facing=west,part=mid": { "model": "overgrown_vegetation:block/cordaites_buttress_mid", "y": 270 },
+    "facing=north,part=near": { "model": "overgrown_vegetation:block/cordaites_buttress_near" },
+    "facing=east,part=near": { "model": "overgrown_vegetation:block/cordaites_buttress_near", "y": 90 },
+    "facing=south,part=near": { "model": "overgrown_vegetation:block/cordaites_buttress_near", "y": 180 },
+    "facing=west,part=near": { "model": "overgrown_vegetation:block/cordaites_buttress_near", "y": 270 },
+    "facing=north,part=tip": { "model": "overgrown_vegetation:block/cordaites_buttress_tip" },
+    "facing=east,part=tip": { "model": "overgrown_vegetation:block/cordaites_buttress_tip", "y": 90 },
+    "facing=south,part=tip": { "model": "overgrown_vegetation:block/cordaites_buttress_tip", "y": 180 },
+    "facing=west,part=tip": { "model": "overgrown_vegetation:block/cordaites_buttress_tip", "y": 270 },
+    "facing=north,part=climb": { "model": "overgrown_vegetation:block/cordaites_buttress_climb" },
+    "facing=east,part=climb": { "model": "overgrown_vegetation:block/cordaites_buttress_climb", "y": 90 },
+    "facing=south,part=climb": { "model": "overgrown_vegetation:block/cordaites_buttress_climb", "y": 180 },
+    "facing=west,part=climb": { "model": "overgrown_vegetation:block/cordaites_buttress_climb", "y": 270 },
+    "facing=north,part=climb_top": { "model": "overgrown_vegetation:block/cordaites_buttress_climb_top" },
+    "facing=east,part=climb_top": { "model": "overgrown_vegetation:block/cordaites_buttress_climb_top", "y": 90 },
+    "facing=south,part=climb_top": { "model": "overgrown_vegetation:block/cordaites_buttress_climb_top", "y": 180 },
+    "facing=west,part=climb_top": { "model": "overgrown_vegetation:block/cordaites_buttress_climb_top", "y": 270 },
+    "facing=north,part=drop": { "model": "overgrown_vegetation:block/cordaites_buttress_drop" },
+    "facing=east,part=drop": { "model": "overgrown_vegetation:block/cordaites_buttress_drop", "y": 90 },
+    "facing=south,part=drop": { "model": "overgrown_vegetation:block/cordaites_buttress_drop", "y": 180 },
+    "facing=west,part=drop": { "model": "overgrown_vegetation:block/cordaites_buttress_drop", "y": 270 }
+  }
+}

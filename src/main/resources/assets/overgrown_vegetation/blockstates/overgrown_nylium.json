@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_nylium" },
+      { "model": "overgrown_vegetation:block/overgrown_nylium_2" },
+      { "model": "overgrown_vegetation:block/overgrown_nylium_3" }
+    ]
+  }
+}

@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.registry.ModBiomes;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
@@ -48,15 +47,6 @@ public final class OvergrownVegetationClient {
      */
     @SubscribeEvent
     public static void registerLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
-        event.registerLayerDefinition(OvergrownVegetationModelLayers.SIEGE_BOMB, SiegeBombModel::createBodyLayer);
-        event.registerLayerDefinition(OvergrownVegetationModelLayers.EROSION_DEFAULT,
-                () -> LayerDefinition.create(
-                        PlayerModel.createMesh(new CubeDeformation(ErosionPlayerLayer.INFLATION), false),
-                        64, 64));
-        event.registerLayerDefinition(OvergrownVegetationModelLayers.EROSION_SLIM,
-                () -> LayerDefinition.create(
-                        PlayerModel.createMesh(new CubeDeformation(ErosionPlayerLayer.INFLATION), true),
-                        64, 64));
     }
 
     /**
@@ -123,13 +113,13 @@ public final class OvergrownVegetationClient {
      * 何をするか(チャンクの積み直しか、リソース再読み込みか)は
      * {@link GeoStaticGeometry#applyDetailChange()} が変更の種類を見て決める。
      *
-     * <p>ビデオ設定の「シダをすべて表示する」({@link CurledFernOption})から切り替えたときは
+     * <p>ビデオ設定の「シダの葉を立体で描く」({@link CurledFernOption})から切り替えたときは
      * そちらが直接 {@code applyDetailChange()} を呼ぶ({@code ConfigValue#set} は
      * イベントを投げないため)。二重に呼ばれても、値が変わっていなければ何もしない。
      */
     @SubscribeEvent
     public static void reloadOnCurledFernDetailChange(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getSpec() == OvergrownVegetationConfig.SPEC) {
+        if (event.getConfig().getSpec() == com.yayuy.overgrownvegetation.config.OvergrownClientConfig.SPEC) { // 10-23 にクライアント設定へ移した
             GeoStaticGeometry.applyDetailChange();
         }
     }
@@ -140,90 +130,24 @@ public final class OvergrownVegetationClient {
      */
     @SubscribeEvent
     public static void clientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(HiveRitualClient::registerPlayerAnimationLayer);
-        // 機関砲台がクライアントでも「いま飛んでいる胞子弾」を狙えるようにする(向きの同期を省くため)。
-        event.enqueueWork(() -> com.yayuy.overgrownvegetation.block.GunTurretBlockEntity
-                .setClientShellLocator(ClientShells::position));
-        // 撃った弾を見えるようにする(見た目だけ。当たり判定は即着弾)。
-        event.enqueueWork(() -> com.yayuy.overgrownvegetation.block.GunTurretBlockEntity
-                .setClientTracerSink(GunTracerRenderer::add));
     }
 
     @SubscribeEvent
     public static void registerMenuScreens(RegisterMenuScreensEvent event) {
-        event.register(ModMenus.RESEARCH_TABLE.get(), ResearchTableScreen::new);
-        event.register(ModMenus.SPORE_DEVICE.get(), SporeDeviceScreen::new);
-        event.register(ModMenus.DECONTAMINATOR.get(), DecontaminatorScreen::new);
-        event.register(ModMenus.SIEGE_CANNON.get(), SiegeCannonScreen::new);
-    }
-
-    @SubscribeEvent
-    public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(ModParticles.OVERGROWN_SPORE.get(), OvergrownSporeParticle.Provider::new);
-        event.registerSpriteSet(ModParticles.FINE_SPORE.get(), FineSporeParticle.Provider::new);
     }
 
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.BLIGHT_FERN.get(), BlightFernRenderer::new);
         event.registerEntityRenderer(ModEntities.HIVE_NODE.get(), HiveNodeRenderer::new);
-        event.registerEntityRenderer(ModEntities.HIVE_VINE.get(), HiveVineRenderer::new);
-        event.registerEntityRenderer(ModEntities.HIVE_RITUAL.get(), HiveRitualRenderer::new);
-        event.registerEntityRenderer(ModEntities.HIVE_RITUAL_SEAT.get(), NoopRenderer::new);
-        event.registerEntityRenderer(ModEntities.BLIGHT_WATER_GRASS.get(), BlightWaterGrassRenderer::new);
-        event.registerEntityRenderer(ModEntities.OVERGROWN_SHIELDER.get(), OvergrownShielderRenderer::new);
         event.registerEntityRenderer(ModEntities.FALCIMNES.get(), FalcimnesRenderer::new);
-        event.registerEntityRenderer(ModEntities.PHALANGIOTARBUS.get(), PhalangiotarbusRenderer::new);
-        event.registerEntityRenderer(ModEntities.PROTOPHASMA.get(), ProtophasmaRenderer::new);
-        event.registerEntityRenderer(ModEntities.ARTHROPLEURA.get(), ArthropleuraRenderer::new);
-        event.registerEntityRenderer(ModEntities.SPELAEOPLEURA.get(), SpelaeopleuraRenderer::new);
-        event.registerEntityRenderer(ModEntities.COELUROSAURAVUS.get(), CoelurosauravusRenderer::new);
-        event.registerEntityRenderer(ModEntities.LITHOPLEURA.get(), LithopleuraRenderer::new);
-        event.registerEntityRenderer(ModEntities.STENODICTYA_LOBATA.get(), StenodictyaLobataRenderer::new);
-        event.registerEntityRenderer(ModEntities.MEGANEURA.get(), MeganeuraRenderer::new);
+        event.registerEntityRenderer(ModEntities.FALCIMNES_WAVE.get(), FalcimnesWaveRenderer::new);
+        event.registerEntityRenderer(ModEntities.FALCIMNES_RIFT.get(), FalcimnesRiftRenderer::new);
         event.registerEntityRenderer(ModEntities.ARBORA.get(), ArboraRenderer::new);
-        event.registerEntityRenderer(ModEntities.ARBORA_QUEEN.get(), ArboraQueenRenderer::new);
-        event.registerEntityRenderer(ModEntities.NEST_CORE.get(), NestCoreRenderer::new);
-        event.registerEntityRenderer(ModEntities.PHYLLOSENS.get(), PhyllosensRenderer::new);
-        event.registerEntityRenderer(ModEntities.VELOPHYLL.get(), VelophyllRenderer::new);
-        event.registerEntityRenderer(ModEntities.VELOPHYLL_BOMB.get(), VelophyllBombRenderer::new);
-        event.registerEntityRenderer(ModEntities.SPOROPHYLL.get(), SporophyllRenderer::new);
-        event.registerEntityRenderer(ModEntities.PETROLACOSAURUS.get(), PetrolacosaurusRenderer::new);
-        event.registerEntityRenderer(ModEntities.IANTHASAURUS.get(), IanthasaurusRenderer::new);
-        event.registerEntityRenderer(ModEntities.HYLONOMUS.get(), HylonomusRenderer::new);
-        event.registerEntityRenderer(ModEntities.RHIZODUS.get(), RhizodusRenderer::new);
-        event.registerEntityRenderer(ModEntities.XENACANTHUS.get(), XenacanthusRenderer::new);
-        event.registerEntityRenderer(ModEntities.ORTHACANTHUS.get(), OrthacanthusRenderer::new);
-        event.registerEntityRenderer(ModEntities.MEGARACHNE.get(), MegarachneRenderer::new);
-        event.registerEntityRenderer(ModEntities.OVERGROWN_NEXUS.get(), OvergrownNexusRenderer::new);
-        event.registerEntityRenderer(ModEntities.DORGA_ARCHELAUS_TITANICA.get(), DorgaArchelausTitanicaRenderer::new);
-        // 当たり判定の箱は見えない(F3+B の当たり判定表示でだけ見える)。
-        event.registerEntityRenderer(ModEntities.TITANICA_HITBOX.get(),
-                net.minecraft.client.renderer.entity.NoopRenderer::new);
-        event.registerEntityRenderer(ModEntities.SIEGE_BOMB.get(), SiegeBombRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.OVERGROWN_LIANA.get(), context -> new CorruptedLianaRenderer());
-        // 羊・豚・クリーパーの死体は専用の GeckoLib 立体モデルで描画(近づかないと描画されない)。
-        // 牛・ゾンビ・クモの死体は通常のブロックモデルのままで、この BER では描画しない。
-        event.registerBlockEntityRenderer(ModBlockEntities.CORRUPTED_CORPSE.get(), context -> new CorruptedCorpseRenderer());
-        event.registerBlockEntityRenderer(ModBlockEntities.LITHOPLEURA_HUSK.get(), context -> new LithopleuraHuskRenderer());
+        event.registerBlockEntityRenderer(ModBlockEntities.BLIGHT_FERN_ROOTED.get(), context -> new BlightFernRootedRenderer());
         // 過繫茂したチェスト(バニラのチェストモデル + 緑の色味 + 蔦・コケのオーバーレイ)。
         event.registerBlockEntityRenderer(ModBlockEntities.OVERGROWN_CHEST.get(), OvergrownChestRenderer::new);
-        // 砲台(GeckoLib。台座が旋回し砲身が俯仰する。ブロックモデル自体は描画しない)。
-        event.registerBlockEntityRenderer(ModBlockEntities.SIEGE_CANNON.get(), SiegeCannonRenderer::new);
-        // 遮蔽盾（ハンドルで旋回・ボタンで展開）。
-        event.registerBlockEntityRenderer(ModBlockEntities.BEAM_SHIELD.get(), BeamShieldRenderer::new);
-        // 機関砲台(GeckoLib。台座が旋回し銃身が俯仰する。汚染されるとテクスチャだけ差し替わる)。
-        event.registerBlockEntityRenderer(ModBlockEntities.GUN_TURRET.get(), GunTurretRenderer::new);
-        // 砲台の座席は見えないエンティティ。
-        event.registerEntityRenderer(ModEntities.SIEGE_CANNON_SEAT.get(), NoopRenderer::new);
-
-        // 「過繁茂した牛/豚/羊/ゾンビ/クリーパー/クモ」は専用の GeckoLib モデルを使う(見た目のみ差し替え、AI/繁殖等はバニラを流用)。
-        event.registerEntityRenderer(ModEntities.PARASITIZED_COW.get(), ParasitizedCowRenderer::new);
-        event.registerEntityRenderer(ModEntities.PARASITIZED_PIG.get(), ParasitizedPigRenderer::new);
-        event.registerEntityRenderer(ModEntities.PARASITIZED_SHEEP.get(), ParasitizedSheepRenderer::new);
-        event.registerEntityRenderer(ModEntities.PARASITIZED_ZOMBIE.get(), ParasitizedZombieRenderer::new);
-        event.registerEntityRenderer(ModEntities.PARASITIZED_CREEPER.get(), ParasitizedCreeperRenderer::new);
-        event.registerEntityRenderer(ModEntities.PARASITIZED_SPIDER.get(), ParasitizedSpiderRenderer::new);
 
         // 他の「過繁茂した(MOB名)」— バニラの対応 Mob と同じ骨格/アニメーションに、シダ/コケの
         // 成長物キューブを足しただけの専用モデル(仮のシルエット、Parasitized*Model 参照)。
@@ -289,47 +213,6 @@ public final class OvergrownVegetationClient {
                 ModItems.OVERGROWN_BARREL_ITEM.get());
     }
 
-
-    /**
-     * 極相({@code engulfed})バイオームの中では、過繫茂した草ブロック・下草・茂みを少し暗く描く
-     * (2026-09-22、{@code climax.json} の {@code biome.plantTint})。林冠が閉じて日が差さない
-     * 林床の草、という絵をブロック側からも作るため。極相の外では {@code 0xFFFFFF}(変化なし)。
-     *
-     * <p>この 3 つのモデルには {@code tintindex: 0} を入れてある(草ブロックは専用の親
-     * {@code block/cube_bottom_top_tinted}、下草はバニラの {@code block/tinted_cross}、
-     * 茂みは 10 面すべて)。<b>tintindex の無い面にはこのハンドラは効かない</b>ので、
-     * 対象を増やすときはモデル側も一緒に直すこと。
-     *
-     * <p>色は<b>チャンクのメッシュに焼き込まれる</b>(毎フレーム呼ばれるわけではない)。
-     * バイオームが書き換わると {@code ChunkMap#resendBiomesForChunks} の再送でクライアントが
-     * セクションを描き直すので、極相になった瞬間にちゃんと色が変わる。
-     *
-     * <p>境目はぼかしていない(バニラの草の色のような近傍の混色をしていない)。過繫茂バイオームの
-     * 縁はもともと quart 単位で波打たせてあるので直線にはならず、さらに極相の中は霧が 48 ブロックなので
-     * 遠景では見えない。気になるようなら近傍の平均を取る形に変えられる。
-     */
-    @SubscribeEvent
-    public static void registerClimaxPlantColors(RegisterColorHandlersEvent.Block event) {
-        event.register((state, level, pos, tintIndex) -> climaxPlantTint(pos),
-                ModBlocks.OVERGROWN_GRASS_BLOCK.get(),
-                ModBlocks.OVERGROWN_GROWTH.get(),
-                ModBlocks.OVERGROWN_BUSH.get());
-    }
-
-    /** その位置が極相バイオームなら {@code biome.plantTint}、そうでなければ白(変化なし)。 */
-    private static int climaxPlantTint(@Nullable BlockPos pos) {
-        if (pos == null) {
-            return 0xFFFFFF; // 手持ちのアイテムなど、位置が無いところでは色を変えない。
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return 0xFFFFFF;
-        }
-        return ModBiomes.isClimax(mc.level.getBiome(pos))
-                ? DesignData.climax().plantTint()
-                : 0xFFFFFF;
-    }
-
     /**
      * プレイヤーのレンダラーへ浸食度の見た目({@link ErosionPlayerLayer})を差し込む(2026-09-22)。
      *
@@ -341,11 +224,24 @@ public final class OvergrownVegetationClient {
         for (PlayerSkin.Model model : PlayerSkin.Model.values()) {
             PlayerRenderer renderer = event.getSkin(model);
             if (renderer != null) {
-                renderer.addLayer(new ErosionPlayerLayer(
-                        renderer, event.getEntityModels(), model == PlayerSkin.Model.SLIM));
             }
         }
     }
+    /** 萌芽体の噴き出しの粒({@link SporeJetParticle}。2026-10-31 に parked/ から戻した)。 */
+    @SubscribeEvent
+    public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(ModParticles.SPORE_JET.get(), SporeJetParticle.Provider::new);
+        // G1 進化体の破裂の胞子の雲(2026-11-12)
+        event.registerSpriteSet(ModParticles.SPORE_BURST_CLOUD.get(), SporeCloudParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.MUD_CLOUD.get(), MudCloudParticle.Provider::new); // 泥煙(11-13 水まわり ⑥)
+        event.registerSpriteSet(ModParticles.WATER_FLEA.get(), UnderwaterLifeParticles.WaterFlea.Provider::new); // ミジンコ(11-13)
+        event.registerSpriteSet(ModParticles.SINKING_LEAF.get(), UnderwaterLifeParticles.Sinking.Provider::new); // 沈む葉(11-13)
+        event.registerSpriteSet(ModParticles.SPORE_FLUFF.get(), UnderwaterLifeParticles.Sinking.Provider::new); // 胞子の綿(11-13)
+        event.registerSpriteSet(ModParticles.FLOATING_LEAF.get(), FloatingLeafParticle.Provider::new); // 水面に浮く落ち葉(11-13 密林の水辺 ②)
+        // バニラの水中の浮遊粒を置き換える(過繁茂の水では黄緑の微粒、W6 2026-11-01)。
+        event.registerSpriteSet(net.minecraft.core.particles.ParticleTypes.UNDERWATER, UnderwaterMoteParticle.Provider::new);
+    }
+
     private OvergrownVegetationClient() {
     }
 }

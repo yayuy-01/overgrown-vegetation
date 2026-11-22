@@ -1,0 +1,3 @@
+# 移植の元(本流 main のコミット)。次の追い付きは「git diff --name-status -M <この SHA> <新しい印> -- src/main」で差分を出す。
+82f05fccc3b811f152fe77a84df7a569f7ef9a41
+# 取り込んだ日: 2026-11-23。data/ は取り込んでいない(port-tools/DataPort.java が作る)。1.20.1 だけの物: 起動クラス・META-INF・mixins.json・pack.mcmeta

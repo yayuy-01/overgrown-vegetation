@@ -1,7 +1,9 @@
 {
   "variants": {
-    "": {
-      "model": "overgrown_vegetation:block/overgrown_planks"
-    }
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_planks" },
+      { "model": "overgrown_vegetation:block/overgrown_planks_2" },
+      { "model": "overgrown_vegetation:block/overgrown_planks_3" }
+    ]
   }
 }

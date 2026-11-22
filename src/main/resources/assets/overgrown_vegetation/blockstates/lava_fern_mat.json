@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "tilt=none": { "model": "overgrown_vegetation:block/lava_fern_mat" },
+    "tilt=unstable": { "model": "overgrown_vegetation:block/lava_fern_mat" },
+    "tilt=partial": { "model": "overgrown_vegetation:block/lava_fern_mat_tilted" },
+    "tilt=full": { "model": "overgrown_vegetation:block/lava_fern_mat_tilted" }
+  }
+}

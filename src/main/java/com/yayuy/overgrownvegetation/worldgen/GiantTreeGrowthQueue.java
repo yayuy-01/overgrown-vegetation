@@ -3,6 +3,9 @@ package com.yayuy.overgrownvegetation.worldgen;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionSpreader;
+import com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
 import com.yayuy.overgrownvegetation.entity.HiveNodeEntity;
 import com.yayuy.overgrownvegetation.registry.ModEntities;
@@ -84,6 +87,9 @@ public final class GiantTreeGrowthQueue {
         final LongArrayList leaves;
         /** フェーズ3: 根を這わせた各歩の足元(地表)の座標。頂上を探して下草を生やす。 */
         final LongArrayList rootColumns;
+        // 洞窟の柱の付け根の天井から垂らす dangling_roots の房(2026-11-07)。天井の真下の空気のマスと長さ。
+        final LongArrayList danglingTops;
+        final it.unimi.dsi.fastutil.ints.IntArrayList danglingLens;
         final int trunkSize;
         final int cambiumSize;
         final int chlorophylliteOreSize;
@@ -144,6 +150,8 @@ public final class GiantTreeGrowthQueue {
             this.hiveLining = plan.hiveLining;
             this.leaves = plan.leaves;
             this.rootColumns = plan.rootColumns;
+            this.danglingTops = plan.danglingTops;
+            this.danglingLens = plan.danglingLens;
             this.trunkSize = plan.trunk.size();
             this.cambiumSize = plan.cambium.size();
             this.chlorophylliteOreSize = plan.chlorophylliteOre.size();
@@ -220,7 +228,6 @@ public final class GiantTreeGrowthQueue {
         }
         // 広間の方を向いて据わる(向きは以後固定。儀式中のプレイヤーと向かい合う)。
         node.moveTo(cx + 0.5D, y - node.getBbHeight() * 0.5D, cz + 0.5D, job.hiveNodeYaw, 0.0F);
-        node.setVineTotal(0);
         if (job.hiveRitualCenter != Long.MIN_VALUE) {
             node.setRitual(BlockPos.of(job.hiveRitualCenter), job.hiveRitualYaw);
         }
@@ -228,6 +235,32 @@ public final class GiantTreeGrowthQueue {
         OvergrownVegetation.LOGGER.info("GiantTree: 巣の球の小部屋に hive_node を置きました {} / 儀式の広間 {} (yaw {})",
                 pos, job.hiveRitualCenter == Long.MIN_VALUE ? "なし" : BlockPos.of(job.hiveRitualCenter),
                 job.hiveRitualYaw);
+    }
+
+    /**
+     * 洞窟の柱の付け根の天井から {@code dangling_roots} の房を垂らす(2026-11-07)。根を全部置き終えた後に 1 回だけ。
+     * 置く所が空気でなくなっていれば、{@code CaveFlora.hangRoots} が短くするか置かない。
+     */
+    /** 房を垂らす所のどれかのチャンクが読み込み途中なら、終わりを次の tick へ延ばす(房を永久に飛ばさない。11-18 見直し ③4)。 */
+    private static boolean tuftsWaiting(ServerLevel level, Job job) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < job.danglingTops.size(); i++) {
+            long k = job.danglingTops.getLong(i);
+            p.set(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k));
+            if (ChunkEdgeGuard.edge(level, p, 1) == ChunkEdgeGuard.Edge.WAIT) return true;
+        }
+        return false;
+    }
+
+    private static void hangPillarTufts(ServerLevel level, Job job) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < job.danglingTops.size(); i++) {
+            long k = job.danglingTops.getLong(i);
+            p.set(BlockPos.getX(k), BlockPos.getY(k), BlockPos.getZ(k));
+            if (ChunkEdgeGuard.isLoaded(level, p) && ChunkEdgeGuard.isLoaded(level, p.above())) { // 11-18 見直し ③4
+                com.yayuy.overgrownvegetation.corruption.CaveFlora.hangRoots(level, p.immutable(), job.danglingLens.getInt(i));
+            }
+        }
     }
 
     /** {@link GiantTreeFeature#place} から呼ぶ。以降このジョブを毎ティック少しずつ設置していく。 */
@@ -242,13 +275,52 @@ public final class GiantTreeGrowthQueue {
         PhaseData.get(level).markGiantTreeGrown();
     }
 
+    /** そのワールドで設置待ち・設置中の巨大樹の数(GameTest から)。 */
+    public static int pendingJobs(ServerLevel level) {
+        int n = GiantTreePlanner.inFlight(level); // 計画中(別スレッド)の木も数える(2026-11-18 案 A)
+        for (Job job : JOBS) {
+            if (job.level == level) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * そのワールドの設置待ち・設置中の巨大樹を捨てる(GameTest から: 誤って積まれた巨大樹をテストのワールドへ生やさない。
+     * 積まれた同じ tick のうちに捨てれば 1 ブロックも置かれない)。
+     *
+     * @return 捨てた数
+     */
+    public static int discardJobsForTests(ServerLevel level) {
+        int before = JOBS.size();
+        JOBS.removeIf(job -> job.level == level);
+        return before - JOBS.size() + GiantTreePlanner.discard(level);
+    }
+
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (JOBS.isEmpty() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
+        // サーバーが重いときは予算の番人が次の tick へ回す(2026-10-06。結果は同じで遅れるだけ)。番人に聞くのはこの次元に仕事があるときだけ。
+        if (pendingJobs(serverLevel) == 0 || !TickBudget.mayStart(PerfJob.GIANT_TREE)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        int perTick = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        int left = perTick;
+        try {
+            left = tickJobs(serverLevel, perTick);
+        } finally {
+            TickBudget.end(PerfJob.GIANT_TREE, start, perTick - left);
+        }
+    }
+
+    /** 1 tick ぶん進める。戻り値は使い残した予算。 */
+    private static int tickJobs(ServerLevel serverLevel, int perTick) {
         // 同時に複数本の生成中でも、1ティックあたりの合計がこの数を超えないよう配分する。
-        int budget = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        int budget = perTick;
         BlockPos.MutableBlockPos cursorPos = new BlockPos.MutableBlockPos();
 
         Iterator<Job> it = JOBS.iterator();
@@ -311,16 +383,22 @@ public final class GiantTreeGrowthQueue {
                     state = job.leafState;
                 }
                 cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
-                // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。
-                if (serverLevel.isLoaded(cursorPos)) {
+                // 途中でチャンクがアンロードされた場合はそのブロックは諦める(同期生成を避ける)。読み込み・生成の途中なら触らず、
+                // このジョブは次の tick に同じ所から(11-18 見直し ③4。isLoaded は生成中でも true で、主スレッドが生成を待っていた)
+                ChunkEdgeGuard.Edge edge = ChunkEdgeGuard.edge(serverLevel, cursorPos, 0);
+                if (edge == ChunkEdgeGuard.Edge.WAIT) break;
+                if (edge == ChunkEdgeGuard.Edge.READY && !TreePlacementRules.treeKeeps(serverLevel.getBlockState(cursorPos))
+                        && !com.yayuy.overgrownvegetation.corruption.pushback.RingWards.guardedFrom(serverLevel, job.trunk.isEmpty() ? null : BlockPos.of(job.trunk.getLong(0)), cursorPos)
+                        && !com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(serverLevel, cursorPos)) { // 段 2d: 守る範囲では空気と草花のマスだけ・部屋の中は飛ばす(箱を全部飛ばすと四角く欠けた) // 構造物の部品の箱には置かない(11-19 融合 段 1)。中庭の巨大樹だけは箱の中の空気と草花のマスに置く(段 2) // 根付いた萌芽体は残す。帯の線の向こう・杭の範囲には置かない(押し返し 11-18 夜)
                     serverLevel.setBlock(cursorPos.immutable(), state, UPDATE_FLAGS);
                 }
                 job.cursor++;
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             // フェーズ2: 設置し終えたら、外殻・葉の露出面に装飾植物 + 原木にヒカリゴケを生やす。
             // 1面の判定は setBlock より軽いので、予算1あたり DECOR_PER_BUDGET 個ずつ進める。
-            while (job.cursor >= job.placeTotal && job.hasDecorPhase()
+            boolean stall = false;
+            while (!stall && job.cursor >= job.placeTotal && job.hasDecorPhase()
                     && job.decorCursor < job.decorTotal && budget > 0) {
                 for (int k = 0; k < DECOR_PER_BUDGET && job.decorCursor < job.decorTotal; k++) {
                     long packed;
@@ -344,7 +422,12 @@ public final class GiantTreeGrowthQueue {
                         chance = job.plantChance;
                     }
                     cursorPos.set(BlockPos.getX(packed), BlockPos.getY(packed), BlockPos.getZ(packed));
-                    if (serverLevel.isLoaded(cursorPos)
+                    ChunkEdgeGuard.Edge edge = ChunkEdgeGuard.edge(serverLevel, cursorPos, 1); // 飾りは隣のマスにも生える(③4)
+                    if (edge == ChunkEdgeGuard.Edge.WAIT) {
+                        stall = true;
+                        break;
+                    }
+                    if (edge == ChunkEdgeGuard.Edge.READY
                             && serverLevel.getBlockState(cursorPos).is(host.getBlock())) {
                         BlockPos hostPos = cursorPos.immutable();
                         if (chance > 0.0D) {
@@ -362,7 +445,7 @@ public final class GiantTreeGrowthQueue {
                     }
                     job.decorCursor++;
                 }
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             // フェーズ3: フェーズ2まで終えたら、根の足元座標をたどって盛り上がりの頂上に
             // 汚染時と同じ下草(シダ・苔・背高植物)を生やす。根が地面と一体化して苔むして見える。
@@ -375,13 +458,18 @@ public final class GiantTreeGrowthQueue {
                             job.trunkState.getBlock(), job.rootPlantChance);
                     job.rootCursor++;
                 }
-                budget--;
+                budget = TickBudget.spend(budget);
             }
-            if (job.done()) {
+            if (job.done() && !tuftsWaiting(serverLevel, job)) {
+                // 側面・底面に生えるもの(2026-11-01)。巨大樹は数を増やし、幹の巻き付きは面の一部の列だけ。
+                TreeSideGrowth.decorate(serverLevel, serverLevel.random, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.trunk),
+                        new it.unimi.dsi.fastutil.longs.LongOpenHashSet(job.leaves), true);
+                hangPillarTufts(serverLevel, job);
                 spawnHiveNode(serverLevel, job);
                 it.remove();
             }
         }
+        return Math.max(0, budget);
     }
 
     /**
@@ -397,7 +485,7 @@ public final class GiantTreeGrowthQueue {
                 continue;
             }
             p.setWithOffset(hostPos, dir);
-            if (!level.isLoaded(p)) {
+            if (!ChunkEdgeGuard.isLoaded(level, p)) { // 読み込み途中も飛ばす(飾り。11-18 見直し ③4)
                 continue;
             }
             BlockState there = level.getBlockState(p);

@@ -1,0 +1,14 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/sea_spore_band" },
+      { "model": "overgrown_vegetation:block/sea_spore_band", "y": 180 },
+      { "model": "overgrown_vegetation:block/sea_spore_band_1" },
+      { "model": "overgrown_vegetation:block/sea_spore_band_1", "y": 180 },
+      { "model": "overgrown_vegetation:block/sea_spore_band_2" },
+      { "model": "overgrown_vegetation:block/sea_spore_band_2", "y": 180 },
+      { "model": "overgrown_vegetation:block/sea_spore_band_3" },
+      { "model": "overgrown_vegetation:block/sea_spore_band_3", "y": 180 }
+    ]
+  }
+}

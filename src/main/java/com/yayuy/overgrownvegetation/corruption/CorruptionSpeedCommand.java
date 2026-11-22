@@ -4,6 +4,8 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.difficulty.DifficultySetting;
+import com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -12,10 +14,15 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
- * {@code /ov corruption speed}(引数なし)— 汚染シダ(blight_fern)・汚染死体ブロック共通の
- * 侵食速度倍率({@code corruptionSpeedMultiplier})の現在値を表示する。
+ * {@code /ov corruption} — 汚染のオン・オフ({@link CorruptionSwitch})と侵食速度を表示する。
+ * {@code /ov corruption true|false} — 汚染を再開する / すべて止める(2026-10-10 ユーザー指定)。
+ * {@code /ov corruption speed}(引数なし)— 汚染シダ(blight_fern)・汚染死体ブロック共通の侵食速度倍率の現在値を表示する。
  * {@code /ov corruption speed <倍率>} — その倍率に変更する
  * ({@link CorruptionSpreader#effectiveBlocksPerCycle} 参照)。
+ *
+ * <p>2026-09-25 から<b>このワールドだけ</b>の値(ワールドの難易度「汚染シダの汚染速度」、
+ * 葉っぱのボタンの画面と同じ)。それまでは config の {@code corruptionSpeedMultiplier} を
+ * 書き換えていて全ワールドに効いていた。config の値は「ワールドの値が無いときの既定値」として残してある。
  *
  * <p>コマンド全体が OP 専用({@code hasPermission(2)})。
  *
@@ -29,16 +36,40 @@ public final class CorruptionSpeedCommand {
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("ov")
+                // 2026-10-10 ユーザー指定: /ov corruption speed [倍率] と /ov corruption true|false(false で全ての汚染を止める。CorruptionSwitch)。
+                // 同じ日の朝に一度 /ov corruptionspeed へまとめたのを、この形へ戻した。
                 .then(Commands.literal("corruption")
                         .requires(source -> source.hasPermission(2))
+                        .executes(CorruptionSpeedCommand::showAll)
                         .then(Commands.literal("speed")
                                 .executes(CorruptionSpeedCommand::showStatus)
                                 .then(Commands.argument("multiplier", DoubleArgumentType.doubleArg(0.01D, 100.0D))
-                                        .executes(CorruptionSpeedCommand::setSpeed)))));
+                                        .executes(CorruptionSpeedCommand::setSpeed)))
+                        .then(Commands.literal("true").executes(ctx -> setSwitch(ctx, true)))
+                        .then(Commands.literal("false").executes(ctx -> setSwitch(ctx, false)))));
+    }
+
+    /** {@code /ov corruption}: オン・オフと侵食速度。 */
+    private static int showAll(CommandContext<CommandSourceStack> ctx) {
+        boolean enabled = CorruptionSwitch.enabled(ctx.getSource().getServer());
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.corruption.switch.status",
+                Component.translatable(enabled ? "commands.overgrown_vegetation.corruption.switch.on"
+                        : "commands.overgrown_vegetation.corruption.switch.off")), false);
+        showStatus(ctx);
+        return enabled ? 1 : 0;
+    }
+
+    /** {@code /ov corruption true|false}。 */
+    private static int setSwitch(CommandContext<CommandSourceStack> ctx, boolean enabled) {
+        CorruptionSwitch.set(ctx.getSource().getServer(), enabled);
+        ctx.getSource().sendSuccess(() -> Component.translatable(enabled
+                ? "commands.overgrown_vegetation.corruption.switch.set_on"
+                : "commands.overgrown_vegetation.corruption.switch.set_off"), true);
+        return enabled ? 1 : 0;
     }
 
     private static int showStatus(CommandContext<CommandSourceStack> ctx) {
-        double multiplier = OvergrownVegetationConfig.COMMON.corruptionSpeedMultiplier.get();
+        double multiplier = WorldDifficultyData.corruptionSpeed(ctx.getSource().getServer());
         double baseline = baselineBlocksPerSecond();
         ctx.getSource().sendSuccess(() -> Component.translatable(
                 "commands.overgrown_vegetation.corruption.speed.status",
@@ -48,8 +79,7 @@ public final class CorruptionSpeedCommand {
 
     private static int setSpeed(CommandContext<CommandSourceStack> ctx) {
         double multiplier = DoubleArgumentType.getDouble(ctx, "multiplier");
-        OvergrownVegetationConfig.COMMON.corruptionSpeedMultiplier.set(multiplier);
-        OvergrownVegetationConfig.SPEC.save();
+        WorldDifficultyData.get(ctx.getSource().getServer()).set(DifficultySetting.CORRUPTION_SPEED, multiplier);
 
         double baseline = baselineBlocksPerSecond();
         ctx.getSource().sendSuccess(() -> Component.translatable(

@@ -64,10 +64,80 @@ public final class ModDataComponents {
      * <p>クライアントにも同期する——「いま始点を持っているか」で右クリックの意味が変わるので、
      * ツールチップに出せるようにしておく。
      */
+    /** 鳴子の紐の始点(2 回クリックの 1 回目。2026-10-15、{@code defense/ClapperRopeItem})。 */
+    /** 地脈の羅針盤の針の先(2026-10-16、⑦)。サーバーが 2 秒ごとに書き、クライアントが針を回す。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> LEY_COMPASS_TARGET =
+            COMPONENTS.registerComponentType("ley_compass_target", builder -> builder
+                    .persistent(GlobalPos.CODEC)
+                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+    /** 前の地脈の羅針盤の向き先(true = 汚染されていない土地)。2026-10-22 の地脈探しで使わなくなった。古いセーブの読み込みのため登録だけ残す。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> LEY_COMPASS_CLEAN =
+            COMPONENTS.registerComponentType("ley_compass_clean", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.BOOL)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.BOOL));
+
+    /** ⑩ 地脈渡りの石が帰る対の石(2026-10-16)。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> WAYSTONE_HOME =
+            COMPONENTS.registerComponentType("waystone_home", builder -> builder
+                    .persistent(GlobalPos.CODEC)
+                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+
+    /** ① 陽溜まりのランタンの燃料(tick)と、灯しているか(2026-10-16)。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> LANTERN_FUEL =
+            COMPONENTS.registerComponentType("lantern_fuel", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
+    /**
+     * 防護マスクのフィルターが吸い取った胞子の量(%秒、2026-11-04)。無い = 新品。spore_field.json の exposure.maskCapacity に届くと
+     * 効かなくなる(外れない・壊れない)。耐久のバーとツールチップに出すのでクライアントにも同期する。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> MASK_FILTER_USED =
+            COMPONENTS.registerComponentType("mask_filter_used", builder -> builder
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /** 電池を入れて持ち運ぶ機械の、入っている電池の残り(2026-10-22、地脈灯。無い = 電池が入っていない)。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> BATTERY_CHARGE =
+            COMPONENTS.registerComponentType("battery_charge", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> LANTERN_LIT =
+            COMPONENTS.registerComponentType("lantern_lit", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.BOOL)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.BOOL));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> CLAPPER_ROPE_ANCHOR =
+            COMPONENTS.registerComponentType("clapper_rope_anchor", builder -> builder
+                    .persistent(GlobalPos.CODEC)
+                    .networkSynchronized(GlobalPos.STREAM_CODEC));
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> LIANA_ANCHOR =
             COMPONENTS.registerComponentType("liana_anchor", builder -> builder
                     .persistent(GlobalPos.CODEC)
                     .networkSynchronized(GlobalPos.STREAM_CODEC));
+
+    /** パワードアーマーの Mk(1.0.0 は 1 だけ。載っていなければ 1)。名前の後ろに付く。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> POWERED_ARMOR_MK =
+            COMPONENTS.registerComponentType("powered_armor_mk", builder -> builder
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * 防具に付いている<b>装飾品</b>の id(順 1 の着手順 9。{@link com.yayuy.overgrownvegetation.item.ArmorAccessory})。
+     * どの防具にも載る(寄生植物装備を除く)。付いていなければ載せない。説明・属性の計算に使うのでクライアントにも同期する。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> ARMOR_ACCESSORY =
+            COMPONENTS.registerComponentType("armor_accessory", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8));
+
+    /** パワードアーマーに付いている<b>拡張パーツ</b>の id(同上。パワードアーマーにだけ載る)。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> ARMOR_EXTENSION =
+            COMPONENTS.registerComponentType("armor_extension", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8));
 
     public static void register(IEventBus modBus) {
         COMPONENTS.register(modBus);

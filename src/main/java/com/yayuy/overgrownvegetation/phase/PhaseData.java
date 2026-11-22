@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.phase;
 
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.PhaseTable;
+import com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.core.BlockPos;
@@ -39,9 +40,9 @@ import net.minecraft.world.level.saveddata.SavedData;
  *     止めておけばフェーズ1も始まらない)。{@link #frozen} を参照。</li>
  * </ul>
  *
- * <p>実際にポイントを加算する箇所は {@link AdvancementPoints}(実績解除)・{@link MobGroupPoints}
- * (グループ1〜10の死亡 / グループ1〜10による他 Mob の殺害)・{@link PhaseTicker}(時間経過分)・
- * {@link #addOvergrownChunks}(過繁茂系バイオームの増加)の 4 箇所。
+ * <p>実際にポイントを加算する箇所(2026-11-14 の作り直しから)は {@link AdvancementPoints}(実績解除)・{@link KillPoints}
+ * (プレイヤーが植物側の Mob を倒した。閾値の %・上限なし {@link #addKillPoints})・{@link PhaseTicker}(時間 + 今の面積)の 3 箇所。
+ * 上の「既定の条件」の数は古い。今の式と閾値は {@link com.yayuy.overgrownvegetation.data.PhaseTable} の頭。
  */
 public final class PhaseData extends SavedData {
 
@@ -56,6 +57,8 @@ public final class PhaseData extends SavedData {
     private long lastPointsGameTime = -1L;
     /** 時間経過ポイントの端数(pointsPerTick が小数のとき、整数化で切り捨てたぶんを次回へ繰り越す)。 */
     private double timePointsCarry;
+    /** ワールドの難易度「フェーズ進行のポイント量」を掛けたときの端数(0.5 倍で 1 点ずつ入るときなど。{@link #addPoints})。 */
+    private double multipliedPointsCarry;
     /**
      * この MOD がこのワールドで新規に汚染したブロックの累計数。加算は {@link CorruptionCounter} 経由
      * (汚染シダ・汚染死体ブロック・過繁茂バイオームのにじみ出し・過繁茂したクリーパーの爆発)。
@@ -81,31 +84,21 @@ public final class PhaseData extends SavedData {
      * 過繫茂になったゲーム内時刻(tick、オーバーワールド基準)。{@link #overgrownChunks} が「数」なのに対し、
      * こちらは「どこが・いつ」を持つ。
      *
-     * <p>極相({@code engulfed})への昇格条件 —— 「周囲 8 チャンクがすべて過繫茂以上」かつ
-     * 「自分が過繫茂になってから 14 日以上」—— は、この台帳を引くだけで判定できる
-     * ({@link #canBecomeClimax})。<b>対象のチャンクを読み込む必要がない</b>ので、
-     * プレイヤーが遠くに住んでいても極相化は進む。
-     *
-     * <p><b>極相になっても項目は消さない。</b> 台帳に載っている = 「過繫茂以上」という意味であり、
-     * 消すと最初に極相化した 1 チャンクの周りが永久に条件を満たせなくなる。
+     * <p>2026-10-30 まで極相の印を値の符号(負)で持っていた。極相は消したので、読み込むときに過繁茂の時刻へ戻す。
      *
      * <p>この台帳が導入される前のセーブでは空から始まる。既存の過繫茂チャンクは
-     * {@link #adoptOvergrownChunk} で「見かけた時刻」を入れて拾い直す(14 日の計時はそこから)。
+     * {@link #adoptOvergrownChunk} で「見かけた時刻」を入れて拾い直す(時刻はそこから)。
      */
     private final Long2LongOpenHashMap overgrownSince = new Long2LongOpenHashMap();
 
     /**
-     * <b>全層置換を終えた</b>極相チャンク(2026-09-22)。極相になったチャンクは岩盤まで
-     * 過繫茂ブロックへ置き換える({@code ClimaxDeepConverter})が、1 チャンク約 98000 マスを
-     * 何 tick にも分けて進めるので、<b>やり終えたかどうか</b>を覚えておかないと
-     * チャンクを読み込み直すたびに最初からやり直してしまう。
-     *
-     * <p>逆に<b>途中で終わった</b>(サーバーを落とした・チャンクが読み込まれなくなった)ぶんは
-     * ここに入らないので、次に読み込まれたときにもう一度最初から走る。置換は何度やっても
-     * 同じ結果になる(冪等)ので、やり直しても壊れない。
+     * 眠って飛ばした時間の累計(tick、2026-09-26)。{@link #clock} = オーバーワールドの gameTime + これ。
+     * バニラの睡眠は dayTime だけを朝へ進めて gameTime を進めないので、gameTime だけで測ると「寝た夜」が
+     * 台帳の時刻・時間経過ポイントから抜け落ちる(ユーザー指定「寝た時はしっかり一日分広げる」)。
+     * 足すのは {@link com.yayuy.overgrownvegetation.corruption.LedgerSpread} の睡眠のイベントだけ
+     * ({@code /time set} は数えない)。
      */
-    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet deepConvertedChunks =
-            new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+    private long sleepSkippedTicks;
     /**
      * フェーズ0の間に、このワールドで解除された実績の ID(重複なし)。フェーズ0→1 の実績ゲート
      * ({@code global.startAdvancements}、既定 6)の判定に使う。誰が解除したかは問わず、同じ実績を
@@ -131,6 +124,13 @@ public final class PhaseData extends SavedData {
      * に使う。導入前から存在していた巨大樹は含まれない。
      */
     private final LongArrayList giantTreeOrigins = new LongArrayList();
+    /**
+     * 巨大樹が生えたゲーム時刻(中心の {@code (x<<32)|(z&0xFFFFFFFF)} → 時刻、2026-10-23 胞子の場 D)。梢の胞子の放出が
+     * 育ち具合で増えるのに使う。記録の無い(前からある)巨大樹は育ちきった扱い。
+     */
+    private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap giantTreeBorn = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+    /** ハイヴノードを倒された巨大樹の中心(胞子の生産が止まったまま。再生なし、2026-10-23 E2)。 */
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet deadGiantTrees = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
     /**
      * これまでにこのワールドで湧いた「ハイヴノード」({@code hive_node})の座標
      * ({@link BlockPos#asLong})。胞子感染2 のプレイヤーが核へ近づいたときの胞子感染3 判定
@@ -158,32 +158,169 @@ public final class PhaseData extends SavedData {
      * {@link #setPhase}({@code phase set})による手動変更だけは凍結中でも通す。
      */
     private boolean frozen;
+    /** 撃破の点の端数(閾値の % なので小数になる。2026-11-14 夕)と、F1 からの撃破の点の累計(倍率の前。表示・テスト用)。 */
+    private double killPointsCarry;
+    private double killPointsTotal;
 
     /** 胞子警報器の「次のフェーズが近い」警告をこのフェーズで出したか(2026-09-19)。昇格でリセット。 */
     private boolean phaseWarned;
 
+    /**
+     * 今のフェーズの中の小さな段(2026-11-14)。ポイントの進みで上がり({@link #refreshStage})、フェーズが変わると導入に戻る。
+     * 保存するのは、変わった瞬間に 1 回だけイベントを流すためと、閾値の無いフェーズ(F10)で段をコマンドで決められるようにするため。
+     */
+    private PhaseStage stage = PhaseStage.INTRO;
+
+    /**
+     * テスト用の切り離した入れ物(ワールドの本物ではない)のときだけ非 null。イベントはバスへ流さずここへ渡し、
+     * 全員への文・クライアントへの同期・地割れもしない。{@link #createDetachedForTests}。
+     */
+    @javax.annotation.Nullable
+    private java.util.function.Consumer<net.neoforged.bus.api.Event> detachedSink;
+
     private PhaseData() {
         overgrownSince.defaultReturnValue(-1L);
+    }
+
+    /** GameTest 用: ワールドに登録しない入れ物を作る(イベントは {@code sink} へ)。 */
+    public static PhaseData createDetachedForTests(java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+        PhaseData data = new PhaseData();
+        data.detachedSink = sink;
+        return data;
+    }
+
+    /** GameTest 用: 保存した中身から読み直す(ワールドの本物には触らない)。 */
+    public static PhaseData loadDetachedForTests(CompoundTag tag, java.util.function.Consumer<net.neoforged.bus.api.Event> sink) {
+        PhaseData data = load(tag);
+        data.detachedSink = sink;
+        return data;
+    }
+
+    private boolean isLive() {
+        return detachedSink == null;
+    }
+
+    private void fire(net.neoforged.bus.api.Event event) {
+        if (detachedSink != null) {
+            detachedSink.accept(event);
+        } else {
+            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+        }
+    }
+
+    private void syncToClients(ServerLevel overworld) {
+        if (isLive()) {
+            PhaseSync.sendToAll(overworld.getServer(), this);
+        }
+    }
+
+    /** 今の段(フェーズ 0 では導入)。 */
+    public PhaseStage getStage() {
+        return stage;
+    }
+
+    /**
+     * ポイントから段を求め直し、上がっていれば段を進めてイベントを流す(2026-11-14)。ポイントの進みでは段は下げない。
+     * 閾値の無いフェーズ(物差しが無い)は今の段のまま。
+     */
+    private void refreshStage(ServerLevel overworld) {
+        if (phase < 1) {
+            return;
+        }
+        PhaseStage derived = DesignData.phases().stageFor(phase, points);
+        if (derived == null || derived.ordinal() <= stage.ordinal()) {
+            return;
+        }
+        PhaseStage old = stage;
+        stage = derived;
+        setDirty();
+        fire(new PhaseEvents.StageChanged(overworld, phase, old, derived, true));
+        syncToClients(overworld);
+    }
+
+    /**
+     * コマンド用({@code /ov phase stage <段>})。次のフェーズの閾値があればポイントをその段の始まりに合わせ、
+     * 無ければ段だけを決める。下げることもできる。
+     *
+     * @return 合わせた後のポイント(閾値が無くポイントを変えなかったときは -1)
+     */
+    public long setStage(ServerLevel overworld, PhaseStage newStage) {
+        if (phase < 1) {
+            return -1L;
+        }
+        long start = DesignData.phases().stageStartPoints(phase, newStage);
+        if (start >= 0L) {
+            points = start;
+        }
+        PhaseStage old = stage;
+        stage = newStage;
+        setDirty();
+        if (old != newStage) {
+            fire(new PhaseEvents.StageChanged(overworld, phase, old, newStage, false));
+        }
+        syncToClients(overworld);
+        return start;
+    }
+
+    /** 保存したポイントの縮尺(2026-11-14 の作り直しで 2。印の無い古いセーブは {@link #convertOldPoints} で直す)。 */
+    private static final int POINTS_SCALE = 2;
+    /** 作り直しの前の既定の閾値(2026-09-28)。古いセーブの換算にだけ使う。 */
+    private static final long[] OLD_POINTS_TO_ADVANCE = {0, 0, 263_000, 696_000, 1_421_000, 2_452_000,
+            26_329_000, 67_841_000, 55_816_000, 73_784_000, 94_305_000};
+
+    /**
+     * 古い縮尺のポイントを、次のフェーズまでの進みの割合を保ったまま今の閾値へ直す【仮】(そのままだと読み込んだ直後に 1 フェーズ跳ぶ)。
+     * 古い閾値は既定の値で見る(run/config で変えていたワールドは少しずれる)。
+     */
+    static long convertOldPoints(int phase, long oldPoints) {
+        int next = phase + 1;
+        if (next >= OLD_POINTS_TO_ADVANCE.length || OLD_POINTS_TO_ADVANCE[next] <= 0) {
+            return 0L;
+        }
+        long now = DesignData.phases().pointsToAdvance(next);
+        if (now == Long.MAX_VALUE) {
+            return 0L;
+        }
+        double share = Math.max(0.0D, Math.min(0.999D, oldPoints / (double) OLD_POINTS_TO_ADVANCE[next]));
+        return (long) Math.floor(share * now);
     }
 
     private static PhaseData load(CompoundTag tag) {
         PhaseData data = new PhaseData();
         data.phase = tag.getInt("phase");
         data.points = tag.getLong("points");
+        if (tag.getInt("pointsScale") < POINTS_SCALE && data.phase >= 1) {
+            data.points = convertOldPoints(data.phase, data.points);
+        }
+        data.killPointsCarry = tag.getDouble("killPointsCarry");
+        data.killPointsTotal = tag.getDouble("killPointsTotal");
+        // 小さな段(2026-11-14)。この欄の無い古いセーブは、ポイントから黙って求める(読み込みではイベントを流さない)。
+        if (tag.contains("stage")) {
+            data.stage = PhaseStage.byIndex(tag.getInt("stage"));
+        } else if (data.phase >= 1) {
+            PhaseStage derived = DesignData.phases().stageFor(data.phase, data.points);
+            data.stage = derived != null ? derived : PhaseStage.INTRO;
+        }
         data.lastPointsGameTime = tag.contains("lastPointsGameTime") ? tag.getLong("lastPointsGameTime") : -1L;
         data.timePointsCarry = tag.getDouble("timePointsCarry");
+        data.multipliedPointsCarry = tag.getDouble("multipliedPointsCarry");
         data.corruptedBlocks = tag.getLong("corruptedBlocks");
         data.overgrownChunks = tag.getLong("overgrownChunks");
         long[] ledgerKeys = tag.getLongArray("overgrownChunkKeys");
         long[] ledgerTimes = tag.getLongArray("overgrownChunkTimes");
+        data.ledgerFormat = tag.getInt("ledgerFormat");
+        data.legacyLedger = ledgerKeys.length > 0;
         if (ledgerKeys.length == ledgerTimes.length) {
+            // 先に大きさを取る(2026-11-15): 保存の並びは表を舐めた順(hash の順)なので、小さい表へ順に入れると同じ所に固まって
+            // 桁違いに遅くなる(600 万件で 81 秒)。初めから入る大きさにしておけば固まらない
+            data.overgrownSince.ensureCapacity(ledgerKeys.length);
             for (int i = 0; i < ledgerKeys.length; i++) {
-                data.overgrownSince.put(ledgerKeys[i], ledgerTimes[i]);
+                // 負の値は極相の印だった(極相は 2026-10-30 に消した)。過繁茂として、過繁茂になった時刻へ戻して読む
+                long t = ledgerTimes[i];
+                data.overgrownSince.put(ledgerKeys[i], t >= 0L ? t : -t - 1L);
             }
         }
-        for (long key : tag.getLongArray("climaxDeepConvertedChunks")) {
-            data.deepConvertedChunks.add(key);
-        }
+        data.sleepSkippedTicks = Math.max(0L, tag.getLong("sleepSkippedTicks"));
         net.minecraft.nbt.ListTag advancements =
                 tag.getList("startAdvancementIds", net.minecraft.nbt.Tag.TAG_STRING);
         for (int i = 0; i < advancements.size(); i++) {
@@ -201,10 +338,23 @@ public final class PhaseData extends SavedData {
         for (long packed : tag.getLongArray("hiveNodes")) {
             data.hiveNodes.add(packed);
         }
+        long[] born = tag.getLongArray("giantTreeBorn");
+        for (int i = 0; i + 1 < born.length; i += 2) data.giantTreeBorn.put(born[i], born[i + 1]);
+        for (long packed : tag.getLongArray("deadGiantTrees")) data.deadGiantTrees.add(packed);
         // 旧セーブ: 「古代樹の核」ブロック時代の記録も引き継ぐ(ブロックは削除済みだが、
         // 感染ゾーンの中心としての意味は同じなので、そのまま使う)。
         for (long packed : tag.getLongArray("giantTreeCores")) {
             data.hiveNodes.add(packed);
+        }
+        // 同じ座標は 1 つにまとめる(2026-09-24)。以前はノードのチャンクを読み込むたびに同じ座標を
+        // 積み直していたので、古いセーブには重複が残っている。並びは最初に出た順のまま。
+        if (data.hiveNodes.size() > 1) {
+            it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet unique =
+                    new it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet(data.hiveNodes);
+            if (unique.size() != data.hiveNodes.size()) {
+                data.hiveNodes.clear();
+                data.hiveNodes.addAll(unique);
+            }
         }
         // 旧セーブ(このフラグ導入前)は「核の記録があれば記録済み」とみなす。
         for (long packed : tag.getLongArray("hiveChambers")) {
@@ -222,21 +372,34 @@ public final class PhaseData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt("phase", phase);
         tag.putLong("points", points);
+        tag.putInt("pointsScale", POINTS_SCALE);
+        tag.putDouble("killPointsCarry", killPointsCarry);
+        tag.putDouble("killPointsTotal", killPointsTotal);
+        tag.putInt("stage", stage.ordinal());
         tag.putLong("lastPointsGameTime", lastPointsGameTime);
         tag.putDouble("timePointsCarry", timePointsCarry);
+        tag.putDouble("multipliedPointsCarry", multipliedPointsCarry);
         tag.putLong("corruptedBlocks", corruptedBlocks);
         tag.putLong("overgrownChunks", overgrownChunks);
-        long[] ledgerKeys = new long[overgrownSince.size()];
-        long[] ledgerTimes = new long[overgrownSince.size()];
-        int ledgerIndex = 0;
-        for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry : overgrownSince.long2LongEntrySet()) {
-            ledgerKeys[ledgerIndex] = entry.getLongKey();
-            ledgerTimes[ledgerIndex] = entry.getLongValue();
-            ledgerIndex++;
+        if (server != null) {
+            // 見直し ②10(11-16): 台帳は区域ごとのファイルへ、変わった所だけ書く(LedgerStore)。ここには形の印だけ
+            tag.putInt("ledgerFormat", LEDGER_FORMAT_REGIONS);
+            LedgerStore.flush(server, overgrownSince, dirtyRegions);
+        } else {
+            // 世界に付いていない写し(テストの読み書き)は、前の形のまま中に入れる
+            long[] ledgerKeys = new long[overgrownSince.size()];
+            long[] ledgerTimes = new long[overgrownSince.size()];
+            int ledgerIndex = 0;
+            for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry
+                    : it.unimi.dsi.fastutil.longs.Long2LongMaps.fastIterable(overgrownSince)) {
+                ledgerKeys[ledgerIndex] = entry.getLongKey();
+                ledgerTimes[ledgerIndex] = entry.getLongValue();
+                ledgerIndex++;
+            }
+            tag.putLongArray("overgrownChunkKeys", ledgerKeys);
+            tag.putLongArray("overgrownChunkTimes", ledgerTimes);
         }
-        tag.putLongArray("overgrownChunkKeys", ledgerKeys);
-        tag.putLongArray("overgrownChunkTimes", ledgerTimes);
-        tag.putLongArray("climaxDeepConvertedChunks", deepConvertedChunks.toLongArray());
+        tag.putLong("sleepSkippedTicks", sleepSkippedTicks);
         net.minecraft.nbt.ListTag advancements = new net.minecraft.nbt.ListTag();
         for (String id : startAdvancementIds) {
             advancements.add(net.minecraft.nbt.StringTag.valueOf(id));
@@ -248,6 +411,14 @@ public final class PhaseData extends SavedData {
         tag.putBoolean("giantTreeGrown", giantTreeGrown);
         tag.putLongArray("giantTreeOrigins", giantTreeOrigins.toLongArray());
         tag.putLongArray("hiveNodes", hiveNodes.toLongArray());
+        long[] born = new long[giantTreeBorn.size() * 2];
+        int bi = 0;
+        for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry e : giantTreeBorn.long2LongEntrySet()) {
+            born[bi++] = e.getLongKey();
+            born[bi++] = e.getLongValue();
+        }
+        tag.putLongArray("giantTreeBorn", born);
+        tag.putLongArray("deadGiantTrees", deadGiantTrees.toLongArray());
         tag.putBoolean("hiveNodesRecorded", hiveNodesRecorded);
         tag.putLongArray("hiveChambers", hiveChambers.toLongArray());
         return tag;
@@ -287,9 +458,25 @@ public final class PhaseData extends SavedData {
         }
         return best;
     }
-    /** 生成した巨大樹の「ハイヴノード」(旧「古代樹の核」)の座標を記録する。 */
+    /**
+     * 生成した巨大樹の「ハイヴノード」(旧「古代樹の核」)の座標を記録する。
+     * ノードはチャンクを読み込むたびに登録し直すので、<b>同じ座標は 2 つ積まない</b>(2026-09-24)。
+     */
+    /** 記録にあるハイヴノードの位置({@link BlockPos#asLong} の写し)。地脈の光の流れの行き先(LeyFlowSync、2026-10-16)に使う。 */
+    public long[] hiveNodeSnapshot() {
+        return hiveNodes.toLongArray();
+    }
+
+    /** 記録にある巨大樹の中心(水平、(x << 32) | (z & 0xFFFFFFFF) の写し)。地脈の光の流れの行き先に使う。 */
+    public long[] giantTreeOriginSnapshot() {
+        return giantTreeOrigins.toLongArray();
+    }
+
     public void recordHiveNode(BlockPos core) {
-        hiveNodes.add(core.asLong());
+        long key = core.asLong();
+        if (!hiveNodes.contains(key)) {
+            hiveNodes.add(key);
+        }
         hiveNodesRecorded = true;
         setDirty();
     }
@@ -307,7 +494,11 @@ public final class PhaseData extends SavedData {
      * @return 何かしら記録を外したら true
      */
     public boolean removeHiveNode(BlockPos core) {
-        boolean changed = hiveNodes.rem(core.asLong());
+        long key = core.asLong();
+        boolean changed = false;
+        while (hiveNodes.rem(key)) {                  // 重複して積まれていても全部外す
+            changed = true;
+        }
         if (!hiveNodesRecorded) {
             // 核の記録が無い旧ワールド: 中心座標の代用記録を外す。
             for (int i = giantTreeOrigins.size() - 1; i >= 0; i--) {
@@ -332,6 +523,18 @@ public final class PhaseData extends SavedData {
      * (記録を一度でも始めたワールドは、全部倒されて記録が空になっても代用しない)。
      */
     public boolean hasHiveNodeWithin(BlockPos pos, double radius) {
+        return hiveNodeWithin(pos, radius, false);
+    }
+
+    /**
+     * {@link #hasHiveNodeWithin} の水平距離版(高さを問わない円柱)。ハイヴノードのまわりで火が燃え広がらない範囲
+     * ({@code purify/HiveFireGuard}、2026-10-10)に使う。
+     */
+    public boolean hasHiveNodeWithinHorizontal(BlockPos pos, double radius) {
+        return hiveNodeWithin(pos, radius, true);
+    }
+
+    private boolean hiveNodeWithin(BlockPos pos, double radius, boolean horizontal) {
         if (radius <= 0.0D) {
             return false;
         }
@@ -340,7 +543,7 @@ public final class PhaseData extends SavedData {
             for (int i = 0; i < hiveNodes.size(); i++) {
                 long packed = hiveNodes.getLong(i);
                 double dx = BlockPos.getX(packed) - pos.getX();
-                double dy = BlockPos.getY(packed) - pos.getY();
+                double dy = horizontal ? 0.0D : BlockPos.getY(packed) - pos.getY();
                 double dz = BlockPos.getZ(packed) - pos.getZ();
                 if (dx * dx + dy * dy + dz * dz <= r2) {
                     return true;
@@ -385,6 +588,67 @@ public final class PhaseData extends SavedData {
         setDirty();
     }
 
+    /** 巨大樹が生えた時刻を覚える(梢の胞子の放出の育ち具合、2026-10-23 胞子の場 D)。 */
+    public void recordGiantTreeBorn(int x, int z, long gameTime) {
+        giantTreeBorn.put(((long) x << 32) | (z & 0xFFFFFFFFL), gameTime);
+        setDirty();
+    }
+
+    /** 巨大樹が生えた時刻。記録が無ければ {@link Long#MIN_VALUE}(育ちきった扱い)。 */
+    public long giantTreeBorn(long packedOrigin) {
+        return giantTreeBorn.containsKey(packedOrigin) ? giantTreeBorn.get(packedOrigin) : Long.MIN_VALUE;
+    }
+
+    /** テスト用: 巨大樹の記録(中心・生えた時刻・止まった印)を消す。 */
+    public void forgetGiantTreeForTests(long packedOrigin) {
+        giantTreeOrigins.rem(packedOrigin);
+        giantTreeBorn.remove(packedOrigin);
+        deadGiantTrees.remove(packedOrigin);
+        setDirty();
+    }
+
+    /** 倒された巨大樹を建て直した(11-21 前線と部隊: 止まった印を外し、胞子の生産を戻す)。 */
+    public void reviveGiantTree(long packedOrigin) {
+        if (deadGiantTrees.remove(packedOrigin)) setDirty();
+    }
+
+    /** ハイヴノードを倒された巨大樹か(胞子の生産が止まっている)。 */
+    public boolean isGiantTreeDead(long packedOrigin) {
+        return deadGiantTrees.contains(packedOrigin);
+    }
+
+    public int deadGiantTreeCount() {
+        return deadGiantTrees.size();
+    }
+
+    /** ハイヴノードを倒されていない巨大樹の数(バイオマスの貯蓄上限、2026-10-23 追記 14)。 */
+    public int livingGiantTreeCount() {
+        int n = 0;
+        for (int i = 0; i < giantTreeOrigins.size(); i++) if (!deadGiantTrees.contains(giantTreeOrigins.getLong(i))) n++;
+        return n;
+    }
+
+    /**
+     * ハイヴノードが倒された: 水平 {@code radius} ブロック以内でいちばん近い巨大樹の胞子の生産を止める(2026-10-23 E2、再生なし)。
+     *
+     * @return 止めた巨大樹の中心(無ければ {@link Long#MIN_VALUE})
+     */
+    public long killGiantTreeNear(BlockPos node, double radius) {
+        long best = Long.MIN_VALUE;
+        double bestD = radius * radius;
+        for (int i = 0; i < giantTreeOrigins.size(); i++) {
+            long packed = giantTreeOrigins.getLong(i);
+            double dx = (int) (packed >> 32) + 0.5D - node.getX(), dz = (int) packed + 0.5D - node.getZ();
+            double d = dx * dx + dz * dz;
+            if (d <= bestD) {
+                bestD = d;
+                best = packed;
+            }
+        }
+        if (best != Long.MIN_VALUE && deadGiantTrees.add(best)) setDirty();
+        return best;
+    }
+
     /**
      * {@code (x, z)} を中心とした水平半径 {@code minSpacing} ブロック以内に、これまでに記録された
      * 巨大樹の中心があるか。{@code minSpacing <= 0} なら常に {@code false}(間隔チェック無効)。
@@ -411,7 +675,48 @@ public final class PhaseData extends SavedData {
      */
     public static PhaseData get(ServerLevel level) {
         ServerLevel overworld = level.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(FACTORY, ID);
+        PhaseData data = overworld.getDataStorage().computeIfAbsent(FACTORY, ID);
+        if (data.server != level.getServer()) data.attach(level.getServer());
+        return data;
+    }
+
+    // ---------------------------------------------------------------- 台帳の保存(見直し ②10、11-16。LedgerStore)
+
+    /** 台帳を区域のファイルへ分けた形の印。 */
+    static final int LEDGER_FORMAT_REGIONS = 2;
+    /** 付いている世界(null = テストの写し。台帳は中に入れる)。 */
+    @javax.annotation.Nullable
+    private transient net.minecraft.server.MinecraftServer server;
+    private int ledgerFormat;
+    private boolean legacyLedger;
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet dirtyRegions = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+    /** 世界に付ける: 区域のファイルを読む。前の形(中に入っていた)なら、全区域を書き直して移す。 */
+    private void attach(net.minecraft.server.MinecraftServer server) {
+        this.server = server;
+        if (ledgerFormat == LEDGER_FORMAT_REGIONS && !legacyLedger) {
+            long t0 = System.nanoTime();
+            int n = LedgerStore.loadAll(server, overgrownSince);
+            com.yayuy.overgrownvegetation.OvergrownVegetation.LOGGER.info("過繁茂の台帳を区域のファイルから読みました: {} チャンク・{} ms", n, (System.nanoTime() - t0) / 1_000_000L);
+        } else if (!overgrownSince.isEmpty()) {
+            for (long key : overgrownSince.keySet()) dirtyRegions.add(LedgerStore.regionOf(key));
+            setDirty();
+        }
+    }
+
+    /** 台帳が変わった(その区域を次の保存で書く)。 */
+    private void ledgerChanged(long key) {
+        dirtyRegions.add(LedgerStore.regionOf(key));
+    }
+
+    /** 確かめ用: 最後の書き出しで写した区域の数と時間(ms)。 */
+    public static String lastLedgerFlush() {
+        return LedgerStore.lastRegions + " 区域・写し " + String.format(java.util.Locale.ROOT, "%.1f", LedgerStore.lastCopyNanos / 1e6) + " ms";
+    }
+
+    /** 台帳の書き出しが終わるのを待つ(サーバーを止めるとき・確かめ用)。 */
+    public static void awaitLedgerWrites() {
+        LedgerStore.await();
     }
 
     public int getPhase() {
@@ -470,9 +775,7 @@ public final class PhaseData extends SavedData {
     /**
      * チャンクが新たに過繁茂系バイオームになったときに
      * {@link com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter} から呼ぶ。
-     * 累計を増やし、1 チャンクあたり {@code points.perOvergrownChunk}(既定 5)のポイントを加算する。
-     * 累計は時間経過ポイントの倍率({@code points.perTickPerOvergrownChunk})の元にもなるので、
-     * 汚染が広がるほどポイントの貯まり方が速くなる(チャンク数そのものが昇格条件になることはない)。
+     * 累計だけを増やす(2026-11-14 から点は入れない。面積の点は「今の面積」= 台帳の大きさで {@link #tick} が入れる)。
      *
      * <p>凍結中({@link #frozen})やフェーズ0の間は累計だけ増やし、ポイント加算とフェーズ判定は行わない
      * ({@link #addPoints} 側の早期リターンに合わせた挙動)。
@@ -486,14 +789,8 @@ public final class PhaseData extends SavedData {
         overgrownChunks += amount;
         setDirty();
 
-        ServerLevel overworld = level.getServer().overworld();
-        long perChunk = DesignData.phases().pointsPerOvergrownChunk();
-        if (perChunk > 0L) {
-            // addPoints が終わりにフェーズ判定まで行う。
-            addPoints(overworld, perChunk * amount);
-        } else {
-            tryAdvance(overworld);
-        }
+        // 2026-11-14: 新しいチャンク 1 つごとの点(5 点)はやめた。面積は「今の面積」として時間の点と一緒に入る(tick)。
+        tryAdvance(level.getServer().overworld());
     }
 
     /**
@@ -507,18 +804,41 @@ public final class PhaseData extends SavedData {
      * @return 実際に新しく記録されたチャンク数
      */
     public int markOvergrownChunks(ServerLevel level, Iterable<ChunkPos> positions) {
-        long now = level.getServer().overworld().getGameTime();
+        long now = clock(level.getServer());
         int added = 0;
         for (ChunkPos pos : positions) {
             long key = pos.toLong();
             if (!overgrownSince.containsKey(key)) {
                 overgrownSince.put(key, now);
+                ledgerChanged(key);
                 added++;
+                // 胞子の場でも汚染済み・放出中に(2026-10-23 第 2 段。どの経路で載っても)
+                com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerAdded(key, now);
             }
         }
         if (added > 0) {
             setDirty();
             addOvergrownChunks(level, added);
+        }
+        return added;
+    }
+
+    /**
+     * 計測用(2026-11-14 胞子の場の重さの計測。{@code /ov perf spread fill}): 台帳へまとめて載せる。胞子の場へは 1 つずつ知らせない
+     * (呼ぶ側が {@code SporeFieldServer.devBulkCorrupt} でまとめて渡す)。フェーズの昇格も見ない。新しく載せた数を返す。
+     */
+    public int devBulkMark(long[] keys, long since) {
+        int added = 0;
+        for (long key : keys) {
+            if (!overgrownSince.containsKey(key)) {
+                overgrownSince.put(key, since);
+                ledgerChanged(key);
+                added++;
+            }
+        }
+        if (added > 0) {
+            overgrownChunks += added;
+            setDirty();
         }
         return added;
     }
@@ -533,8 +853,7 @@ public final class PhaseData extends SavedData {
      * チャンクを見つけたときに呼ぶと、<b>そのときの時刻</b>で記録する。
      *
      * <p>累計とポイントは増やさない —— 昔からあった汚染を「今広がった」と数えると、
-     * 旧セーブを読み込んだ瞬間にフェーズが跳ね上がるため。14 日の計時はここから始まるので、
-     * 旧セーブでは「拾い直してから 14 日」で極相化が始まる。
+     * 旧セーブを読み込んだ瞬間にフェーズが跳ね上がるため。
      *
      * @return 新しく拾ったら {@code true}
      */
@@ -543,147 +862,123 @@ public final class PhaseData extends SavedData {
         if (overgrownSince.containsKey(key)) {
             return false;
         }
-        overgrownSince.put(key, level.getServer().overworld().getGameTime());
+        overgrownSince.put(key, clock(level.getServer()));
+        ledgerChanged(key);
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerAdded(key, clock(level.getServer()));
         setDirty();
         return true;
     }
 
-    /**
-     * チャンクを極相({@code engulfed})へ上げたことを台帳へ記録する。
-     *
-     * <p><b>台帳の項目は消さない。</b> 台帳に載っている = 「過繁茂以上(過繁茂 or 極相)」という意味なので、
-     * 極相になったチャンクも周囲の判定({@link #canBecomeClimax})では条件を満たす側として数え続ける。
-     * 消してしまうと、最初の 1 チャンクが極相になった時点でその周りが永久に条件を満たせなくなり、
-     * <b>極相が 1 チャンクだけ生まれて広がらない</b>という形で表に出る(原因が分かりにくい)。
-     *
-     * <p>極相の印は<b>値の符号</b>で持つ(過繁茂になった時刻 {@code t} に対して {@code -(t+1)})。
-     * 別の集合を持たないので、セーブ形式も走査コストも増えない。普通は過繁茂を経てから極相になるが、
-     * 過繁茂を飛ばして直接極相にする経路(デバッグコマンドなど)のために、
-     * 台帳に無ければ「今」の時刻で載せる。
-     *
-     * <p>面積({@link #getOvergrownChunks})とフェーズポイントはここでは増やさない ——
-     * そのチャンクが過繁茂になった時点で数え済みだから。
-     *
-     * @return まだ極相でなかったので印を付けたら {@code true}
-     */
-    public boolean markClimaxChunk(ServerLevel level, ChunkPos pos) {
-        long key = pos.toLong();
-        // 台帳の既定値(-1)と「極相」の負値は見分けが付かないので、必ず containsKey で分ける。
-        boolean present = overgrownSince.containsKey(key);
-        long value = present ? overgrownSince.get(key) : 0L;
-        if (present && value < 0L) {
-            return false; // 既に極相。
-        }
-        long since = present ? value : level.getServer().overworld().getGameTime();
-        overgrownSince.put(key, -(since + 1L));
-        setDirty();
-        return true;
-    }
-
-    /** そのチャンクが「過繁茂以上」(過繁茂 or 極相)として台帳に載っているか。 */
+    /** そのチャンクが過繁茂として台帳に載っているか。 */
     public boolean isOvergrownChunk(ChunkPos pos) {
         return overgrownSince.containsKey(pos.toLong());
     }
 
-    /** そのチャンクが既に極相か。 */
-    public boolean isClimaxChunk(ChunkPos pos) {
-        return overgrownSince.get(pos.toLong()) < 0L && overgrownSince.containsKey(pos.toLong());
+    /** {@link #isOvergrownChunk} の {@link ChunkPos#toLong} 版(台帳の縁を数えるときに ChunkPos を作らない)。 */
+    public boolean isOvergrownKey(long chunkKey) {
+        return overgrownSince.containsKey(chunkKey);
     }
 
-    /** そのチャンクが過繁茂になったゲーム内時刻(tick)。台帳に無ければ {@code -1}。極相でも元の時刻を返す。 */
+    /**
+     * チャンクを台帳から外す(順 2 の着手順 9、火炎放射器で焼けた荒地にしたとき。2026-10-08)。台帳から消す経路はこれだけ。
+     * 面積の累計({@link #getOvergrownChunks})とフェーズポイントは戻さない(進んだ分は取り消さない。また飲まれると数え直す)。
+     *
+     * @return 外したら {@code true}
+     */
+    public boolean forgetOvergrownChunk(ChunkPos pos) {
+        long key = pos.toLong();
+        if (!overgrownSince.containsKey(key)) {
+            return false;
+        }
+        overgrownSince.remove(key);
+        ledgerChanged(key);
+        com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onLedgerRemoved(key);
+        setDirty();
+        return true;
+    }
+
+    // --- 汚染の暦(2026-09-26) ---
+
+    /**
+     * 汚染の暦(tick)= オーバーワールドの gameTime + 眠って飛ばした時間({@link #sleepSkippedTicks})。
+     * 台帳の時刻・胞子の場の暦は全部これで測る(寝た夜も 1 日に数える)。
+     * 睡眠を 1 度も挟んでいなければ gameTime と同じなので、この暦より前の台帳の時刻もそのまま使える。
+     */
+    public long clock(net.minecraft.server.MinecraftServer server) {
+        return server.overworld().getGameTime() + sleepSkippedTicks;
+    }
+
+    /** {@link #clock} を、どの次元の {@link ServerLevel} からでも引く近道。 */
+    public static long clockNow(ServerLevel level) {
+        return get(level).clock(level.getServer());
+    }
+
+    /** 眠って飛ばした時間の累計(tick)。 */
+    public long sleepSkippedTicks() {
+        return sleepSkippedTicks;
+    }
+
+    /**
+     * テスト用: 睡眠の累計を元の値へ戻す。GameTest のワールドは実行をまたいで残るので、足したまま終えると
+     * 台帳の時刻と gameTime がずれ、台帳のテストの「今」が狂う。
+     */
+    public void restoreSleepSkipForTests(long value) {
+        sleepSkippedTicks = Math.max(0L, value);
+        setDirty();
+    }
+
+    /** テスト用: 「ハイヴノードの記録を一度でも始めたか」(記録を足して外したテストが、旧ワールド向けの代用を切ったまま終えないように)。 */
+    public boolean hiveNodesRecordedForTests() {
+        return hiveNodesRecorded;
+    }
+
+    /** テスト用: {@link #hiveNodesRecordedForTests} を元の値へ戻す。 */
+    public void restoreHiveNodesRecordedForTests(boolean value) {
+        hiveNodesRecorded = value;
+        setDirty();
+    }
+
+    /**
+     * 眠って {@code ticks} だけ夜を飛ばした。暦を進め、{@code creditPoints} なら飛ばした時間ぶんの
+     * 時間経過ポイント(毎 tick 「1 + 0.005 × 過繁茂チャンク数」)も入れる —— フェーズの日数は
+     * 画面の「何日目」で数えたいので(ユーザー指定の日数から逆算したしきい値は、寝ても寝なくても同じ日に届く)。
+     * フェーズ0 と凍結中はポイントを入れない({@link #addPoints} と同じ)。
+     *
+     * @return 入れたポイント(難易度の倍率を掛ける前)
+     */
+    public long addSleepSkip(ServerLevel overworld, long ticks, boolean creditPoints) {
+        if (ticks <= 0L) {
+            return 0L;
+        }
+        sleepSkippedTicks += ticks;
+        setDirty();
+        if (!creditPoints || frozen || phase < 1) {
+            return 0L;
+        }
+        double raw = ticks * DesignData.phases().pointsPerTick(overgrownLedgerSize()) + timePointsCarry;
+        long whole = (long) Math.floor(raw);
+        timePointsCarry = raw - whole;
+        if (whole > 0L) {
+            addPoints(overworld, whole);
+        }
+        return whole;
+    }
+
+    /** そのチャンクが過繁茂になったゲーム内時刻(tick)。台帳に無ければ {@code -1}。 */
     public long overgrownSinceTick(ChunkPos pos) {
         long value = overgrownSince.get(pos.toLong());
         if (!overgrownSince.containsKey(pos.toLong())) {
             return -1L;
         }
-        return decodeSince(value);
-    }
-
-    /** 台帳の値 → 過繁茂になった時刻。負なら極相の印なので復号する。 */
-    private static long decodeSince(long value) {
-        return value >= 0L ? value : -value - 1L;
+        return value;
     }
 
     /**
-     * {@code center} が極相({@code engulfed})へ上がれる状態か。{@code climax.json} の
-     * {@code biome.neighborRadiusChunks} / {@code biome.minAgeDays} から呼ぶ。
-     * <ul>
-     *     <li>まだ極相になっていないこと</li>
-     *     <li>{@code center} 自身が過繁茂になってから {@code minAgeTicks} 以上経っていること</li>
-     *     <li>半径 {@code radiusChunks} のチャンク((2r+1)² 個。既定 8 なら 17×17 = 289)が
-     *     すべて過繁茂以上であること</li>
-     * </ul>
-     *
-     * <p>見るのは台帳だけなので、対象のチャンクも周囲のチャンクも<b>読み込まれている必要はない</b>。
-     * 先に齢を見てから周囲を走査するので、条件を満たさないほとんどの呼び出しは
-     * 1 回のハッシュ参照で終わる。
+     * 台帳(過繁茂のチャンク → 載った暦)の<b>写し</b>(2026-10-06)。中の配列ごと写すので速く(10 万件で 1 ms 未満)、
+     * 反復の順番も元と同じ。別スレッドで台帳全体を舐める計算(/ov perf bench の縁など)に渡す。写しは書き換えないこと。
      */
-    public boolean canBecomeClimax(ChunkPos center, int radiusChunks, long minAgeTicks, long nowGameTime) {
-        long value = overgrownSince.get(center.toLong());
-        if (!overgrownSince.containsKey(center.toLong()) || value < 0L) {
-            return false; // 台帳に無い、または既に極相。
-        }
-        if (nowGameTime - decodeSince(value) < minAgeTicks) {
-            return false;
-        }
-        return neighbourhoodFilled(center, radiusChunks);
-    }
-
-    /** {@code center} の半径 {@code radiusChunks} が全て過繁茂以上で埋まっているか。 */
-    private boolean neighbourhoodFilled(ChunkPos center, int radiusChunks) {
-        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
-            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (!overgrownSince.containsKey(ChunkPos.asLong(center.x + dx, center.z + dz))) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * {@code center} の半径 {@code radiusChunks} のうち、まだ過繁茂以上になっていないチャンク数
-     * ({@code /ov climax status} の診断用)。0 なら周囲の条件は満たしている。
-     */
-    public int countMissingNeighbours(ChunkPos center, int radiusChunks) {
-        int missing = 0;
-        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
-            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (!overgrownSince.containsKey(ChunkPos.asLong(center.x + dx, center.z + dz))) {
-                    missing++;
-                }
-            }
-        }
-        return missing;
-    }
-
-    /**
-     * いま極相へ上げられるチャンクを集める({@code ClimaxTicker} が呼ぶ)。
-     *
-     * <p>台帳を丸ごと走査するが、<b>ほとんどの項目は「既に極相」か「齢が足りない」で
-     * ハッシュ参照 1 回ずつ</b>で落ちる。重い (2r+1)² の走査に入った回数を {@code maxChecks} で、
-     * 返す件数を {@code maxResults} で頭打ちにしてあるので、
-     * 広い汚染域が一斉に条件を満たしても 1 回の呼び出しが跳ねない(残りは次回に回る)。
-     */
-    public java.util.List<ChunkPos> collectClimaxPromotions(int radiusChunks, long minAgeTicks, long nowGameTime,
-                                                            int maxChecks, int maxResults) {
-        java.util.List<ChunkPos> found = new java.util.ArrayList<>();
-        int checks = 0;
-        for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry : overgrownSince.long2LongEntrySet()) {
-            long value = entry.getLongValue();
-            if (value < 0L || nowGameTime - value < minAgeTicks) {
-                continue; // 既に極相 / まだ若い。
-            }
-            if (checks >= maxChecks || found.size() >= maxResults) {
-                break;
-            }
-            checks++;
-            ChunkPos pos = new ChunkPos(entry.getLongKey());
-            if (neighbourhoodFilled(pos, radiusChunks)) {
-                found.add(pos);
-            }
-        }
-        return found;
+    public it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap snapshotLedger() {
+        return overgrownSince.clone();
     }
 
     /**
@@ -694,34 +989,15 @@ public final class PhaseData extends SavedData {
         return overgrownSince.size();
     }
 
-    /** 台帳のうち極相になっているチャンク数(統計・デバッグ用)。 */
-    public int climaxLedgerSize() {
-        int n = 0;
-        for (it.unimi.dsi.fastutil.longs.Long2LongMap.Entry entry : overgrownSince.long2LongEntrySet()) {
-            if (entry.getLongValue() < 0L) {
-                n++;
-            }
+    /**
+     * 台帳に載っている全チャンク(過繁茂以上)の {@link ChunkPos#toLong()} を 1 つずつ渡す。
+     * 生態系の台帳が区域ごとの繁茂率を数えるのに使う({@code ecosystem/Ecosystem})。
+     */
+    public void forEachOvergrownChunk(java.util.function.LongConsumer action) {
+        it.unimi.dsi.fastutil.longs.LongIterator keys = overgrownSince.keySet().iterator();
+        while (keys.hasNext()) {
+            action.accept(keys.nextLong());
         }
-        return n;
-    }
-
-    /** そのチャンクは全層置換({@code ClimaxDeepConverter})をやり終えているか。 */
-    public boolean isDeepConverted(ChunkPos pos) {
-        return deepConvertedChunks.contains(pos.toLong());
-    }
-
-    /** 全層置換をやり終えた印を付ける。既に付いていれば {@code false}。 */
-    public boolean markDeepConverted(ChunkPos pos) {
-        if (deepConvertedChunks.add(pos.toLong())) {
-            setDirty();
-            return true;
-        }
-        return false;
-    }
-
-    /** 全層置換をやり終えたチャンク数(コマンドの表示用)。 */
-    public int deepConvertedLedgerSize() {
-        return deepConvertedChunks.size();
     }
 
     /**
@@ -746,6 +1022,9 @@ public final class PhaseData extends SavedData {
             return;
         }
 
+        // 設計データの読み直しで閾値・区切りが変わったときも、ここで段が追いつく(下げはしない)。
+        refreshStage(overworld);
+
         if (phase >= PhaseTable.MAX_PHASE) {
             return;
         }
@@ -760,10 +1039,9 @@ public final class PhaseData extends SavedData {
         if (gameTime > lastPointsGameTime) {
             long elapsedTicks = gameTime - lastPointsGameTime;
             lastPointsGameTime = gameTime;
-            // 1 tick あたりの収入は「perTick + perTickPerOvergrownChunk × 過繫茂系の総チャンク数」
-            // (2026-09-15。汚染が広がるほど時間収入が増える)。総チャンク数はこの判定の時点の値を
-            // 経過ぶん全体に当てる — 判定は 100 tick(5 秒)ごとなので誤差は無視できる。
-            double perTick = DesignData.phases().pointsPerTickWithChunks(overgrownChunks);
+            // 1 tick あたりの収入(2026-11-14 夕 ユーザー決定)= 100 ÷ 24000(12 秒で 1 点)+ 今の過繁茂のチャンク数 × 0.01 ÷ 20(毎秒 × 0.01)。
+            // 今の数 = 台帳の大きさ(押し返して台帳から外れると減る)。この判定の時点の値を経過ぶん全体に当てる(判定は 100 tick ごと)。
+            double perTick = DesignData.phases().pointsPerTick(overgrownLedgerSize());
             double gained = elapsedTicks * perTick + timePointsCarry;
             long whole = (long) gained;
             timePointsCarry = gained - whole;
@@ -780,24 +1058,7 @@ public final class PhaseData extends SavedData {
      * 達したら、胞子警報器のあるところへ「移行が近い」と 1 回だけ警告する(2026-09-19)。
      */
     private void warnIfPhaseNear(ServerLevel overworld) {
-        if (phaseWarned || phase < 1) {
-            return;
-        }
-        long need = DesignData.phases().pointsToAdvance(phase + 1);
-        if (need == Long.MAX_VALUE) {
-            return;
-        }
-        double fraction = DesignData.defense().alarmPhaseWarnFraction();
-        if (fraction <= 0.0D || points < (long) (need * fraction)) {
-            return;
-        }
-        phaseWarned = true;
-        setDirty();
-        com.yayuy.overgrownvegetation.defense.SporeAlarms.warn(overworld,
-                Component.translatable("message.overgrown_vegetation.alarm.phase_near",
-                        Component.translatableWithFallback(
-                                "message.overgrown_vegetation.phase_name." + (phase + 1), "Phase " + (phase + 1)),
-                        (int) Math.round(fraction * 100.0D)), null);
+        // 胞子警報器(defense/SporeAlarms)は 2026-10-30 に parked/ へ。戻すときは parked の写しの中身へ
     }
 
     /**
@@ -835,27 +1096,98 @@ public final class PhaseData extends SavedData {
         if (frozen || phase != 0) {
             return;
         }
-        PhaseTable phases = DesignData.phases();
-        if (overworld.getGameTime() < phases.startWorldAgeTicks()) {
+        // 時刻の条件はワールドの難易度「地割れの発生日時」(2026-09-25。ワールドの値が無ければ startWorldAgeTicks)。
+        if (overworld.getGameTime() < WorldDifficultyData.phase1StartTicks(overworld.getServer())) {
             return;
         }
-        if (startAdvancementCount < phases.startAdvancements()) {
+        // 実績の数もワールドの値「地割れに要る実績の数」(2026-10-10。ワールドの値が無ければ startAdvancements)。
+        if (startAdvancementCount < WorldDifficultyData.phase1Advancements(overworld.getServer())) {
             return;
         }
         advanceToPhase(overworld, 1);
     }
 
     /**
+     * プレイヤーが植物側の Mob を倒したときの点(2026-11-14 夕 ユーザー決定。{@link KillPoints} から)。
+     * 1 体 = 今のフェーズの閾値(次のフェーズの {@code pointsToAdvance})× {@code points.kills} の %。<b>上限なし</b>(倒しまくれば無茶苦茶速く進む)。
+     * 小数の端数は持ち越す。入れた点(倍率の前・小数)を返す。
+     */
+    public double addKillPoints(ServerLevel overworld, int kind) {
+        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE) {
+            return 0.0D;
+        }
+        double add = DesignData.phases().killPoints(phase, kind);
+        if (add <= 0.0D) {
+            return 0.0D;
+        }
+        killPointsTotal += add;
+        double raw = add + killPointsCarry;
+        long whole = (long) Math.floor(raw);
+        killPointsCarry = raw - whole;
+        setDirty();
+        if (whole > 0L) {
+            addPoints(overworld, whole);
+        }
+        return add;
+    }
+
+    /** 今の 1 日あたりの時間 + 面積の点(撃破と実績は入らない。難易度の倍率の前)。台帳の大きさから。 */
+    public double incomePerDay() {
+        return DesignData.phases().pointsPerTick(overgrownLedgerSize()) * PhaseTable.TICKS_PER_DAY;
+    }
+
+    /** F1 からの撃破の点の累計(倍率の前。表示・テスト用)。 */
+    public double killPointsTotal() {
+        return killPointsTotal;
+    }
+
+    /**
      * ポイントを加算し、必要ならフェーズを進める。フェーズが進むとポイントは 0 にリセットされるため、
      * 各フェーズの {@code pointsToAdvance} は「直前のフェーズ開始時点からの必要ポイント」を表す。
+     *
+     * <p>入る量にはワールドの難易度「フェーズ進行のポイント量」(2026-09-25 ユーザー指定: <b>獲得ポイント</b>に掛ける倍率)を掛ける。
+     * 時間・チャンク・Mob・実績のポイントはすべてここを通るので、ここで 1 回掛ければ全部に効く。端数は次へ持ち越す。
      */
     public void addPoints(ServerLevel overworld, long amount) {
         if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0L) {
             return;
         }
-        points += amount;
+        double scaled = amount * WorldDifficultyData.phasePointMultiplier(overworld.getServer()) + multipliedPointsCarry;
+        long whole = (long) scaled;
+        multipliedPointsCarry = scaled - whole;
         setDirty();
+        if (whole <= 0L) {
+            return;
+        }
+        gainPoints(overworld, whole);
+    }
+
+    /** 倍率を掛けた後のポイントを足し、フェーズ → 段の順に進める(フェーズが上がったら新しいフェーズの段を見る)。 */
+    private void gainPoints(ServerLevel overworld, long whole) {
+        points += whole;
         tryAdvance(overworld);
+        refreshStage(overworld);
+    }
+
+    /**
+     * ポイントを引く(2026-11-17、森の器官の芯を壊したとき)。今のフェーズの中で 0 まで(フェーズ・段は下げない)。
+     * 難易度の倍率は掛けない。引いた量を返す。
+     */
+    public long removePoints(long amount) {
+        if (amount <= 0L || phase < 1) return 0L;
+        long removed = Math.min(points, amount);
+        points -= removed;
+        setDirty();
+        return removed;
+    }
+
+    /** GameTest 用: ワールドの難易度の倍率を通さずにポイントを足す(凍結・フェーズの範囲の判定は {@link #addPoints} と同じ)。 */
+    public void addPointsUnscaledForTests(ServerLevel overworld, long amount) {
+        if (frozen || phase < 1 || phase >= PhaseTable.MAX_PHASE || amount <= 0L) {
+            return;
+        }
+        setDirty();
+        gainPoints(overworld, amount);
     }
 
     /**
@@ -867,40 +1199,35 @@ public final class PhaseData extends SavedData {
         if (frozen || phase < 1) {
             return;
         }
-        while (phase < PhaseTable.MAX_PHASE
+        // MOD の設定「フェーズの上限」(11-19)。下げても今のフェーズは戻さない
+        int cap = (int) Math.round(com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(overworld.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.PHASE_CAP));
+        while (phase < PhaseTable.MAX_PHASE && phase < cap
                 && DesignData.phases().canAdvanceTo(phase + 1, points)) {
             advanceToPhase(overworld, phase + 1);
         }
     }
 
     private void advanceToPhase(ServerLevel overworld, int newPhase) {
+        int oldPhase = this.phase;
         this.phase = newPhase;
         // フェーズが進むたびにポイントを 0 にリセットする(次のフェーズの条件はここからの増分)。
         this.points = 0L;
+        // 新しいフェーズは導入から(2026-11-14)。
+        this.stage = PhaseStage.INTRO;
         setDirty();
         this.phaseWarned = false;
-        // 切り替わりに流すのはフェーズ名の 1 行だけ(「汚染がさらに広がった……」のような演出文は載せない)。
-        overworld.getServer().getPlayerList().broadcastSystemMessage(
-                Component.translatableWithFallback(
-                        "message.overgrown_vegetation.phase_name." + newPhase, "Phase " + newPhase), false);
-        // 胞子警報器(2026-09-19): 近くのプレイヤーへ。
-        com.yayuy.overgrownvegetation.defense.SporeAlarms.warn(overworld,
-                Component.translatable("message.overgrown_vegetation.alarm.phase_changed",
-                        Component.translatableWithFallback(
-                                "message.overgrown_vegetation.phase_name." + newPhase, "Phase " + newPhase)), null);
+        // 11-16 ユーザー: 上がったときのチャットの 1 行は流さない。地鳴り・空のにじみ・森のざわめき(PhaseCues)だけで知らせる(11-14「数字ではなく現象で知らせる」)
 
         if (newPhase == 1) {
-            // フェーズ1突入時の演出: 全プレイヤーから離れた地表で地震が起き、大地が裂けて胞子が噴き出す。
-            com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
+            if (isLive()) {
+                // フェーズ1突入時の演出: 全プレイヤーから離れた地表で地震が起き、大地が裂けて胞子が噴き出す。
+                com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
+            }
             // 実績ゲートの記録はもう使わないので捨てる(個数だけ startAdvancementCount に残す)。
             startAdvancementIds.clear();
         }
-        // フェーズ2の「グループ1の体力・攻撃力強化」をロード済みの該当 Mob へ即座に反映/解除する。
-        Group1PhaseBehavior.onPhaseChanged(overworld.getServer());
-        // フェーズ5以降は、昇格した瞬間にレイドを1回確定で発生させる(失敗しても RaidTicker が再挑戦する)。
-        com.yayuy.overgrownvegetation.raid.RaidData.onPhaseAdvanced(overworld, newPhase);
-        // フェーズ7以降は、昇格した瞬間に攻城戦(遠距離ボス)を始める(同じく失敗しても再挑戦する)。
-        com.yayuy.overgrownvegetation.siege.SiegeData.onPhaseAdvanced(overworld, newPhase);
+        fire(new PhaseEvents.PhaseChanged(overworld, oldPhase, newPhase, true));
+        syncToClients(overworld);
     }
 
     /**
@@ -910,12 +1237,21 @@ public final class PhaseData extends SavedData {
     public void setPhase(ServerLevel overworld, int newPhase) {
         int clamped = Math.max(0, Math.min(PhaseTable.MAX_PHASE, newPhase));
         boolean enteringPhase1 = clamped == 1 && this.phase != 1;
+        int oldPhase = this.phase;
+        PhaseStage oldStage = this.stage;
         this.phase = clamped;
         this.points = 0L;
+        // 段も導入へ戻す(ポイントを 0 にするのと同じ。2026-11-14)。
+        this.stage = PhaseStage.INTRO;
         setDirty();
-        if (enteringPhase1) {
+        if (enteringPhase1 && isLive()) {
             com.yayuy.overgrownvegetation.quake.EarthquakeEvent.onEnterPhase1(overworld);
         }
-        Group1PhaseBehavior.onPhaseChanged(overworld.getServer());
+        if (oldPhase != clamped) {
+            fire(new PhaseEvents.PhaseChanged(overworld, oldPhase, clamped, false));
+        } else if (oldStage != PhaseStage.INTRO && clamped >= 1) {
+            fire(new PhaseEvents.StageChanged(overworld, clamped, oldStage, PhaseStage.INTRO, false));
+        }
+        syncToClients(overworld);
     }
 }

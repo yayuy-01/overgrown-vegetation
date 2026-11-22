@@ -1,0 +1,6 @@
+{
+  "_comment": "g1_warden_v2_r2 の burst.json の写し(tools/g5-models/g1/install_v2.sh)。死体ブロックは置かれたら burst_animation を流し、swapTick(置かれてからの tick)で絵を intact_texture から傷のある絵へ替える。その後は idle_animation",
+  "burst_seconds": 3.00,
+  "swapTick": 30,
+  "intact": "g1_warden_v2_r2_intact.png"
+}

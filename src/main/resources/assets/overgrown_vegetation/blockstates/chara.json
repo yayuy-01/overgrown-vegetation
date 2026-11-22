@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "kind=a,part=single": { "model": "overgrown_vegetation:block/chara_a_top" },
+    "kind=a,part=bottom_of_2": { "model": "overgrown_vegetation:block/chara_a_bottom" },
+    "kind=a,part=top_of_2": { "model": "overgrown_vegetation:block/chara_a_top" },
+    "kind=a,part=bottom_of_3": { "model": "overgrown_vegetation:block/chara_a_bottom" },
+    "kind=a,part=middle_of_3": { "model": "overgrown_vegetation:block/chara_a_mid" },
+    "kind=a,part=top_of_3": { "model": "overgrown_vegetation:block/chara_a_top" },
+    "kind=b,part=single": { "model": "overgrown_vegetation:block/chara_b_top" },
+    "kind=b,part=bottom_of_2": { "model": "overgrown_vegetation:block/chara_b_bottom" },
+    "kind=b,part=top_of_2": { "model": "overgrown_vegetation:block/chara_b_top" },
+    "kind=b,part=bottom_of_3": { "model": "overgrown_vegetation:block/chara_b_bottom" },
+    "kind=b,part=middle_of_3": { "model": "overgrown_vegetation:block/chara_b_mid" },
+    "kind=b,part=top_of_3": { "model": "overgrown_vegetation:block/chara_b_top" }
+  }
+}

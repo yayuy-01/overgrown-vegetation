@@ -1,54 +1,77 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.effect.ParasitizedTargetGoal;
-import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
+import com.yayuy.overgrownvegetation.corpse.G1Species;
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Spider;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
-import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
-import software.bernie.geckolib.util.GeckoLibUtil;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * 「寄生されたクモ」— フェーズ4以降の進化型感染 Mob。バニラのクモが元々持つ「プレイヤーだけを狙う」
- * 索敵/近接攻撃 Goal は {@link ParasitizedTargetGoal#stripVanillaHostileGoals} で取り除き、代わりに
- * {@link ParasitizedTargetGoal} により他の Mob やプレイヤーを種族を問わず見つけ次第攻撃する
- * (攻撃されると「胞子感染2」に感染する)。
- *
- * <p>見た目は GeckoLib 経由の専用モデル(Blockbench 製、寄生植物が生えたクモ。{@link ParasitizedCreeper} と
- * 同じ構成)に差し替えている。モデル/アニメーション/テクスチャの実体は
- * {@code assets/overgrown_vegetation/geo/overgrown_spider.geo.json}・
- * {@code animations/overgrown_spider.animation.json}・
- * {@code textures/entity/overgrown_spider.png}(モデル・テクスチャはユーザー提供の本物。
- * アニメーションはバニラのクモに準じた idle/walk を Claude が作成、頭付近から生えたシダ
- * ({@code fern1}〜{@code fern3})には待機中・歩行中とも風で揺れる緩やかなスウェイを付けている)。
- * 差し替え時はこのクラスの変更は不要(アニメーション名を変える場合は下の
- * {@code IDLE_ANIM}/{@code WALK_ANIM} だけ合わせる)。
+ * 寄生されたクモ(G1 段階 0、2026-11-08 組み込み。仕様は Vault「G1 クモ(段階 0)」)。攻撃は立って噛む(跳びつかない)。壁を登らない(Monster)。
+ * 寄生の中心は腹、右後ろの 2 本を引きずる。速さはバニラの 0.3(11-05 ユーザー)。
+ * 元の性質で残すのは「毒が効かない」「クモの巣で遅くならない」の 2 つだけ(11-05 ユーザー)。目は光らせない(発光の層を持たない)。
  */
-public class ParasitizedSpider extends Spider implements ParasitizedMob, GeoEntity {
-
-    private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
-
-    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+public class ParasitizedSpider extends AbstractParasitizedMonster {
 
     public ParasitizedSpider(EntityType<? extends ParasitizedSpider> type, Level level) {
         super(type, level);
-        ParasitizedTargetGoal.stripVanillaHostileGoals(this);
-        ParasitizedTargetGoal.install(this);
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 16.0D)
+                .add(Attributes.ATTACK_DAMAGE, 2.0D)
+                .add(Attributes.MOVEMENT_SPEED, 0.3D)
+                .add(Attributes.FOLLOW_RANGE, 35.0D);
     }
 
     @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "move", 5,
-                state -> state.setAndContinue(MobAnimation.isWalking(state) ? WALK_ANIM : IDLE_ANIM)));
+    public G1Species species() {
+        return G1Species.SPIDER;
+    }
+
+    /** 毒が効かない(バニラのクモと同じ)。 */
+    @Override
+    public boolean canBeAffected(MobEffectInstance effect) {
+        return !effect.is(MobEffects.POISON) && super.canBeAffected(effect);
+    }
+
+    /** クモの巣で遅くならない(バニラのクモと同じ)。 */
+    @Override
+    public void makeStuckInBlock(BlockState state, Vec3 motionMultiplier) {
+        // 根糸の巣(1 段目のクモが張る、2026-11-13)でも遅くならない
+        if (!state.is(Blocks.COBWEB) && !state.is(com.yayuy.overgrownvegetation.registry.ModG1.ROOTSILK_WEB.get())) {
+            super.makeStuckInBlock(state, motionMultiplier);
+        }
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return this.geoCache;
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.SPIDER_AMBIENT;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.SPIDER_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.SPIDER_DEATH;
+    }
+
+    @Override
+    protected void playStepSound(BlockPos pos, BlockState state) {
+        playSound(SoundEvents.SPIDER_STEP, 0.15F, 1.0F);
     }
 }

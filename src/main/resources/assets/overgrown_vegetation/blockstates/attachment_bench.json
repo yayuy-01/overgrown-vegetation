@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "overgrown_vegetation:block/attachment_bench" },
+    "facing=east": { "model": "overgrown_vegetation:block/attachment_bench", "y": 90 },
+    "facing=south": { "model": "overgrown_vegetation:block/attachment_bench", "y": 180 },
+    "facing=west": { "model": "overgrown_vegetation:block/attachment_bench", "y": 270 }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=south": { "model": "overgrown_vegetation:block/overgrown_end_portal_frame" },
+    "facing=west":  { "model": "overgrown_vegetation:block/overgrown_end_portal_frame", "y": 90 },
+    "facing=north": { "model": "overgrown_vegetation:block/overgrown_end_portal_frame", "y": 180 },
+    "facing=east":  { "model": "overgrown_vegetation:block/overgrown_end_portal_frame", "y": 270 }
+  }
+}

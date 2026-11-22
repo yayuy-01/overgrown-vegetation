@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Arrays;
 
 /**
- * バニラの<b>ビデオ設定</b>画面の末尾に「シダをすべて表示する」を足す({@link CurledFernOption})。
+ * バニラの<b>ビデオ設定</b>画面の末尾に「シダの葉を立体で描く」を足す({@link CurledFernOption})。
  *
  * <p>差し込む先は {@code VideoSettingsScreen.options(Options)} —— 画面が
  * {@code list.addSmall(...)} に渡す項目の配列を作っている private static メソッド。

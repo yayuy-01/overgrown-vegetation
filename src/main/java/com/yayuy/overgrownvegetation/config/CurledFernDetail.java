@@ -13,7 +13,7 @@ public enum CurledFernDetail {
     /**
      * geo.json のまま。約86面。
      *
-     * <p>ビデオ設定「シダをすべて表示する」を ON にした状態。
+     * <p>ビデオ設定「シダの葉を立体で描く」を ON にした状態。
      *
      * <p>2026-09-17 まではこれが既定だった。汚染された地表のマスのおよそ2割が巻きシダになる
      * ({@code growthChance} 0.85 ×「上面の下草の抽選で巻きシダ」weight 2/4 など)ため、
@@ -22,8 +22,11 @@ public enum CurledFernDetail {
      */
     FULL,
     /**
-     * 6本ある葉のうち<b>3本だけ</b>残す。48面。形と背の高さはそのまま。<b>既定</b>(ビデオ設定
-     * 「シダをすべて表示する」を OFF にした状態)。
+     * <b>葉は 6 本のまま</b>、葉の中央の筋で折れた 2 枚の板を<b>1 枚の板</b>にした軽い形({@code overgrown_curled_fern_flat.geo.json}、
+     * tools/curled-fern-flat が元の geo.json から作る)。42 面。<b>既定</b>(ビデオ設定「シダの葉を立体で描く」を OFF にした状態)。
+     * 2026-10-15 夜、ユーザー「1 枚の板で表現した低キューブ版を作れば、キューブ数が半分になるので、最初から 6 枚の葉で今の fps にできる」。
+     *
+     * <p>それまでは下のとおり 6 本のうち 3 本だけ残していた(48 面。今もモデルに {@code reduced_geo} が無いときはこちら)。
      *
      * <p>どの3本を残すかは<b>草ごと(ブロックの位置ごと)にランダム</b>
      * (2026-09-17。それまでは fern3・fern5・fern7 を省く固定だった)。
@@ -32,7 +35,7 @@ public enum CurledFernDetail {
      * 8通り × blockstate の64通りで512通りの見え方になる。面数は変わらない
      * (詳しくは {@link com.yayuy.overgrownvegetation.client.RandomBoneGroupModel})。
      */
-    REDUCED,
-    /** バニラの草と同じ十字の板。4面。一番軽いが立体感は無くなる。 */
-    SIMPLE
+    REDUCED
+    // 2026-11-03 に SIMPLE(バニラの草と同じ十字の板・4 面)を削除。ユーザー「cross の絵用のテクスチャを用意していないので表示がおかしなことになっていた」。
+    // config に SIMPLE が残っていても、defineEnum が既定値(REDUCED)に直して読む。
 }

@@ -2,6 +2,8 @@ package com.yayuy.overgrownvegetation.worldgen;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.yayuy.overgrownvegetation.block.BranchJointBlock;
+import com.yayuy.overgrownvegetation.block.CordaitesButtressBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -73,6 +75,9 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         RandomSource random = context.random();
         Config config = context.config();
         BlockPos origin = context.origin();
+        // 構造物にかかる所の苗は構造物に合わせた形で育つ(11-19 構造物と森の融合 段 2b。欠けて浮いた木を作らない)
+        Boolean fusionTree = com.yayuy.overgrownvegetation.organ.StructureSaplingTrees.tryGrow(level, origin, random);
+        if (fusionTree != null) return fusionTree;
 
         int minHeight = Math.min(config.minTrunkHeight(), config.maxTrunkHeight());
         int maxHeight = Math.max(config.minTrunkHeight(), config.maxTrunkHeight());
@@ -95,12 +100,15 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
 
         // 幹: 苗木があった位置から真上へ、既存のブロックが何であろうと必ず置き換える。
         // trunkWidth == 2 のときは 2x2 の太い幹にする(バニラのジャングルの巨木のイメージ)。
+        // 根元の skirt 段は苔の付いた幹の絵(案 H の 31、2026-10-31)。
+        int skirt = skirtSteps(config, random);
         for (int i = 0; i < trunkHeight; i++) {
             int y = origin.getY() + i;
+            BlockState trunk = i < skirt ? config.trunkState().setValue(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.SKIRT, true) : config.trunkState();
             for (int dx = 0; dx < trunkWidth; dx++) {
                 for (int dz = 0; dz < trunkWidth; dz++) {
                     BlockPos trunkPos = new BlockPos(origin.getX() + dx, y, origin.getZ() + dz);
-                    setForced(level, trunkPos, config.trunkState());
+                    setForced(level, trunkPos, trunk);
                     logPositions.add(trunkPos.asLong());
                     // (枝ではなく)主幹にだけ、ごく低確率でヒカリゴケを1面貼り付ける。
                     maybeAddGlowLichen(level, random, trunkPos, config);
@@ -118,11 +126,20 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         int branchCount = Math.max(0, config.branchCount());
         if (branchCount > 0) {
             placeBranches(level, random, origin, trunkHeight, trunkWidth, branchCount, config, logPositions, leafPositions);
+            // 中層の葉の房(2026-11-02、下絵 33 の案 B)。林冠の塊を置き終えてから(塊の下を避けるため)。
+            if (jointStateFor(config.trunkState()) != null) {
+                placeMidTufts(level, random, origin, trunkHeight, trunkWidth, config, leafPositions);
+            }
         }
+
+        // 木の洞(案 H の 43、2026-10-31): 幹の何段目かの、空気に面した 1 面に小さな穴。
+        maybeHollow(level, random, origin, trunkHeight, trunkWidth, config);
 
         // 育ち終えた直後に、近くの別の木との間へ蔦を張れないか試す
         // (spawnConnectingVines / vineMaxPerTree を 0 にすれば無効化できる)。
         TreeVineConnector.tryConnect(level.getLevel(), random, origin, logPositions);
+        // 側面・底面に生えるもの(2026-11-01): 幹に巻き付く種子シダ・気根・ひげ地衣・胞子嚢の袋。
+        TreeSideGrowth.decorate(level, random, logPositions, leafPositions, false);
 
         // 樹冠が出来上がってから、葉の下へ「大きな未発達な果実」を低確率でぶら下げる。
         double fruitChance = OvergrownVegetationConfig.COMMON.undevelopedFruitChance.get();
@@ -149,6 +166,7 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         int maxLen = Math.max(minLen, Math.max(config.branchMinLength(), config.branchMaxLength()));
         // 枝の分岐点は幹の最上部から branchZoneHeight ぶん下までの範囲に散らす。
         int zone = Math.max(1, Math.min(config.branchZoneHeight(), trunkHeight));
+        List<BlockPos> joints = new ArrayList<>();
 
         for (int i = 0; i < branchCount; i++) {
             int startOffsetFromTop = random.nextInt(zone);
@@ -165,17 +183,173 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             int y = startY;
             int z = origin.getZ() + cornerZ;
 
+            // 枝の列(先頭は幹のマス)を集めてから、枝の継ぎ目の計画(BranchJoints。2026-11-01)に従って置く。
+            List<BlockPos> path = new ArrayList<>(length + 1);
+            path.add(new BlockPos(x, y, z));
             for (int step = 0; step < length; step++) {
                 x += dir[0];
                 y += 1;
                 z += dir[1];
-                BlockPos branchPos = new BlockPos(x, y, z);
-                setForced(level, branchPos, config.trunkState());
-                logPositions.add(branchPos.asLong());
+                path.add(new BlockPos(x, y, z));
+            }
+            BlockState joint = jointStateFor(config.trunkState());
+            var cfg = OvergrownVegetationConfig.COMMON;
+            BranchJoints.Plan plan = BranchJoints.plan(path, joint != null && cfg.branchJointTaper.get(),
+                    joint != null && cfg.branchJointFill.get(),
+                    p -> isFreeForJoint(level.getBlockState(p), config),
+                    p -> BranchJointBlock.connectsTo(level.getBlockState(p)));
+            joints.addAll(BranchJoints.place(level, plan, config.trunkState(), joint, (p, s) -> setForced(level, p, s)));
+            for (BlockPos p : plan.logs()) {
+                logPositions.add(p.asLong());
             }
 
             placeCanopy(level, random, new BlockPos(x, y + 1, z), 1, config, leafPositions);
         }
+        // 腕は全部の枝と葉を置き終えてから組む(後の枝の原木が隣に来ることがある)。
+        BranchJoints.reconnect(level, joints);
+        // 後の枝が前の枝の原木を継ぎ目に置き換えることがある。蔦の端(原木の集合)に継ぎ目を残さない。
+        for (BlockPos p : joints) {
+            if (!level.getBlockState(p).is(config.trunkState().getBlock())) {
+                logPositions.remove(p.asLong());
+            }
+        }
+    }
+
+    /** 1 本の木の中層の房の数・高さの帯(幹の高さの割合)・房の上に林冠の塊を許さない段数。どれも仮決め(2026-11-02)。 */
+    static final int MID_TUFTS = 2;
+    static final double MID_TUFT_LOW = 0.4, MID_TUFT_HIGH = 0.6;
+    static final int MID_TUFT_CLEARANCE = 3;
+    /** 林冠の塊を見る水平の幅(房の芯から ±。2 では低い枝の塊に掛かり、幹 20 前後の木の多くが房 0〜1 になった)。仮決め。 */
+    public static final int MID_TUFT_SPAN = 1;
+
+    /**
+     * 中層の葉の房(2026-11-02、下絵 33 の案 B。ユーザー指定 + 腕は枝のブロック)。幹の高さの {@value #MID_TUFT_LOW}〜{@value #MID_TUFT_HIGH} の帯の
+     * 2 か所(高さは 2 段以上離す・向きは別々)に、幹の面から水平に 1〜2 マスの短い腕(枝の継ぎ目 {@code overgrown_branch}。2 マスなら先が細い)を出し、
+     * 腕の延長の次のマス(同じ高さ。腕が刺さる)に葉 1 ブロック + 向き付きの板 5 枚(上に立ち上がる 1・下に垂れる 1・腕の軸に直交する横 2・先 1。幹の側は無し。
+     * {@code overgrown_leaves_tuft}。11-02 浮きの直しで、前の「腕先の上に葉・板 4 枚」から変えた。5 枚は仮決め)。
+     * 房の上 {@value #MID_TUFT_CLEARANCE} 段(水平 ±{@value #MID_TUFT_SPAN})に葉がある所(林冠の塊の下)と、腕・葉・上下の板のマスが空いていない所には置かない(先と横は空いていれば)。
+     */
+    private static void placeMidTufts(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkHeight, int trunkWidth,
+            Config config, LongOpenHashSet leafPositions) {
+        int lo = (int) Math.round(trunkHeight * MID_TUFT_LOW), hi = (int) Math.round(trunkHeight * MID_TUFT_HIGH);
+        if (lo < 2 || hi < lo) {
+            return;
+        }
+        List<Integer> heights = new ArrayList<>();
+        for (int i = lo; i <= hi; i++) {
+            heights.add(i);
+        }
+        net.minecraft.Util.shuffle(heights, random);
+        List<Direction> dirs = new ArrayList<>(List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
+        net.minecraft.Util.shuffle(dirs, random);
+        List<Integer> usedHeights = new ArrayList<>();
+        List<Direction> usedDirs = new ArrayList<>();
+        LongOpenHashSet tuftCells = new LongOpenHashSet();
+        for (int h : heights) {
+            if (usedHeights.size() >= MID_TUFTS) {
+                break;
+            }
+            if (usedHeights.stream().anyMatch(u -> Math.abs(u - h) < 2)) {
+                continue;
+            }
+            for (Direction dir : dirs) {
+                if (usedDirs.contains(dir)) {
+                    continue;
+                }
+                int len = 1 + random.nextInt(2);
+                if (tryMidTuft(level, random, origin, trunkWidth, h, dir, len, config, leafPositions, tuftCells)
+                        || tryMidTuft(level, random, origin, trunkWidth, h, dir, 3 - len, config, leafPositions, tuftCells)) {
+                    usedHeights.add(h);
+                    usedDirs.add(dir);
+                    break;
+                }
+            }
+        }
+    }
+
+    private static boolean tryMidTuft(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkWidth, int h, Direction dir, int len,
+            Config config, LongOpenHashSet leafPositions, LongOpenHashSet tuftCells) {
+        int along = trunkWidth > 1 ? random.nextInt(trunkWidth) : 0;
+        int tx = origin.getX() + (dir == Direction.EAST ? trunkWidth - 1 : dir == Direction.WEST ? 0 : along);
+        int tz = origin.getZ() + (dir == Direction.SOUTH ? trunkWidth - 1 : dir == Direction.NORTH ? 0 : along);
+        BlockPos trunk = new BlockPos(tx, origin.getY() + h, tz);
+        if (!level.getBlockState(trunk).is(config.trunkState().getBlock())) {
+            return false;
+        }
+        List<BlockPos> arm = new ArrayList<>(len);
+        for (int k = 1; k <= len; k++) {
+            arm.add(trunk.relative(dir, k));
+        }
+        // 芯は腕の延長の次のマス(同じ高さ)。腕が芯に刺さる(11-02 浮きの直し。前は腕先の上に乗せていて、細い枝から浮いて見えた)
+        BlockPos core = trunk.relative(dir, len + 1);
+        BlockPos rise = core.above(), hang = core.below();
+        for (BlockPos p : arm) {
+            if (!isFreeForTuft(level, p, leafPositions)) {
+                return false;
+            }
+        }
+        // 芯・上・下は必ず空いていること。先と横 2 枚は空いていれば付ける(全部を条件にすると房がさらに減る。仮決め)
+        if (!isFreeForTuft(level, core, leafPositions) || !isFreeForTuft(level, rise, leafPositions) || !isFreeForTuft(level, hang, leafPositions)) {
+            return false;
+        }
+        // 林冠の塊の下は避ける(房の上 MID_TUFT_CLEARANCE 段・水平 ±MID_TUFT_SPAN に葉)
+        BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
+        for (int dy = 1; dy <= MID_TUFT_CLEARANCE; dy++) {
+            for (int dx = -MID_TUFT_SPAN; dx <= MID_TUFT_SPAN; dx++) {
+                for (int dz = -MID_TUFT_SPAN; dz <= MID_TUFT_SPAN; dz++) {
+                    BlockState s = level.getBlockState(q.set(core.getX() + dx, core.getY() + dy, core.getZ() + dz));
+                    if (tuftCells.contains(q.asLong())) {
+                        continue; // 先に置いたこの木の房は塊に数えない
+                    }
+                    if (s.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock || s.is(BlockTags.LEAVES)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        BlockState joint = ModBlocks.OVERGROWN_BRANCH.get().defaultBlockState();
+        for (int k = 0; k < len; k++) {
+            setForced(level, arm.get(k), joint.setValue(BranchJointBlock.THICK, !(len > 1 && k == len - 1)));
+        }
+        setForced(level, core, config.leavesState());
+        BranchJoints.reconnect(level, arm);
+        // 継ぎ目は葉へ腕を出さないので、腕先から芯へだけ手で繋ぐ(BranchJointBlock#updateShape は葉への腕を残す)
+        BlockPos tip = arm.get(len - 1);
+        setForced(level, tip, level.getBlockState(tip).setValue(net.minecraft.world.level.block.PipeBlock.PROPERTY_BY_DIRECTION.get(dir), true));
+        leafPositions.add(core.asLong());
+        tuftCells.add(core.asLong());
+        tuftCells.add(rise.asLong());
+        tuftCells.add(hang.asLong());
+        BlockState tuft = ModBlocks.OVERGROWN_LEAVES_TUFT.get().defaultBlockState();
+        setForced(level, rise, tuft.setValue(com.yayuy.overgrownvegetation.block.SigillariaFringeBlock.FACING, Direction.DOWN));
+        setForced(level, hang, tuft.setValue(com.yayuy.overgrownvegetation.block.SigillariaFringeBlock.FACING, Direction.UP));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            if (side == dir.getOpposite()) {
+                continue; // 幹・腕の側
+            }
+            BlockPos p = core.relative(side);
+            BlockState here = level.getBlockState(p);
+            if (here.isAir() || here.canBeReplaced() && here.getFluidState().isEmpty()) {
+                setForced(level, p, tuft.setValue(com.yayuy.overgrownvegetation.block.SigillariaFringeBlock.FACING, side.getOpposite()));
+                tuftCells.add(p.asLong());
+            }
+        }
+        return true;
+    }
+
+    private static boolean isFreeForTuft(WorldGenLevel level, BlockPos pos, LongOpenHashSet leafPositions) {
+        BlockState s = level.getBlockState(pos);
+        return !leafPositions.contains(pos.asLong()) && (s.isAir() || s.canBeReplaced() && s.getFluidState().isEmpty());
+    }
+
+    /** 幹が {@code overgrown_log} なら枝の継ぎ目 {@code overgrown_branch}、それ以外の幹には継ぎ目を使わない(null)。 */
+    private static BlockState jointStateFor(BlockState trunkState) {
+        return trunkState.is(ModBlocks.OVERGROWN_LOG.get()) ? ModBlocks.OVERGROWN_BRANCH.get().defaultBlockState() : null;
+    }
+
+    /** 隙間埋めの継ぎ目を置いてよいマス(空気・置き換えられる物・葉)。 */
+    private static boolean isFreeForJoint(BlockState state, Config config) {
+        return state.isAir() || state.canBeReplaced() || state.is(config.leavesState().getBlock());
     }
 
     /** 根の1歩ごとに、直前の高さからこの範囲内で地表を探す(急な崖・穴での暴走を防ぐ)。 */
@@ -189,6 +363,10 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
      * {@code overgrown_log} なら樹皮だけの {@code overgrown_wood}、それ以外の幹はそのまま流用)。
      */
     private static void placeRoots(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkWidth, Config config) {
+        if (config.trunkState().is(ModBlocks.OVERGROWN_LOG.get())) {
+            placeButtresses(level, random, origin, trunkWidth, config);
+            return;
+        }
         BlockState rootState = rootStateFor(config.trunkState());
         int minCount = Math.max(0, Math.min(config.rootMinCount(), config.rootMaxCount()));
         int maxCount = Math.max(minCount, Math.max(config.rootMinCount(), config.rootMaxCount()));
@@ -236,6 +414,125 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
     }
 
     /**
+     * コルダイテスの板根(2026-11-02、下絵 32 の案 A。ユーザー指定)。幹の 4 面のうち {@code rootMinCount}〜{@code rootMaxCount} 面(4 まで)から、
+     * 外へ {@code rootLength} 段の板({@link CordaitesButtressBlock})を地形に沿って置く。段は幹から離れるほど低い:
+     * 2 段 = NEAR → TIP(NEAR の上に幹を這い上がる CLIMB_TOP)、3 段以上 = BIG → MID … → TIP(BIG の上に CLIMB・CLIMB_TOP)、1 段 = TIP。
+     * 板は地面の上のマスに置く(前の根は地面のマスを原木に置き換えていた)。地面の段差は {@link #nextRootGround}: 1 段目は地面が幹の根元と同じ高さの面だけ、
+     * 2 段目からは 1 段下がる列に落ちる部品({@link CordaitesButtressBlock.Part#DROP}。段差の面を降りてその列の段を兼ねる)、上がる・2 段以上・水・地面でない物で止める。
+     * 2×2 の幹は面の 2 列のどちらかから出す。
+     */
+    private static void placeButtresses(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkWidth, Config config) {
+        int minCount = Math.max(0, Math.min(config.rootMinCount(), config.rootMaxCount()));
+        int maxCount = Math.max(minCount, Math.max(config.rootMinCount(), config.rootMaxCount()));
+        int count = Math.min(4, minCount >= maxCount ? minCount : minCount + random.nextInt(maxCount - minCount + 1));
+        if (count <= 0) {
+            return;
+        }
+        int length = Math.max(1, config.rootLength());
+        List<Direction> faces = new ArrayList<>(List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
+        net.minecraft.Util.shuffle(faces, random);
+        BlockState base = ModBlocks.CORDAITES_BUTTRESS.get().defaultBlockState();
+        for (int i = 0; i < count; i++) {
+            Direction face = faces.get(i);
+            int along = trunkWidth > 1 ? random.nextInt(trunkWidth) : 0;
+            // 面に接する幹の列(2×2 なら面の 2 列のどちらか)
+            int tx = origin.getX() + (face == Direction.EAST ? trunkWidth - 1 : face == Direction.WEST ? 0 : along);
+            int tz = origin.getZ() + (face == Direction.SOUTH ? trunkWidth - 1 : face == Direction.NORTH ? 0 : along);
+            int y = origin.getY() - 1;
+            for (int step = 0; step < length; step++) {
+                int x = tx + face.getStepX() * (step + 1);
+                int z = tz + face.getStepZ() * (step + 1);
+                int ground = nextRootGround(level, x, y, z);
+                // 幹に接する 1 段目は地面が幹の根元と同じ高さのときだけ。2 段目からは 1 段下がるなら落ちる部品で降りる
+                if (ground == Integer.MIN_VALUE || step == 0 && ground != y) {
+                    break;
+                }
+                boolean drop = ground < y;
+                y = ground;
+                CordaitesButtressBlock.Part part = drop ? CordaitesButtressBlock.Part.DROP : buttressPart(step, length);
+                BlockPos cell = new BlockPos(x, y + 1, z);
+                setForced(level, cell, base.setValue(CordaitesButtressBlock.FACING, face).setValue(CordaitesButtressBlock.PART, part));
+                if (step == 0) {
+                    // 幹を這い上がる箱(幹に接する 1 段目の上)
+                    if (part == CordaitesButtressBlock.Part.BIG) {
+                        placeClimb(level, cell.above(), base.setValue(CordaitesButtressBlock.FACING, face).setValue(CordaitesButtressBlock.PART, CordaitesButtressBlock.Part.CLIMB));
+                        placeClimb(level, cell.above(2), base.setValue(CordaitesButtressBlock.FACING, face).setValue(CordaitesButtressBlock.PART, CordaitesButtressBlock.Part.CLIMB_TOP));
+                    } else if (part == CordaitesButtressBlock.Part.NEAR) {
+                        placeClimb(level, cell.above(), base.setValue(CordaitesButtressBlock.FACING, face).setValue(CordaitesButtressBlock.PART, CordaitesButtressBlock.Part.CLIMB_TOP));
+                    }
+                }
+            }
+        }
+    }
+
+    /** GameTest 用: 板根だけを置く(幹は置かない。段差の扱いを狭い台で見る)。 */
+    public static void placeButtressesForTests(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkWidth, Config config) {
+        placeButtresses(level, random, origin, trunkWidth, config);
+    }
+
+    /** 板根の {@code step} 段目(0 = 幹の隣)の形。 */
+    static CordaitesButtressBlock.Part buttressPart(int step, int length) {
+        if (step == length - 1) {
+            return CordaitesButtressBlock.Part.TIP;
+        }
+        if (length == 2) {
+            return CordaitesButtressBlock.Part.NEAR;
+        }
+        return step == 0 ? CordaitesButtressBlock.Part.BIG : CordaitesButtressBlock.Part.MID;
+    }
+
+    /** 這い上がりの箱は空いたマスにだけ(幹の脇の葉・蔦・ほかの木は壊さない)。 */
+    private static void placeClimb(WorldGenLevel level, BlockPos pos, BlockState state) {
+        BlockState here = level.getBlockState(pos);
+        if (here.isAir() || here.canBeReplaced() && here.getFluidState().isEmpty()) {
+            setForced(level, pos, state);
+        }
+    }
+
+    /**
+     * 板根・スティグマリアの次の列の地面(2026-11-02 浮きの直し)。手前の根の地面 {@code prevGround} と比べて、
+     * 同じ高さなら {@code prevGround}、ちょうど 1 段下がるなら {@code prevGround - 1}(落ちる部品で降りる)、
+     * 上がる・2 段以上下がる・水・地面でない物(倒木・菌・葉など)なら {@link Integer#MIN_VALUE}(そこで根を止める)。
+     */
+    static int nextRootGround(WorldGenLevel level, int x, int prevGround, int z) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, prevGround + 1, z);
+        if (!isRootFree(level.getBlockState(p))) {
+            return Integer.MIN_VALUE; // 地面が上がる・水・ほかの物
+        }
+        p.setY(prevGround);
+        if (isRootGround(level, p)) {
+            return prevGround;
+        }
+        if (!isRootFree(level.getBlockState(p))) {
+            return Integer.MIN_VALUE;
+        }
+        p.setY(prevGround - 1);
+        return isRootGround(level, p) ? prevGround - 1 : Integer.MIN_VALUE;
+    }
+
+    /** 根を置いてよいマス(空気か置き換えられる植物。水・水没した物と、残す萌芽体は不可)。 */
+    private static boolean isRootFree(BlockState state) {
+        return state.getFluidState().isEmpty() && (state.isAir() || state.canBeReplaced()) && !TreePlacementRules.treeKeeps(state);
+    }
+
+    /**
+     * 根の支えになる地面: 上面が平らに塞がっている(isFaceSturdy UP)・水が無い・葉や木の部品でない。
+     * 倒木(全部の面が塞がっていても林床の上の物)・メドゥロサ・木生シダの幹・棚の菌・自分の根の上には置かない。
+     */
+    private static boolean isRootGround(WorldGenLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return !state.isAir() && !state.canBeReplaced() && state.getFluidState().isEmpty()
+                && state.isFaceSturdy(level, pos, Direction.UP)
+                && !state.is(BlockTags.LEAVES)
+                && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock)
+                && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock)
+                && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.FallenLogBlock)
+                && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.MedullosaBlock)
+                && !(state.getBlock() instanceof CordaitesButtressBlock)
+                && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.StigmariaBlock);
+    }
+
+    /**
      * 根に使うブロック状態を決める。幹が {@code overgrown_log}(側面が樹皮・木口に年輪)なら、
      * 6面すべてが樹皮の {@code overgrown_wood} に差し替える(根は木口が見えないほうが自然)。
      * 軸({@code axis})は幹の状態から引き継ぐ。幹がそれ以外のブロックなら幹の状態をそのまま使う。
@@ -244,9 +541,6 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         BlockState wood;
         if (trunkState.is(ModBlocks.OVERGROWN_LOG.get())) {
             wood = ModBlocks.OVERGROWN_WOOD.get().defaultBlockState();
-        } else if (trunkState.is(ModBlocks.OVERGROWN_SWAMP_LOG.get())) {
-            // 湿地の木も同様に、根は樹皮だけの湿地の木ブロック。
-            wood = ModBlocks.OVERGROWN_SWAMP_WOOD.get().defaultBlockState();
         } else {
             return trunkState;
         }
@@ -271,7 +565,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
             BlockState state = level.getBlockState(cursor);
             // 葉(このMODの葉・バニラの葉)は根の支えにしない: 隣の木の天蓋の上を根が這うのを防ぐ。
             if (!state.isAir() && !state.canBeReplaced() && !state.is(BlockTags.LEAVES)
-                    && !state.is(ModBlocks.OVERGROWN_LEAVES.get()) && !state.is(ModBlocks.OVERGROWN_SWAMP_LEAVES.get())) {
+                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock)
+                    && !(state.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock)) {
                 return y;
             }
         }
@@ -291,6 +586,8 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         int layers = Math.max(1, config.foliageHeight());
         int baseRadius = Math.max(1, config.foliageRadius());
         int reach = baseRadius + (trunkWidth - 1);
+        int shyGap = OvergrownVegetationConfig.COMMON.crownShynessGap.get();
+        int shyHeight = OvergrownVegetationConfig.COMMON.crownShynessHeight.get();
 
         for (int dy = 0; dy < layers; dy++) {
             int y = canopyTop.getY() - dy;
@@ -318,9 +615,20 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
                     }
 
                     BlockPos leafPos = new BlockPos(canopyTop.getX() + dx, y, canopyTop.getZ() + dz);
-                    if (level.getBlockState(leafPos).is(config.trunkState().getBlock())) {
-                        // 幹・枝そのものの位置には上書きしない。
+                    BlockState here = level.getBlockState(leafPos);
+                    if (here.is(config.trunkState().getBlock()) || here.is(ModBlocks.SIGILLARIA_LOG.get())
+                            || here.is(ModBlocks.SIGILLARIA_CONE.get())
+                            || here.getBlock() instanceof com.yayuy.overgrownvegetation.block.TreeFernTrunkBlock // 木生シダの幹(#logs でない)
+                            || here.getBlock() instanceof BranchJointBlock) {
+                        // 幹・枝そのものの位置と、隣の封印木の原木・球果、枝の継ぎ目には上書きしない。
                         continue;
+                    }
+                    if (shyGap > 0) {
+                        // 樹冠の譲り合い: ほかの木の葉は上書きせず、そのそばにも葉を出さない(塊の芯は残す)。
+                        if (isOtherTreesLeaf(here, leafPos, leafPositions)
+                                || distSq > SHY_CORE_SQ && nearOtherCrown(level, leafPos, shyGap, shyHeight, leafPositions)) {
+                            continue;
+                        }
                     }
                     setForced(level, leafPos, config.leavesState());
                     leafPositions.add(leafPos.asLong());
@@ -329,7 +637,87 @@ public class ForcedTreeFeature extends Feature<ForcedTreeFeature.Config> {
         }
     }
 
+    /**
+     * <b>樹冠の譲り合い(クラウン・シャイネス)</b>(2026-10-17 ユーザー「一度試しでクラウン・シャイネスを実装してみたい」。設定 {@code crownShynessGap}):
+     * 葉を置く所の水平 {@code gap} ブロック以内・上下 {@code height}(設定 {@code crownShynessHeight})ブロック以内に、ほかの木(今回の成長で置いていない)の葉があれば置かない。
+     * 後から育つ木が前の木に譲るので、同じくらいの高さの樹冠の間に幅 {@code gap} の空の筋が残る。高さの違う樹冠は重なってよい
+     * (上下 {@code height} より離れた葉は見ない)。塊の芯(中心から {@code √}{@value #SHY_CORE_SQ} 以内)は譲らない
+     * —— 間隔 5 では樹冠の直径(7〜9)が木の間隔より大きく、三方を囲まれた木が葉の無い棒になるので。
+     */
+    private static boolean nearOtherCrown(WorldGenLevel level, BlockPos pos, int gap, int height, LongOpenHashSet ownLeaves) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int oy = -height; oy <= height; oy++) {
+            for (int ox = -gap; ox <= gap; ox++) {
+                for (int oz = -gap; oz <= gap; oz++) {
+                    if (ox == 0 && oy == 0 && oz == 0) {
+                        continue;
+                    }
+                    p.set(pos.getX() + ox, pos.getY() + oy, pos.getZ() + oz);
+                    if (isOtherTreesLeaf(level.getBlockState(p), p, ownLeaves)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOtherTreesLeaf(BlockState state, BlockPos pos, LongOpenHashSet ownLeaves) {
+        // mod の葉は封印木の葉も(どれも OvergrownLeavesBlock)。
+        return (state.getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock || state.is(BlockTags.LEAVES))
+                && !ownLeaves.contains(pos.asLong());
+    }
+
+    /** 譲り合いでも残す塊の芯(中心からの水平距離の 2 乗)。仮決め。 */
+    private static final double SHY_CORE_SQ = 2.0;
+
+    /** 幹の苔のスカートの段数(幹が overgrown_log のときだけ。{@code cover.json} の skirtHeight、skirtTallChance の木は 1 段高く。仮決め)。 */
+    private static int skirtSteps(Config config, RandomSource random) {
+        if (!config.trunkState().hasProperty(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.SKIRT)
+                || config.trunkState().getValue(RotatedPillarBlock.AXIS) != Direction.Axis.Y) {
+            return 0;
+        }
+        com.yayuy.overgrownvegetation.data.CoverTable t = com.yayuy.overgrownvegetation.data.DesignData.cover();
+        if (t.skirtHeight() <= 0) {
+            return 0;
+        }
+        return t.skirtHeight() + (random.nextDouble() < t.skirtTallChance() ? 1 : 0);
+    }
+
+    /**
+     * 木の {@code hollowChance} に 1 本、幹の {@code hollowMinStep}〜{@code hollowMaxStep} 段目(根元が 1)の、空気に面した 1 面を洞にする(仮決め)。
+     * 面は 4 向きをばらばらの順に試し、隣が空気の最初の面(太い幹の内側・ヒカリゴケの付いた面は選ばれない)。
+     */
+    private static void maybeHollow(WorldGenLevel level, RandomSource random, BlockPos origin, int trunkHeight, int trunkWidth, Config config) {
+        com.yayuy.overgrownvegetation.data.CoverTable t = com.yayuy.overgrownvegetation.data.DesignData.cover();
+        if (!config.trunkState().hasProperty(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.HOLLOW) || random.nextDouble() >= t.hollowChance()) {
+            return;
+        }
+        int lo = t.hollowMinStep() - 1;
+        int hi = Math.min(t.hollowMaxStep(), trunkHeight) - 1;
+        if (hi < lo) {
+            return;
+        }
+        BlockPos pos = origin.offset(trunkWidth > 1 ? random.nextInt(trunkWidth) : 0, lo + random.nextInt(hi - lo + 1),
+                trunkWidth > 1 ? random.nextInt(trunkWidth) : 0);
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(config.trunkState().getBlock()) || state.getValue(RotatedPillarBlock.AXIS) != Direction.Axis.Y) {
+            return;
+        }
+        List<Direction> sides = new ArrayList<>(List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST));
+        net.minecraft.Util.shuffle(sides, random);
+        for (Direction d : sides) {
+            if (level.getBlockState(pos.relative(d)).isAir()) {
+                level.setBlock(pos, state.setValue(com.yayuy.overgrownvegetation.block.OvergrownLogBlock.HOLLOW,
+                        com.yayuy.overgrownvegetation.block.OvergrownLogBlock.Hollow.of(d)), Block.UPDATE_CLIENTS);
+                return;
+            }
+        }
+    }
+
     private static void setForced(WorldGenLevel level, BlockPos pos, BlockState state) {
+        if (TreePlacementRules.treeKeeps(level.getBlockState(pos))) return; // 根付いた萌芽体は残す
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.keepsOut(level, pos)) return; // 構造物の守る範囲では空気と草花のマスだけ・部屋の中は飛ばす(11-19 段 2d。段 1 は箱を全部飛ばして樹冠が四角く欠けた)
         level.setBlock(pos, state, Block.UPDATE_ALL);
     }
 

@@ -70,14 +70,14 @@ public final class LeafClumpGrowth {
         int centerZ = corruptedPos.getZ() + random.nextInt(3) - 1;
 
         BlockPos above = corruptedPos.above();
-        if (level.isLoaded(above) && level.getBlockState(above).isAir()) {
+        if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, above) && level.getBlockState(above).isAir()) {
             // 地面に沿わせる基準は汚染ブロックの Y、浮かせる場合の高さはその1つ上(=空気)。
             generate(level, centerX, centerZ, corruptedPos.getY(), corruptedPos.getY() + 1, true, random);
             return;
         }
 
         BlockPos below = corruptedPos.below();
-        if (level.isLoaded(below) && level.getBlockState(below).isAir()) {
+        if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, below) && level.getBlockState(below).isAir()) {
             // 洞窟の天井を汚染した。天井に沿って下向きに垂れる茂みの塊を生成する。
             generateCeiling(level, centerX, centerZ, corruptedPos.getY(), random);
         }
@@ -158,7 +158,7 @@ public final class LeafClumpGrowth {
                         break;
                     }
                     cursor.set(cx, y, cz);
-                    if (!level.isLoaded(cursor) || !level.getBlockState(cursor).isAir()) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) || !level.getBlockState(cursor).isAir()) {
                         break;
                     }
                     level.setBlock(cursor, bush, Block.UPDATE_ALL);
@@ -223,7 +223,7 @@ public final class LeafClumpGrowth {
                         break;
                     }
                     cursor.set(cx, y, cz);
-                    if (!level.isLoaded(cursor) || !level.getBlockState(cursor).isAir()) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) || !level.getBlockState(cursor).isAir()) {
                         break;
                     }
                     level.setBlock(cursor, bush, Block.UPDATE_ALL);
@@ -251,7 +251,7 @@ public final class LeafClumpGrowth {
                 continue;
             }
             cursor.set(cx, y, cz);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 continue;
             }
             BlockState s = level.getBlockState(cursor);
@@ -260,7 +260,7 @@ public final class LeafClumpGrowth {
             }
             // 下面が空気(=洞窟側)を向いている天井ブロックだけを採用する。
             cursor.set(cx, y - 1, cz);
-            if (y - 1 >= minY && level.isLoaded(cursor)) {
+            if (y - 1 >= minY && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 BlockState belowState = level.getBlockState(cursor);
                 if (belowState.isAir() || belowState.canBeReplaced() || belowState.is(bushBlock)) {
                     return y;
@@ -277,7 +277,7 @@ public final class LeafClumpGrowth {
             return;
         }
         BlockPos pos = new BlockPos(x, y, z);
-        if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) || !level.getBlockState(pos).isAir()) {
             return;
         }
         BlockState growth = CorruptionGrowth.randomHanging(random);
@@ -298,7 +298,7 @@ public final class LeafClumpGrowth {
                 continue;
             }
             cursor.set(cx, y, cz);
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 continue;
             }
             BlockState s = level.getBlockState(cursor);
@@ -317,7 +317,7 @@ public final class LeafClumpGrowth {
             return;
         }
         BlockPos pos = new BlockPos(x, y, z);
-        if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) {
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, pos) || !level.getBlockState(pos).isAir()) {
             return;
         }
         BlockState growth = CorruptionGrowth.randomTop(random);

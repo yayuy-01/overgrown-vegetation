@@ -1,0 +1,32 @@
+{
+  "_comment": "汚染された洞窟の飾り(柱1 ねじれた太い柱・嚢2 大きな水ぶくれ・縦穴の縄・コの字に宙に垂れる縄、2026-11-20)。値はどれも【仮】。形はユーザーが Fable の案から選んだ物。説明は CaveTable.java",
+  "enabled": true,
+  "intervalTicks": 40,
+  "radiusChunks": 6,
+  "chunksPerPass": 1,
+  "pillarChance": 0.5,
+  "pillarMinHeight": 5,
+  "pillarMaxHeight": 14,
+  "blisterChance": 0.5,
+  "blisterCeilingMinHeight": 7,
+  "ropesPerChunk": 2,
+  "shaftMinHeight": 10,
+  "hangMinHeight": 6,
+  "partialRopeChance": 0.33,
+  "coreClear": 8,
+  "surfaceKeep": 4,
+  "placeMillis": 2.0,
+  "breath": {
+    "enabled": true,
+    "intervalTicks": 200,
+    "flowThreshold": 0.2,
+    "inhaleGain": 4.0,
+    "shaftInhaleGain": 2.0,
+    "inwardShare": 0.25,
+    "exhalePerDay": 0.6,
+    "outletBoost": 3.0,
+    "leyNearBlocks": 48.0,
+    "leyGermMax": 2.5,
+    "measuresPerTick": 1
+  }
+}

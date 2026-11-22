@@ -1,0 +1,117 @@
+{
+  "falcimnes": {
+    "_comment": "技の調整値(11-05、すべて仮)。時刻(前触れ・実行・隙)はアニメと対なので Java に書く。間合い・ダメージはブロックと体力。cooldown は技を始めてからの tick。score は選ぶ重み、recency は直前の技の重みに掛ける数、chance は間合いに入った 1 tick ごとに候補に入る確率。反映は再起動。段 2(11-07 夜)で小さな通常技 5 つ(kiriage 切り上げ・tsukikaki 突き掻き・kosa 交差斬り・fumikomi 踏み込み斬り・kozuki 小突き。全部仮)と連撃の締め(flurry の finishFactor = X 字の交差斬りの攻撃力の倍率)を足した。kiriage: lift = 打ち上げ・shieldBreak = 盾を弾いて使えなくする tick / tsukikaki: pull = 引き寄せ / fumikomi: sidestep = 横への踏み出し(ブロック/tick)。 段 3(11-08、全部仮): 個体の性格。各技の extra の cautious・aggressive・flank = 慎重さ・攻撃性・回り込みが 1 のときの重みの掛け数(0 で逆数、0.5 で 1)、counter = 慎重な個体が待っている間にも返す技、next.<hit|blocked|missed>.<技> = 連続技の 2 段目の重み(1 段目の結果ごと)。personality は選ばれない擬似の技で、comboChance = 2 段目へ続ける確率(comboAggressive・comboCautious で傾け、1 段目の結果で comboOnHit・comboOnBlocked・comboOnMissed を掛ける)、comboCut = 1 段目の隙のどこで 2 段目へ切り替えるか(割合。技の extra の comboCut が先。技ごとの値は 2 段目の頭へ補間しても鎌が地面・首・脚を通らない一番早い所)、keepDistance = 慎重な個体の止まる距離の伸び、backpedal = 後ずさりの速さ(普段の何倍)、patienceTicks = 慎重さ 1 の個体が隙を待つ最長、commitTicks = 隙を見つけて攻めに行く長さ、flankAngle = 回り込み 1 の個体が相手の横へずらす角度。",
+    "pacing": {
+      "warmupTicks": 120,
+      "normalsBeforeFirst": 2,
+      "normalsBetween": 2,
+      "chance": 0.35
+    },
+    "actions": {
+      "sweep": { "cooldown": 46, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 0.5, "chance": 1.0, "damage": 0,
+        "extra": { "cautious": 0.8, "aggressive": 1.2 } },
+      "flurry": { "cooldown": 390, "minRange": 0, "maxRange": 0, "score": 0.45, "recency": 0.25, "chance": 1.0, "damage": 0,
+        "extra": { "damageFactor": 0.3, "moveSpeed": 0.55, "finishFactor": 1.0, "cautious": 0.4, "aggressive": 2.5 } },
+      "grab": { "cooldown": 600, "minRange": 9.0, "maxRange": 21.6, "score": 0.6, "recency": 0.3, "chance": 0.05, "damage": 46.9,
+        "extra": { "bite": 12.5, "breakFree": 15, "dashSpeed": 0.95, "bites": 3, "cautious": 0.7, "aggressive": 1.5 } },
+      "wave": { "cooldown": 144, "minRange": 6, "maxRange": 16, "score": 0.8, "recency": 0.3, "chance": 0.06, "damage": 15.6,
+        "extra": { "speed": 1.0, "range": 16, "width": 3.0, "height": 0.5, "cautious": 1.5, "aggressive": 0.8 } },
+      "rift": { "cooldown": 400, "minRange": 0, "maxRange": 22, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 21.9,
+        "extra": { "lineSpeed": 1.2, "lineMax": 18, "overshoot": 2, "width": 1.5, "bandDelay": 12, "bandTicks": 8, "bandHeight": 3, "lift": 0.6, "burstRadius": 4, "burstUnder": 2 } },
+      "kiriage": { "cooldown": 70, "minRange": 0, "maxRange": 0, "score": 0.7, "recency": 0.4, "chance": 1.0, "damage": 21.9,
+        "extra": { "lift": 0.5, "shieldBreak": 40, "cautious": 2.0, "counter": 1, "comboCut": 0.6,
+          "next.hit.kozuki": 1.0, "next.hit.tsukikaki": 0.5, "next.blocked.kosa": 1.0, "next.missed.fumikomi": 0.5 } },
+      "tsukikaki": { "cooldown": 90, "minRange": 0, "maxRange": 0, "score": 0.6, "recency": 0.4, "chance": 1.0, "damage": 9.4,
+        "extra": { "pull": 0.6, "cautious": 2.0, "counter": 1, "comboCut": 0.55,
+          "next.hit.kozuki": 1.0, "next.hit.kosa": 1.0, "next.blocked.kiriage": 1.0, "next.missed.fumikomi": 1.0 } },
+      "kosa": { "cooldown": 80, "minRange": 0, "maxRange": 5.5, "score": 0.7, "recency": 0.4, "chance": 1.0, "damage": 18.8,
+        "extra": { "cautious": 0.6, "aggressive": 2.5, "comboCut": 0.8,
+          "next.hit.kozuki": 1.0, "next.blocked.kiriage": 1.0, "next.missed.tsukikaki": 1.0, "next.missed.fumikomi": 1.0 } },
+      "fumikomi": { "cooldown": 80, "minRange": 0, "maxRange": 0, "score": 0.6, "recency": 0.4, "chance": 1.0, "damage": 18.8,
+        "extra": { "sidestep": 0.16, "flank": 3.0, "comboCut": 0.8,
+          "next.hit.kozuki": 1.0, "next.hit.kosa": 0.5, "next.blocked.kiriage": 1.0, "next.missed.kosa": 0.5 } },
+      "kozuki": { "cooldown": 30, "minRange": 0, "maxRange": 0, "score": 0.9, "recency": 0.4, "chance": 1.0, "damage": 7.8,
+        "extra": { "cautious": 2.5, "aggressive": 0.8, "counter": 1,
+          "next.hit.kiriage": 1.0, "next.hit.tsukikaki": 0.5, "next.blocked.kiriage": 2.0, "next.missed.tsukikaki": 1.0, "next.missed.fumikomi": 0.5 } },
+      "personality": { "cooldown": 0, "minRange": 0, "maxRange": 0, "score": 0, "recency": 1.0, "chance": 0, "damage": 0,
+        "extra": { "comboChance": 0.35, "comboAggressive": 2.2, "comboCautious": 0.7, "comboCut": 0.35, "comboOnHit": 1.0, "comboOnBlocked": 1.3, "comboOnMissed": 0.6,
+          "keepDistance": 0.8, "backpedal": 0.5, "patienceTicks": 160, "commitTicks": 60, "flankAngle": 60 } }
+    }
+  },
+  "arbora": {
+    "_comment": "アルボラの技(11-05、すべて仮)。scythe = 鎌の叩きつけ(届けば出す)、leap = 飛びつき(床から。chance は間合いに入った 1 tick ごとの確率)。horizontalSpeed・lift は跳ぶ勢い(届く距離はここから逆算)。時刻は Java。",
+    "actions": {
+      "scythe": { "cooldown": 22, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 0 },
+      "leap": { "cooldown": 70, "minRange": 3, "maxRange": 9.5, "score": 1.0, "recency": 1.0, "chance": 0.08, "damage": 0,
+        "extra": { "horizontalSpeed": 1.15, "lift": 0.55 } }
+    }
+  },
+  "venamnes": {
+    "_comment": "ヴェナムネスの技(11-15 段 A、すべて仮)。間合いは体の真ん中から相手の真ん中まで(頭は真ん中の約 3.3 ブロック前)。bite = 噛みつき(届けば出す。damage 0 は種の攻撃力)、pounce = 飛びかかり(頭から相手まで約 4〜8 ブロック = 真ん中から 7〜11。chance は間合いに入った 1 tick ごとの確率。lift は跳ぶ上向きの勢い、横の勢いは届く距離から逆算)。時刻(前触れ・実行・隙)はアニメと対なので Java。段 B(11-15、すべて仮): nip = すれ違いざまの足噛み(走りながら、首の横の届く所の相手へ。slowTicks・slowAmp = 移動の遅さの長さと強さ 1 = II)。hunt = 狩りの疾走(背を向けて離れる速さ fleeSpeed 以上の相手へ。speedMult = 移動の倍率 1.34 → 地面 0.35 ブロック/tick(ユーザー決定)、sprintTicks = 走る長さ、damage・lift = 最後の飛びかかり)。段 C(11-15、すべて仮): personality = 性格の擬似の技(選ばれない。extra だけ): 慎重な個体のつけ回しの距離 prowlNear〜prowlFar、相手がこちらを見ているとみる向きのずれ watchCone 度以内、背を向けたとみる backCone 度より大きい、待ちきれなくなるまで patienceTicks × 慎重さの片側、攻めに行く長さ commitTicks、つけ回しの速さ prowlSpeed。",
+    "actions": {
+      "bite": { "cooldown": 30, "minRange": 0, "maxRange": 0, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 0 },
+      "pounce": { "cooldown": 100, "minRange": 7, "maxRange": 11, "score": 1.0, "recency": 1.0, "chance": 0.08, "damage": 24,
+        "extra": { "lift": 0.42 } },
+      "nip": { "cooldown": 40, "minRange": 0, "maxRange": 5, "score": 1.0, "recency": 1.0, "chance": 1.0, "damage": 8,
+        "extra": { "slowTicks": 60, "slowAmp": 1 } },
+      "hunt": { "cooldown": 400, "minRange": 10, "maxRange": 28, "score": 1.0, "recency": 1.0, "chance": 0.1, "damage": 28,
+        "extra": { "fleeSpeed": 0.12, "speedMult": 1.18, "sprintTicks": 80, "lift": 0.42 } },
+      "personality": { "cooldown": 0, "minRange": 0, "maxRange": 0, "score": 0, "recency": 1.0, "chance": 0, "damage": 0,
+        "extra": { "prowlNear": 16, "prowlFar": 24, "watchCone": 35, "backCone": 110, "patienceTicks": 600, "commitTicks": 200, "prowlSpeed": 0.72 } }
+    }
+  },
+  "pilimnes": {
+    "_comment": "ピリムネスの技の調整値(11-18 夜 バランス調整で json に出した分だけ。ほかは Java の定数)。fan.fanMax = 扇の散らし撃ちの届く端(ブロック。ユーザー 18 → 22)。extra.damage = 棘の傷(ユーザー決定「固定の技の傷は攻撃と同じ比で」: 攻撃 6 → 16 の比 × 16/6。弾き 5 → 13.33・扇 4 → 10.67・雨 4 → 10.67)。",
+    "actions": {
+      "flick": { "extra": { "damage": 13.33 } },
+      "fan": { "extra": { "fanMax": 22, "damage": 10.67 } },
+      "rain": { "extra": { "damage": 10.67 } }
+    }
+  },
+  "clipeimnes": {
+    "_comment": "クリペイムネスの固定の技の傷(11-18 夜 ユーザー決定「固定の技の傷は攻撃と同じ比で」: 攻撃 12 → 14 の比 × 14/12)。squeeze = 鉤の抱え込みの締め 1 回(2 → 2.33)・shockwave = 溜めの衝撃波(14 → 16.33)。",
+    "actions": {
+      "squeeze": { "extra": { "damage": 2.33 } },
+      "shockwave": { "extra": { "damage": 16.33 } }
+    }
+  },
+  "saltimnes": {
+    "_comment": "サルティムネスの固定の技の傷(11-18 夜。攻撃 9 → 12 の比)。bite = 押さえ込んでの噛み(3 → 4)。跳び抱えは攻撃の属性のまま。",
+    "actions": {
+      "bite": { "extra": { "damage": 4 } }
+    }
+  },
+  "strobila": {
+    "_comment": "ストロビラ(11-18 夜 ユーザー決定)。cone.damage = 球果の直撃の傷(傷の無い飛び道具は攻撃の値を直撃の傷に = 23。地面に落ちたときは雲だけ)・cone.min〜max = 投げる距離(ユーザー 8〜46。8 より近いと尾の払いだけ)・sweep.damage = 尾の払い(攻撃 2 → 23 の比 × 11.5 = 1.5 → 17.25)。",
+    "actions": {
+      "cone": { "extra": { "damage": 23, "min": 8, "max": 46 } },
+      "sweep": { "extra": { "damage": 17.25 } }
+    }
+  },
+  "velophyll": {
+    "_comment": "ヴェロフィル(11-18 夜 ユーザー「ヴェロフィルの直撃は 10」)。bomb.damage = 胞子爆弾が相手に直に当たったときの傷(2 → 10)。",
+    "actions": {
+      "bomb": { "extra": { "damage": 10 } }
+    }
+  },
+  "rooted_parasitized_enderman": {
+    "_comment": "根付いた寄生エンダーマン(11-18 夜 ユーザー決定)。reach.min〜max = 見つめた相手を転移で手元へ引き込む距離(4〜20 → 4〜48)・callRadius = 一緒に近くの G1 を呼び集める半径(24 → 48)。見つける範囲(追う範囲)も 48。",
+    "actions": {
+      "reach": { "extra": { "min": 4, "max": 48, "callRadius": 48 } }
+    }
+  },
+  "vesicaria": {
+    "_comment": "ヴェシカリアの破裂(11-18 夜 バランス調整)。burst.damage = 破裂の真ん中のダメージ(ユーザー「爆発ダメージ 10」。外へ半分まで減る)・chainRadius = 連鎖の半径(ユーザー「連鎖の破裂をなくす」で 0)・chargeStartRange = 突撃を始める距離(ユーザー「見つける範囲を上げる」12 → 16【仮】。追う範囲は mobs.json の followRange 24 → 32【仮】)。",
+    "actions": {
+      "burst": { "extra": { "damage": 10, "chainRadius": 0, "chargeStartRange": 16 } }
+    }
+  },
+  "developed_parasitized_enderman": {
+    "_comment": "1 段目の寄生エンダーマン(11-18 夜 ユーザー「能力の範囲を少し上げる」。量は【仮】)。blink.min〜max = 転移の距離(8〜16 → 10〜20)・grab.range = 掴んで一緒に転移する届き(4 → 5)・rootSlam.radius = 根の突き上げの半径(4 → 5)。",
+    "actions": {
+      "blink": { "extra": { "min": 10, "max": 20 } },
+      "grab": { "extra": { "range": 5 } },
+      "rootSlam": { "extra": { "radius": 5 } }
+    }
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "variants": {
-    "type=bottom": { "model": "overgrown_vegetation:block/overgrown_mud_slab" },
-    "type=double": { "model": "overgrown_vegetation:block/overgrown_mud" },
-    "type=top": { "model": "overgrown_vegetation:block/overgrown_mud_slab_top" }
-  }
-}

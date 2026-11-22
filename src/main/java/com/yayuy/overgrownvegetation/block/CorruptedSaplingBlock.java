@@ -44,13 +44,16 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  * <p>バニラの {@code SaplingBlock#mayPlaceOn} は {@code #minecraft:dirt} タグしか見ないため、
  * このままでは汚染された草・土({@link ModBlocks#OVERGROWN_GRASS_BLOCK} /
  * {@link ModBlocks#OVERGROWN_DIRT})の上に置けない。ここで上書きして許可する
- * (汚染された砂 {@link ModBlocks#OVERGROWN_SAND}、湿地の泥 {@link ModBlocks#OVERGROWN_MUD} も同様)。
+ * (汚染された砂・湿地の泥も同様だったが、2026-10-31 に砂は削除・泥は parked へ退避)。
  *
  * <p>{@link com.yayuy.overgrownvegetation.corruption.CorruptionSpreader} が汚染直後の
  * 草・土の露出した上面に確率で直接植えるほか、{@code #minecraft:saplings} タグに一致する
  * バニラの苗木(オークの苗木など)が汚染された際の変換先にもなっている
  * ({@link com.yayuy.overgrownvegetation.corruption.CorruptionRegistry} 参照)。
  * 侵食が既存の森を飲み込むと、そこに生えていた苗木も汚染された木へ育っていく。
+ *
+ * <p>抽選で巨大樹の目(0.25%)が出ても、TD の侵攻の間は巨大樹にならず苗木のまま残り、次の抽選でふつうの木になる
+ * ({@link com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature#pausedByTd}。ユーザー指定 2026-09-26)。
  */
 public class CorruptedSaplingBlock extends SaplingBlock {
 
@@ -70,20 +73,32 @@ public class CorruptedSaplingBlock extends SaplingBlock {
     @Override
     protected boolean mayPlaceOn(BlockState state, BlockGetter level, BlockPos pos) {
         return state.is(ModBlocks.OVERGROWN_GRASS_BLOCK.get()) || state.is(ModBlocks.OVERGROWN_DIRT.get())
-                || state.is(ModBlocks.OVERGROWN_SAND.get()) || state.is(ModBlocks.OVERGROWN_MUD.get());
+                || isCoveredGround(level, pos, state);
+    }
+
+    /**
+     * 汚染の対応表に無く、苔で覆っただけのブロック(コンクリート・鉄ブロックなど)で、上の面が固いか(2026-10-10、ユーザー指定
+     * 「対応していないブロックを汚染した際にもその上に植物や苗木が生えるように」)。苗木はここにも植わる。
+     * この MOD の木は根元の下を土に置き換えないので、育っても覆ったブロックはそのまま残る。
+     */
+    public static boolean isCoveredGround(BlockGetter level, BlockPos pos, BlockState state) {
+        return state.isFaceSturdy(level, pos, net.minecraft.core.Direction.UP)
+                && com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCovered(level, pos);
     }
 
     /**
      * バニラの {@code SaplingBlock#randomTick} から頭上の明るさ判定
      * ({@code getMaxLocalRawBrightness(pos.above()) >= 9})だけを取り除いたもの。
-     * 抽選確率はバニラの 7 分の 1 に対して 7 分の 2(2026-09-11: 「他の苗木の倍の速さで育つ」要望)。
+     * 抽選確率はバニラの 7 分の 1 に対して 7 分の 4(2026-09-11: 「他の苗木の倍の速さで育つ」要望で 7 分の 2、
+     * 10-31 ユーザー「成長速度を上げてほしい」でさらに 2 倍。倍率は仮決め)。randomTickSpeed 3 で 1 マスは平均 68 秒に 1 回選ばれ、
+     * 2 段(STAGE 0 → 1 → 木)なので、木になるまで平均 3.5 回 ≒ 4 分(前は 7 回 ≒ 8 分)。
      */
     @Override
     protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         // この機能より前から生えていた苗木も、ランダムティックを受けた時点で設置時刻を記録する
         // (追いつき成長 SaplingOfflineGrowth 用。記録済みなら map の参照 1 回で終わる)。
         SaplingOfflineGrowth.ensureRecorded(level, pos);
-        if (random.nextInt(7) < 2) {
+        if (random.nextInt(7) < 4) {
             this.advanceTree(level, pos, state, random);
         }
     }
@@ -135,6 +150,19 @@ public class CorruptedSaplingBlock extends SaplingBlock {
             level.setBlock(pos, state.cycle(STAGE), 4);
             return;
         }
+        if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.nearAny(level, pos, usesVariantTree() ? 7 : 0)) {
+            return; // 帯の列・杭の範囲にかかる所では木に育たない(苗木のまま。押し返し 11-18 夜。巨大樹は置くマスごとに GiantTreeGrowthQueue で)
+        }
+        // 巨大樹の計画を別スレッドで作る間、苗木を残しておけるように、育てている苗木を知らせる(2026-11-18 案 A。GiantTreePlanner)
+        com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.setGrowingSapling(state);
+        try {
+            growTree(level, pos, state, random);
+        } finally {
+            com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature.setGrowingSapling(null);
+        }
+    }
+
+    private void growTree(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
         if (!usesVariantTree()) {
             super.advanceTree(level, pos, state, random);
             return;

@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "withered=false": { "model": "overgrown_vegetation:block/organ_egg_mass" },
+    "withered=true": { "model": "overgrown_vegetation:block/organ_egg_mass_withered" }
+  }
+}

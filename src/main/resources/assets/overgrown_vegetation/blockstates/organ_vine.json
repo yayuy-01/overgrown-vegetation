@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "overgrown_vegetation:block/organ_vine" }
+    "withered=false": { "model": "overgrown_vegetation:block/organ_vine" },
+    "withered=true": { "model": "overgrown_vegetation:block/organ_vine_withered" }
   }
 }

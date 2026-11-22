@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_netherrack" },
+      { "model": "overgrown_vegetation:block/overgrown_netherrack_2" },
+      { "model": "overgrown_vegetation:block/overgrown_netherrack_3" }
+    ]
+  }
+}

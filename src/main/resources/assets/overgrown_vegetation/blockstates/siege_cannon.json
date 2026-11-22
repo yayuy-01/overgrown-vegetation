@@ -1,9 +1,0 @@
-{
-  "_comment": "向きは置いたときの初期方位としてブロックエンティティに入るだけで、見た目はボーンの回転で決まる。",
-  "variants": {
-    "facing=north": { "model": "overgrown_vegetation:block/siege_cannon" },
-    "facing=east":  { "model": "overgrown_vegetation:block/siege_cannon" },
-    "facing=south": { "model": "overgrown_vegetation:block/siege_cannon" },
-    "facing=west":  { "model": "overgrown_vegetation:block/siege_cannon" }
-  }
-}

@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "half=lower": { "model": "overgrown_vegetation:block/overgrown_tall_water_grass_bottom" },
-    "half=upper": { "model": "overgrown_vegetation:block/overgrown_tall_water_grass_top" }
-  }
-}

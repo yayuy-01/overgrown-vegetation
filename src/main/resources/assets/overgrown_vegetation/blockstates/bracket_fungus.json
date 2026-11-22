@@ -1,0 +1,64 @@
+{
+  "variants": {
+    "facing=north,layout=0": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_0" }
+    ],
+    "facing=east,layout=0": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_0", "y": 90 }
+    ],
+    "facing=south,layout=0": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_0", "y": 180 }
+    ],
+    "facing=west,layout=0": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_0", "y": 270 }
+    ],
+    "facing=north,layout=1": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_1" }
+    ],
+    "facing=east,layout=1": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_1", "y": 90 }
+    ],
+    "facing=south,layout=1": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_1", "y": 180 }
+    ],
+    "facing=west,layout=1": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_1", "y": 270 }
+    ],
+    "facing=north,layout=2": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_2" }
+    ],
+    "facing=east,layout=2": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_2", "y": 90 }
+    ],
+    "facing=south,layout=2": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_2", "y": 180 }
+    ],
+    "facing=west,layout=2": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_2", "y": 270 }
+    ],
+    "facing=north,layout=3": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_3" }
+    ],
+    "facing=east,layout=3": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_3", "y": 90 }
+    ],
+    "facing=south,layout=3": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_3", "y": 180 }
+    ],
+    "facing=west,layout=3": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_3", "y": 270 }
+    ],
+    "facing=north,layout=4": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_4" }
+    ],
+    "facing=east,layout=4": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_4", "y": 90 }
+    ],
+    "facing=south,layout=4": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_4", "y": 180 }
+    ],
+    "facing=west,layout=4": [
+      { "model": "overgrown_vegetation:block/bracket_fungus_4", "y": 270 }
+    ]
+  }
+}

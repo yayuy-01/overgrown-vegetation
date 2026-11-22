@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "overgrown_vegetation:block/extinguished_wall_torch"
+    },
+    "facing=north": {
+      "model": "overgrown_vegetation:block/extinguished_wall_torch",
+      "y": 270
+    },
+    "facing=south": {
+      "model": "overgrown_vegetation:block/extinguished_wall_torch",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "overgrown_vegetation:block/extinguished_wall_torch",
+      "y": 180
+    }
+  }
+}

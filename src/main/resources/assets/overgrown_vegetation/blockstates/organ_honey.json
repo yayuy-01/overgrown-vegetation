@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "withered=false": { "model": "overgrown_vegetation:block/organ_honey" },
+    "withered=true": { "model": "overgrown_vegetation:block/organ_honey_withered" }
+  }
+}

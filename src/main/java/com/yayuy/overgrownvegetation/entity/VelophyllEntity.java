@@ -1,770 +1,681 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
-import com.yayuy.overgrownvegetation.corruption.NoisyCorruptionBurst;
 import com.yayuy.overgrownvegetation.data.MobStats;
+import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
+import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
-import com.yayuy.overgrownvegetation.spore.SporeDeviceData;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.control.MoveControl;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
-import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
-import net.minecraft.world.entity.ai.navigation.PathNavigation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.pathfinder.PathFinder;
-import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.Level;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * 「ヴェロフィル」({@code velophyll}) — グループ4(拡大種)の<b>爆撃役</b>。
+ * ヴェロフィル {@code velophyll}(G2・空の爆撃。V 字の群れ)。Vault「Mob の能力/ヴェロフィル」。
  *
- * <p>膜翼を広げた滑空型の飛行 Mob。ふだんは {@code velophyllCruiseAltitude} の高さを飛び回り、
- * 標的を見つけると<b>急降下して真上 {@code velophyllDropAltitude} ブロックから胞子爆弾を
- * 1 発ずつ落とす</b>({@link VelophyllBombGoal} / {@link VelophyllBombEntity})。
- * 撃ち切ったあとは {@code velophyllBombCooldownTicks}(既定 20 秒)のあいだ爆弾を落とせないので、
- * その間は標的の上空を<b>旋回して待つ</b>。
- *
- * <p>{@code velophyllQuietTicks}(既定 3 分)プレイヤーを見つけられなかったときは地上へ降り、
- * <b>翼の先の手で体を引きずって這いながら</b>胞子をばらまいて周囲を汚染する
- * ({@link VelophyllGroundSporeGoal})。グループ4 共通の「汚染を自分の足で運ぶ」役割を、
- * アルボラより遠くまで運べる形にしたのがこの Mob。
- *
- * <h2>群れの上空を飛ぶ(2026-09-15)</h2>
- * グループ4 の群れ({@link InvaderPack})の一員で、地上の仲間が居るあいだは
- * <b>その重心から {@code velophyllPackLeash} の内側</b>しか飛び回らない
- * ({@link VelophyllWanderGoal})。空から見つけた相手は仲間へ回し
- * ({@link InvaderPack#shareTarget})、逆に仲間が回してきた相手も受け取る —— ただし
- * <b>爆弾が届かない相手は断る</b>({@link #acceptsPackTarget})。
- * これで「上空の斥候が群れを引っ張る」形になる。
- *
- * <h2>なぜ {@link OvergrownFlyerEntity} を継承しないのか</h2>
- * あちらは「トンボ系(ステノデクティア・メガネウラ)」専用の土台で、行動状態も枝に止まる・
- * 獲物を咀嚼するといったトンボの都合で埋まっている。ヴェロフィルは
- * <b>飛行と地上の 2 つの移動モードを切り替える</b>必要があり(地上では重力を戻して
- * {@link GroundPathNavigation} で這う)、状態もまったく別物なので、飛行まわりの仕掛けだけを
- * 写して独立させてある。
- *
- * <h2>姿勢はレンダラー側</h2>
- * モデルの根ボーンが {@code head} で、回すと全身が回ってしまう({@code velophyll.geo.json} の
- * 出力そのまま)。そのため<b>全身の傾き(急降下の頭下げ・旋回のバンク)はアニメーションではなく
- * {@code client/VelophyllRenderer} が速度から付ける</b>。ここでは補間用の値
- * ({@link #getPitchAmount} / {@link #getBankAmount})だけを持つ。
- *
- * <h2>アニメーション名(GeckoLib、差し替え用)</h2>
- * {@code glide} / {@code fly} / {@code dive} / {@code crawl} / {@code ground_idle} /
- * {@code spore} / {@code takeoff}。
- * {@code assets/overgrown_vegetation/animations/velophyll.animation.json}。
- * 動きの確認は {@code tools/anim-preview}(モーションビューア)で。
+ * <h2>段 1(2026-11-15): 飛ぶ・V 字の群れ・林冠に止まって休むまで</h2>
+ * 動きは「飛ぶ型」の土台 {@link SkyFlyer}。爆撃(群れの端から 1 体ずつ急降下して胞子爆弾)は次の段。自然には湧かない。
+ * 形は作り直し案 re_velophyll_r5(正本 {@code デスクトップ\blockbench\mobs\velophyll.bbmodel})。
+ * <h2>段 2 のアニメのつなぎ(2026-11-15。アニメはモデル制作の持ち場で作ったもの、Vault 6.3・6.6)</h2>
+ * 止まる = perch_idle(気付くと perch_kamae)/ 飛び立つ = その場で takeoff_windup → 昇り始めに takeoff → fly /
+ * 降りる = land_windup → land(繰り返し)→ 止まった tick に land_recover → perch_idle。差 0 でつながる段の間は補間 0、
+ * 途中から入る所だけ {@link #ENTRY_SHORT}〜{@link #ENTRY} tick(補間の分だけ溜めを長くして、溜めの終わりと昇り始めを揃える)。
+ * 身構え【決定 11-15 全体管理・ユーザー「異論なし」】: 12 ブロックで身構えて相手を向き、8 ブロックで一斉に飛び立つ。驚いたときも溜め 7 tick を入れる。
+ * 【決定 11-15 ユーザー】巡航 0.7 ブロック/tick・旋回の半径 約 10・当たりは胴の芯 + 翼の叩ける部位・羽ばたき + 時々滑空・群れの上限 7。
+ * <h2>爆撃(2026-11-15、能力の段)</h2>
+ * 【決定 11-14】昼に V 字で飛び、群れから 1 体ずつ傾いて叫び(前触れ・地面に影)急降下 → 胞子爆弾を落とす(胞子の雲 + 小さな汚れ)→ 羽ばたいて列に戻る。
+ * 群れの先頭が相手を見つけて上空を回り({@link Flock#steerPatrol})、{@link #BOMB_INTERVAL} ごとに群れの端の 1 体を急降下させる。
+ * 急降下する個体は土台の「自前の飛び方」({@link #ownFlight})で列を外れ、前触れ {@code dive_windup} → 落ちる {@code dive} → 放す {@code dive_recover}
+ * (爆弾は 2 tick 目 = 翼の裏の胞子嚢が弾ける)→ 引き起こして列へ戻る。機首下げは動く向きから、地面の影は描画({@link com.yayuy.overgrownvegetation.client.VelophyllRenderer})。
+ * 夜と雨は止まり木にいるので襲わない(土台のまま)。数値は【仮・Claude】(未決は全体管理へ問い合わせ中)。
  */
-public class VelophyllEntity extends PathfinderMob
-        implements GeoEntity, ParasitizedMob, InvaderPackMember {
+public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedMob {
 
-    /** 空を滑空している(翼はほぼ止めたまま)。 */
-    public static final int STATE_GLIDE = 0;
-    /** 羽ばたいて上昇・加速している。 */
-    public static final int STATE_FLAP = 1;
-    /** 爆撃のため急降下している。 */
-    public static final int STATE_DIVE = 2;
-    /** 地上を這って移動している。 */
-    public static final int STATE_CRAWL = 3;
-    /** 地上で止まっている。 */
-    public static final int STATE_GROUND_IDLE = 4;
-    /** 地上で胞子をばらまいている。 */
-    public static final int STATE_SPORE = 5;
-    /** 飛び立つ瞬間。 */
-    public static final int STATE_TAKEOFF = 6;
+    public static final String ID = "velophyll";
 
-    private static final EntityDataAccessor<Integer> DATA_ACTION_STATE =
-            SynchedEntityData.defineId(VelophyllEntity.class, EntityDataSerializers.INT);
-    /** 地上モード(重力あり・地上経路)か。描画とアニメーション選択でもクライアントが見る。 */
-    private static final EntityDataAccessor<Boolean> DATA_GROUNDED =
-            SynchedEntityData.defineId(VelophyllEntity.class, EntityDataSerializers.BOOLEAN);
+    /** 飛び方【仮・Claude。巡航 0.7 はユーザー決定】。 */
+    private static final FlightBody.Params PARAMS = new FlightBody.Params();
 
-    private static final RawAnimation GLIDE_ANIM = RawAnimation.begin().thenLoop("glide");
-    private static final RawAnimation FLY_ANIM = RawAnimation.begin().thenLoop("fly");
-    private static final RawAnimation DIVE_ANIM = RawAnimation.begin().thenLoop("dive");
-    private static final RawAnimation CRAWL_ANIM = RawAnimation.begin().thenLoop("crawl");
-    private static final RawAnimation GROUND_IDLE_ANIM = RawAnimation.begin().thenLoop("ground_idle");
-    private static final RawAnimation SPORE_ANIM = RawAnimation.begin().thenLoop("spore");
-    private static final RawAnimation TAKEOFF_ANIM = RawAnimation.begin().thenPlayAndHold("takeoff");
+    static {
+        PARAMS.cruise = 0.7D;
+        PARAMS.minSpeed = 0.25D;
+        PARAMS.maxSpeed = 0.95D;
+        PARAMS.maxTurnDeg = 4.0D;
+    }
+
+    /** 林冠からの高さの層(ブロック)。【決定 11-14】林冠の少し上(+5〜15)。 */
+    public static final double LAYER_MIN = 5.0D, LAYER_MAX = 15.0D;
+    /** 群れの上限【決定 11-15 ユーザー】。 */
+    public static final int FLOCK_MAX = 7;
 
     /**
-     * 動作を切り替えるときの補間(tick)。GeckoLib はこの間に今の姿勢から新しいアニメの 0 秒目の姿勢へ寄せ、
-     * <b>それが終わってからアニメを 0 秒目から流す</b>(4.7.6 の {@code AnimationController#process})。
-     * だから画面の上では、どのアニメも状態を切り替えた tick より 5 tick 遅れて始まる。
-     * アニメの長さに合わせる tick は「これ + アニメの秒 × 20」で数える。
+     * 叩ける部位【仮】: 左右の翼(翼の付け根 x ±4・先 ±46 単位 → 中心 ±1.75 ブロック、幅 2.4)と頭(z −23〜−31 単位 → 前 1.6)。
+     * 胴の芯(1.2 × 0.8)は本体の箱。左右は対称なので geo の x の向き(鏡写し)は気にしない。
      */
-    static final int TRANSITION_TICKS = 5;
-
+    static final String[] PARTS = {"wing_l", "wing_r", "head"};
+    static final float[] PART_W = {2.4F, 2.4F, 0.8F};
+    static final float[] PART_H = {0.6F, 0.6F, 0.6F};
+    static final double[] PART_CENTERS = {
+            0.3D, 1.75D, 0.65D,
+            0.3D, -1.75D, 0.65D,
+            1.6D, 0.0D, 0.6D};
     /**
-     * {@link #STATE_TAKEOFF} を見せる長さ(tick)。{@code takeoff} の 0.9 秒に補間のぶんを足す。
-     * 足していなかったころ(18)は画面の 0.6 秒ほどで滑空へ切り替わり、翼を広げきる最後が切れていた(2026-09-23)。
+     * 止まっている間(閉じた葉: 翼は背の上で合わせて立つ。左右 ±0.6・高さ 0.4〜2.8 ブロック)の部位の置き場。
+     * 翼の 2 つを背の上に縦に重ねる(下 1.0・上 2.2 を中心に高さ 0.6 ずつ)。頭は低く前へ伏せる。
      */
-    public static final int TAKEOFF_TICKS = TRANSITION_TICKS + 18;
+    static final double[] PART_CENTERS_PERCHED = {
+            0.0D, 0.0D, 1.0D,
+            0.0D, 0.0D, 2.2D,
+            1.6D, 0.0D, 0.4D};
 
-    /** 羽ばたき(= {@code fly})へ切り替える上昇速度の下限(ブロック/tick)。 */
-    private static final double FLAP_CLIMB_SPEED = 0.02D;
-    /** 翼の後ろに粒子を曳く間隔(tick)。 */
-    private static final int TRAIL_INTERVAL = 2;
-    /** 1 回につき片翼から出す粒の数。1 粒が細かいので数で見せる。 */
-    private static final int TRAIL_PER_WING = 3;
-    /** 翼端のおおよその位置(体の中心から左右へ、ブロック)。粒子を出す場所。 */
-    private static final double WING_TIP_OFFSET = 2.3D;
+    /** 飛び立ちの溜め【決定 11-15: 7 tick】と、溜めへ入る補間(その分だけ溜めを長くする)。 */
+    public static final int WINDUP_TICKS = 7, ENTRY_SHORT = 3;
+    /** 途中から入る所の補間(tick)。fly ↔ glide は今まで通り {@link #ENTRY_FLY}。 */
+    static final int ENTRY = 4, ENTRY_FLY = 6;
+    /** 身構える距離【仮・決定 11-15 全体管理】。 */
+    public static final double ALERT_RANGE = 12.0D;
+
+    private static final RawAnimation FLY = RawAnimation.begin().thenLoop("fly");
+    private static final RawAnimation GLIDE = RawAnimation.begin().thenLoop("glide");
+    private static final RawAnimation PERCH_IDLE = RawAnimation.begin().thenLoop("perch_idle");
+    private static final RawAnimation KAMAE = RawAnimation.begin().thenLoop("perch_kamae");
+    private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("takeoff_windup");
+    private static final RawAnimation TAKEOFF = RawAnimation.begin().thenPlay("takeoff").thenLoop("fly");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlay("land_windup").thenLoop("land");
+    private static final RawAnimation LAND_RECOVER = RawAnimation.begin().thenPlay("land_recover").thenLoop("perch_idle");
+
+    /** クライアント: 今流しているつなぎ・流し始めた tick・入りの補間。 */
+    private RawAnimation curAnim;
+    private int curStart, curEntry;
+
+    // ------------------------------------------------------------------ 爆撃【仮・Claude 11-15】
+    /** 相手を探す範囲: 群れの先頭から水平・下・上(ブロック)。空が見えている相手だけ(屋根・林冠の下は見つけない)。 */
+    public static final double SEARCH_H = 40.0D, SEARCH_DOWN = 40.0D;
+    /** 相手を探す間隔(tick。広い箱の検索は重いので先頭だけが間をあけて)。 */
+    public static final int SEARCH_EVERY = 20;
+    /** ほかの生き物(プレイヤー以外)の箱の検索は、相手探しの何回に 1 回か(= 100 tick に 1 回)【仮】。 */
+    public static final int MOB_SEARCH_EVERY = 5;
+    /** 見失う: 先頭からこれより離れる・この tick 見えない。 */
+    public static final double LOSE_RANGE = 64.0D;
+    public static final int LOSE_UNSEEN = 400;
+    /** 先頭が相手の上空を回る半径(ブロック)。 */
+    public static final double CIRCLE_R = 25.0D;
+    /** 群れで急降下する間隔(tick)。 */
+    public static final int BOMB_INTERVAL = 120;
+    /** 前触れ(dive_windup 20 tick + 入りの補間)・落ちる上限・引き起こし(dive_recover 24 tick)の長さ(tick)。 */
+    public static final int DIVE_WINDUP = 20 + ENTRY, DIVE_MAX = 80, DIVE_RECOVER = 24;
+    /** 爆弾を放す: 引き起こしの何 tick 目か(dive_recover の 2 tick 目 + 入りの補間 3)。 */
+    public static final int BOMB_AT = 2 + ENTRY_SHORT;
+    /** 相手の頭上何ブロックで放すか・落ちる速さの上限と増え方(ブロック/tick)。 */
+    public static final double RELEASE_ABOVE = 5.0D, DIVE_SPEED = 1.2D, DIVE_ACCEL = 0.06D;
+    /** 見つける相手は群れの先頭よりこれ以上下にいること(空を飛ぶ相手・高い所の相手には急降下できない)・放すときの水平の近さ(ブロック)。 */
+    public static final double MIN_BELOW = 3.0D, RELEASE_NEAR = 3.0D;
+    /** 前触れの間の速さ・回る速さ(度/tick)。 */
+    static final double WINDUP_SPEED = 0.55D;
+    static final float WINDUP_TURN = 4.0F;
+
+    public static final int DIVE_NONE = 0, DIVE_WINDUP_P = 1, DIVE_FALL = 2, DIVE_RECOVER_P = 3;
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DATA_DIVE =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(VelophyllEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    /** 影を落とす相手(エンティティの番号。−1 = 無し)。 */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> DATA_DIVE_TARGET =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(VelophyllEntity.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
+
+    /** 群れの相手(先頭だけが持つ)・最後に見えた tick・叩かれた相手か(替えない)。 */
+    @org.jetbrains.annotations.Nullable
+    private net.minecraft.world.entity.LivingEntity flockTarget;
+    private long targetSeen;
+    private boolean targetIsAttacker;
+    private int bombCooldown = BOMB_INTERVAL / 2;
+    private double circleAngle;
+    /** 急降下(この個体)。 */
+    private int dive, diveTicks;
+    /** 急降下の途中で相手を見失った(爆弾を放さずに引き起こす。前は見失っても真下へ落とした。11-16 見直しの疑い)。 */
+    private boolean diveLost;
+    @org.jetbrains.annotations.Nullable
+    private net.minecraft.world.entity.LivingEntity diveTarget;
+    private double diveSpeed, dvx, dvy, dvz;
+    /** 相手の速さ(位置の差をならしたもの。ブロック/tick)と前の位置。先回りに使う(サーバーのプレイヤーは deltaMovement が 0 なので位置から出す)。 */
+    private double tvx, tvz, tpx = Double.NaN, tpz;
+
+    private static final RawAnimation DIVE_WINDUP_A = RawAnimation.begin().thenPlayAndHold("dive_windup");
+    private static final RawAnimation DIVE_A = RawAnimation.begin().thenLoop("dive");
+    private static final RawAnimation DIVE_RECOVER_A = RawAnimation.begin().thenPlay("dive_recover").thenLoop("fly");
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
-    private final PathNavigation flyingNavigation;
-    private final PathNavigation groundNavigation;
-    private final MoveControl flyingMoveControl;
-    private final MoveControl groundMoveControl;
-
-    /**
-     * 飛行中に向かっている点。<b>飛んでいる間は経路探索を使わない</b>(ファントムと同じ) —
-     * 経路の折り返しでその場コマのように回ってしまい、「飛行機のような大きな旋回」に
-     * ならないため(ユーザー要望 2026-09-14)。飛行中のゴールはこの点を置くだけで、
-     * 実際の曲がり方と加減速は {@link VelophyllFlightMoveControl} が決める。
-     */
-    @Nullable
-    private Vec3 moveTargetPoint;
-
-    /** プレイヤーを見つけられないまま経った tick。{@link VelophyllGroundSporeGoal} の発動条件。 */
-    private int playerFreeTicks;
-    /** 次の爆撃に入れるようになる {@code tickCount}。 */
-    private int bombReadyTick;
-    /** 次に噛めるようになる {@code tickCount}。 */
-    private int biteReadyTick;
-    /** {@link #STATE_TAKEOFF} の残り tick。 */
-    private int takeoffTicks;
-
-    /** 機首の上げ下げ(-1 = 真下、+1 = 真上)。描画専用の補間値。 */
-    private float pitchAmount;
-    private float pitchAmountO;
-    /** 旋回のバンク(-1 = 左、+1 = 右)。描画専用の補間値。 */
-    private float bankAmount;
-    private float bankAmountO;
-    /** 地上モードへの寄り具合(0 = 飛行、1 = 地上)。描画専用の補間値。 */
-    private float groundAmount;
-    private float groundAmountO;
-    /** 前 tick の座標。「実際に動いた量」を出すために自前で持つ(姿勢の計算に使う)。 */
-    private double lastX;
-    private double lastY;
-    private double lastZ;
-
-    /**
-     * 群れの所属(2026-09-15)。同じ ID を持つ個体が 1 つの群れ。
-     * 決め方は {@link InvaderPackBonds}、置き場所の考え方は {@link InvaderPackBond}。
-     */
-    private final InvaderPackBond packBond = new InvaderPackBond();
-
-    @Override
-    public InvaderPackBond packBond() {
-        return this.packBond;
-    }
-
     public VelophyllEntity(EntityType<? extends VelophyllEntity> type, Level level) {
         super(type, level);
-        this.flyingMoveControl = new VelophyllFlightMoveControl(this);
-        this.groundMoveControl = new MoveControl(this);
-        this.flyingNavigation = createFlyingNavigation(level);
-        this.groundNavigation = createGroundNavigation(level);
-        this.moveControl = this.flyingMoveControl;
-        this.navigation = this.flyingNavigation;
-        this.setPathfindingMalus(PathType.DANGER_FIRE, -1.0F);
-        this.setPathfindingMalus(PathType.WATER, -1.0F);
-        this.setPathfindingMalus(PathType.WATER_BORDER, 16.0F);
-        // 葉の当たり判定は 1 ブロックまるごとなので「通れる」扱いにすると必ず詰まる
-        // (グループ4 共通の教訓。AbstractOvergrownInvaderEntity のコメント参照)。
-        this.setPathfindingMalus(PathType.LEAVES, -1.0F);
-        this.xpReward = MobStats.xpReward("velophyll", 10);
+        this.xpReward = MobStats.xpReward(ID, 10);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Mob.createMobAttributes(), "velophyll");
+        return MobStats.apply(Monster.createMonsterAttributes(), ID);
     }
 
-    // --- 移動モードの切り替え ---
-
-    /**
-     * {@code Mob} のコンストラクタが呼ぶ {@link #createNavigation} は<b>飛行側</b>を返す
-     * (湧いた直後は必ず空にいる)。地上側は {@link #setGrounded} で差し替える。
-     */
     @Override
-    protected PathNavigation createNavigation(Level level) {
-        return createFlyingNavigation(level);
+    protected FlightBody.Params params() {
+        return PARAMS;
     }
 
-    private PathNavigation createFlyingNavigation(Level level) {
-        FlyingPathNavigation navigation = new FlyingPathNavigation(this, level) {
-            @Override
-            public boolean isStableDestination(BlockPos pos) {
-                return true;
-            }
+    /** 強風の日はこの度合いから止まり木に留まる(飛びにくい。2026-11-16 weather-system【仮】)。 */
+    static final double GALE_GROUNDED = 0.5D;
 
-            /**
-             * 経路上の次の点の高さをそのまま使う。既定実装は足元の床の高さへ引き下げてしまうため、
-             * 地面や葉の上を飛ぶあいだ目標高度が暴れて体が上下に揺れる
-             * ({@link OvergrownFlyerEntity} と同じ理由)。
-             */
-            @Override
-            protected double getGroundY(Vec3 vec) {
-                return vec.y;
-            }
-        };
-        navigation.setCanOpenDoors(false);
-        navigation.setCanFloat(false);
-        navigation.setCanPassDoors(false);
-        return navigation;
-    }
-
-    private PathNavigation createGroundNavigation(Level level) {
-        return new GroundPathNavigation(this, level) {
-            @Override
-            protected PathFinder createPathFinder(int maxVisitedNodes) {
-                // 幅 1 ブロック超の体でも「上りきるまでに体がつかえないか」を必ず確認する
-                // (グループ4 共通。wide-mob pathing の項を参照)。
-                this.nodeEvaluator = new OvergrownNodeEvaluator();
-                this.nodeEvaluator.setCanPassDoors(false);
-                return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
-            }
-        };
-    }
-
-    /** 飛行中に向かっている点。{@code null} なら移動しない。 */
-    @Nullable
-    public Vec3 getMoveTargetPoint() {
-        return this.moveTargetPoint;
-    }
-
-    /** 飛行中の行き先を置く。曲がり方と加減速は {@link VelophyllFlightMoveControl} 任せ。 */
-    public void setMoveTargetPoint(@Nullable Vec3 point) {
-        this.moveTargetPoint = point;
-    }
-
-    /** 地上モードか。 */
-    public boolean isGrounded() {
-        return this.entityData.get(DATA_GROUNDED);
-    }
-
-    /**
-     * 飛行 ⇔ 地上 を切り替える。
-     *
-     * <p>飛行側は<b>行き先の点 + {@link VelophyllFlightMoveControl}</b>(経路探索なし)、
-     * 地上側は<b>{@link GroundPathNavigation} + 素の {@link MoveControl}</b>。
-     * 重力の有無は {@link #travel} が {@link #isGrounded()} を見て決めるので、
-     * ここで {@code setNoGravity} を触る必要はない。
-     */
-    public void setGrounded(boolean grounded) {
-        if (isGrounded() == grounded) {
-            return;
+    /** 夜・雨に加えて、強風の日も止まる(ユーザー「ヴェロフィルは飛びにくい」)。手で決めた止まり木の指定はそのまま。 */
+    @Override
+    public boolean wantsRoost() {
+        if (this.roostOverride == null && this.level() instanceof net.minecraft.server.level.ServerLevel sl
+                && com.yayuy.overgrownvegetation.entity.flyer.FlyerWind.gale(sl) >= GALE_GROUNDED) {
+            return true;
         }
-        this.entityData.set(DATA_GROUNDED, grounded);
-        this.navigation.stop();
-        this.moveTargetPoint = null;
-        if (grounded) {
-            this.moveControl = this.groundMoveControl;
-            this.navigation = this.groundNavigation;
-        } else {
-            this.moveControl = this.flyingMoveControl;
-            this.navigation = this.flyingNavigation;
-        }
-    }
-
-    // --- 状態 ---
-
-    public int getActionState() {
-        return this.entityData.get(DATA_ACTION_STATE);
-    }
-
-    public void setActionState(int state) {
-        this.entityData.set(DATA_ACTION_STATE, state);
-    }
-
-    /** 飛び立つモーションを見せ始める(地上 → 飛行の切り替えは呼び出し側で)。 */
-    public void beginTakeoff() {
-        this.takeoffTicks = TAKEOFF_TICKS;
-        setActionState(STATE_TAKEOFF);
-    }
-
-    /** プレイヤーを見つけられないまま経った tick。 */
-    public int getPlayerFreeTicks() {
-        return this.playerFreeTicks;
-    }
-
-    public void resetPlayerFreeTicks() {
-        this.playerFreeTicks = 0;
-    }
-
-    /**
-     * <b>手が届く標的</b>(爆撃か噛みつきのどちらかで襲える相手)を持っているか。
-     * 行動の分かれ目はすべてこれで判定する({@code getTarget() != null} ではなく)。
-     *
-     * <p>{@link VelophyllTargetGoal} は地下の相手を選ばないが、<b>反撃</b>
-     * ({@link OvergrownHurtByTargetGoal})は洞窟から撃ってきた相手でも標的にしてしまう。
-     * そこを素通りさせると「届かない相手を抱えたまま上空を旋回し続ける」に逆戻りするので、
-     * <b>届かない標的は行動の上では居ないものとして扱う</b>(= ふだんの飛び回りや
-     * 地上での胞子まきに移る)。
-     */
-    public boolean hasAttackTarget() {
-        LivingEntity target = getTarget();
-        return target != null && target.isAlive() && VelophyllTargetGoal.isAttackable(this, target);
-    }
-
-    /** <b>爆弾が届く</b>標的(= 地下にも空中にもいない相手)か。{@link VelophyllBombGoal} の入口。 */
-    public boolean hasBombTarget() {
-        LivingEntity target = getTarget();
-        return target != null && target.isAlive() && VelophyllTargetGoal.isBombable(this, target);
-    }
-
-    /**
-     * <b>噛みつく</b>標的(= 浮いている相手)か。{@link VelophyllBiteGoal} の入口。
-     * ユーザー要望 2026-09-17「ファントムのようにかみついて攻撃できるように」。
-     */
-    public boolean hasBiteTarget() {
-        LivingEntity target = getTarget();
-        return target != null && target.isAlive() && VelophyllTargetGoal.isAirborne(this, target);
-    }
-
-    /** いま噛めるか(前の一噛みからの間隔が明けているか)。 */
-    public boolean canBiteNow() {
-        return this.tickCount >= this.biteReadyTick;
-    }
-
-    /** 一噛みした。次に噛めるのは {@code velophyllBiteCooldownTicks} 後。 */
-    public void startBiteCooldown() {
-        this.biteReadyTick = this.tickCount
-                + OvergrownVegetationConfig.COMMON.velophyllBiteCooldownTicks.get();
-    }
-
-    /** いま爆撃に入れるか(撃ち切ってからのクールタイムが明けているか)。 */
-    public boolean canBombNow() {
-        return this.tickCount >= this.bombReadyTick;
-    }
-
-    /** 1 回の爆撃を撃ち切った。次に撃てるのは {@code velophyllBombCooldownTicks} 後。 */
-    public void startBombCooldown() {
-        this.bombReadyTick = this.tickCount
-                + com.yayuy.overgrownvegetation.data.MobStats.bomb("velophyll").cooldownTicks();
-    }
-
-    /**
-     * <b>「暇そうだから消す」を止める</b>(ユーザー報告 2026-09-15「少し離れただけでデスポーンする」)。
-     *
-     * <p>この Mob では特に効く —— 巡航高度が {@code velophyllCruiseAltitude}(既定 28)＋ばらつきなので
-     * <b>プレイヤーの真上を飛んでいるだけでバニラの「32 ブロック」を超える</b>。そのままだと
-     * 見えている個体が 1 分ほどで消え、「3 分見つけられなかったら降りて汚染」にも永久に届かない。
-     * 詳しくは {@link InvaderDespawn}。
-     */
-    @Override
-    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
-        return InvaderDespawn.removeWhenFarAway(this, distanceToClosestPlayer);
-    }
-
-    // --- 群れ(グループ4 同士の集団行動。2026-09-15) ---
-
-    /**
-     * 地上の仲間の重心からこれだけ離れてよい(ブロック)。飛んでいる分ずっと広い
-     * ({@code velophyllPackLeash})—— 群れの真上を大きく回るための余裕。
-     * 実際に守らせているのは {@link VelophyllWanderGoal}(飛行中は経路探索を使わないので、
-     * {@link InvaderPackGoal} は使えない)。
-     */
-    @Override
-    public double packCohesionDistance() {
-        return OvergrownVegetationConfig.COMMON.velophyllPackLeash.get();
-    }
-
-    /**
-     * 見つけた相手を回すとき、声が届く距離。<b>巡航高度のぶん足す</b> —— 上空 28 ブロックから
-     * 地上の仲間へ伝えるので、地上同士と同じ {@code invaderPackCallRange} では真下にも届かない。
-     *
-     * <p>逆向き(地上の仲間 → 上空のヴェロフィル)は広げていない。ヴェロフィルの索敵は
-     * 上下も水平と同じだけ探す半径 {@code followRange}(既定 64)なので、
-     * 地上で始まった戦いは自分で見つけられる({@link VelophyllTargetGoal} 参照)。
-     */
-    @Override
-    public double packCallRange() {
-        return OvergrownVegetationConfig.COMMON.invaderPackCallRange.get()
-                + OvergrownVegetationConfig.COMMON.velophyllCruiseAltitude.get();
-    }
-
-    /**
-     * 仲間が回してきた標的のうち、<b>手の届かない相手は断る</b>(地下に潜っている相手)。
-     * 受け取ってしまうと、地下のプレイヤーを抱えたまま上空を旋回し続ける
-     * ({@link #hasAttackTarget()} と同じ理由)。空中の相手は噛みつきで襲えるので受け取る。
-     */
-    @Override
-    public boolean acceptsPackTarget(LivingEntity target) {
-        return VelophyllTargetGoal.isAttackable(this, target);
-    }
-
-    /**
-     * <b>飛んでいる間は群れの重心に数えない</b>。高度 30 ブロックの個体を混ぜると重心が空へ引かれ、
-     * 地上の仲間が全員「重心から離れている」ことになって集まり方が壊れる。
-     * 降りて胞子をまいている間は普通に数える。
-     */
-    @Override
-    public boolean countsInPackCentroid() {
-        return isGrounded();
-    }
-
-    // --- ゴール ---
-
-    @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(0, new FloatGoal(this));
-        // 空中の相手には噛みつき、地上の相手には爆撃。canUse は互いに排他なので順序は見た目だけ。
-        this.goalSelector.addGoal(1, new VelophyllBiteGoal(this));
-        // 忌避灯の爆撃(2026-09-19)。生き物の爆撃と同じ優先度で先に登録 = 灯りが見えていれば灯りを優先。
-        this.goalSelector.addGoal(2, new VelophyllLampBombGoal(this));
-        this.goalSelector.addGoal(2, new VelophyllBombGoal(this));
-        this.goalSelector.addGoal(3, new VelophyllGroundSporeGoal(this));
-        this.goalSelector.addGoal(6, new VelophyllWanderGoal(this));
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 16.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
-
-        this.targetSelector.addGoal(1, new OvergrownHurtByTargetGoal(this));
-        // グループ4 共通: プレイヤー + グループ1〜10 に属していない生き物すべて。
-        // 上下も水平と同じだけ探す索敵(飛んでいる Mob がバニラの「上下 4 ブロック」の箱では
-        // 真下のプレイヤーを一生見つけられないため。VelophyllTargetGoal の説明を参照)。
-        this.targetSelector.addGoal(2, new VelophyllTargetGoal(this, Predation::isInvaderTarget));
-        // グループ1〜3 も獲物(2026-09-15)。爆弾が届く相手だけを選ぶのは同じ。
-        this.targetSelector.addGoal(3, new VelophyllTargetGoal(this, Predation::isInvaderPrey));
+        return super.wantsRoost();
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+    protected double layerMin() {
+        return LAYER_MIN;
+    }
+
+    @Override
+    protected double layerMax() {
+        return LAYER_MAX;
+    }
+
+    @Override
+    protected int flockMax() {
+        return FLOCK_MAX;
+    }
+
+    @Override
+    protected String[] partNames() {
+        return PARTS;
+    }
+
+    @Override
+    protected float[] partWidths() {
+        return PART_W;
+    }
+
+    @Override
+    protected float[] partHeights() {
+        return PART_H;
+    }
+
+    @Override
+    protected double[] partCenters() {
+        return perchedPose() ? PART_CENTERS_PERCHED : PART_CENTERS;
+    }
+
+    /** 止まった姿のままか(止まっている・飛び立ちの待ちと溜め)。部位の置き場に使う(サーバーもクライアントも送られた状態で)。 */
+    private boolean perchedPose() {
+        int m = mode();
+        return m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() < 2;
+    }
+
+    @Override
+    protected int takeoffWindupTicks() {
+        return WINDUP_TICKS + ENTRY_SHORT;
+    }
+
+    @Override
+    protected double alertRange() {
+        return ALERT_RANGE;
+    }
+
+    /** 止まった姿は翼が足元 +2.8 ブロック、降りる構えは +3.3 まで上がる(Vault 6.4)ので、上を +3.5 に。 */
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(this.getX() - 3.5D, this.getY() - 1.0D, this.getZ() - 3.5D,
+                this.getX() + 3.5D, this.getY() + 3.5D, this.getZ() + 3.5D);
+        // 急降下の前触れ・落ちる間は地面の相手に影を描くので、相手の足元まで広げる(本体が画面の外でも影が消えないように)
+        net.minecraft.world.entity.Entity t = shadowTarget();
+        return t == null ? box : box.minmax(t.getBoundingBox().inflate(2.0D));
+    }
+
+    // ------------------------------------------------------------------ 爆撃
+
+    @Override
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_ACTION_STATE, STATE_GLIDE);
-        builder.define(DATA_GROUNDED, false);
+        builder.define(DATA_DIVE, (byte) DIVE_NONE);
+        builder.define(DATA_DIVE_TARGET, -1);
     }
 
-    // --- tick ---
+    /** 急降下の段(描画も読む)。 */
+    public int diveState() {
+        return this.entityData.get(DATA_DIVE);
+    }
+
+    /** 影を落とす相手(前触れと落ちる間だけ。描画用)。 */
+    @org.jetbrains.annotations.Nullable
+    public net.minecraft.world.entity.Entity shadowTarget() {
+        int d = diveState();
+        if (d != DIVE_WINDUP_P && d != DIVE_FALL) return null;
+        int id = this.entityData.get(DATA_DIVE_TARGET);
+        return id < 0 ? null : this.level().getEntity(id);
+    }
+
+    private VelophyllEntity leaderOrSelf() {
+        com.yayuy.overgrownvegetation.entity.flyer.Flock f = flock();
+        return f != null && f.leader() instanceof VelophyllEntity l ? l : this;
+    }
+
+    /**
+     * 空が見えている相手か(真上に屋根・林冠があれば見つけない)。葉を含む高さ地図で見る(空の明るさは置いたばかりの屋根に追いつかないため)。
+     * ガラスの屋根も屋根として数える。
+     */
+    public static boolean exposedToSky(net.minecraft.world.entity.LivingEntity t) {
+        int x = net.minecraft.util.Mth.floor(t.getX()), z = net.minecraft.util.Mth.floor(t.getZ());
+        return t.getEyeY() >= t.level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+    }
+
+    private boolean validTarget(net.minecraft.world.entity.LivingEntity t) {
+        return t.level() == this.level() && AcumnesEntity.isPrey(this, t);
+    }
 
     @Override
     protected void customServerAiStep() {
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel sl) tickBombing(sl);
         super.customServerAiStep();
-        if (this.takeoffTicks > 0) {
-            tickTakeoff();
-        }
-        tickPlayerSearch();
-        // 空から見つけた相手を地上のグループ4 へ回す(群れで一緒に襲う)。中で間引いている。
-        // 近くの仲間と群れ(所属)を作る・入る・合流する・抜ける。これも中で間引いている。
-        InvaderPackBonds.tick(this);
-        InvaderPack.shareTarget(this);
     }
 
-    /**
-     * 飛び立つモーションのあいだ、実際に体を持ち上げる。
-     *
-     * <p>これが無いと 0.9 秒のモーションの間だけ<b>飛び立つ姿勢のまま地面へ落ちる</b> —
-     * 飛行の移動コントロールは目的地を渡されて初めて推力を入れるが、その目的地を出すのは
-     * 次のゴール({@link VelophyllWanderGoal} など)で、モーションが終わるまで動き出さないため。
-     */
-    private void tickTakeoff() {
-        // 補間の間は画面でまだ飛び立つモーションが始まっていないので、持ち上げない(持ち上げる tick 数は以前と同じ 18)。
-        if (this.takeoffTicks <= TAKEOFF_TICKS - TRANSITION_TICKS) {
-            this.setDeltaMovement(this.getDeltaMovement().add(0.0D, 0.055D, 0.0D));
+    /** 群れの先頭だけ: 相手を探す・上空を回る・端の 1 体を急降下させる。 */
+    private void tickBombing(net.minecraft.server.level.ServerLevel sl) {
+        com.yayuy.overgrownvegetation.entity.flyer.Flock f = flock();
+        // 急降下の途中で止まり木へ向かう(夜・雨)・飛んでいない: 急降下をやめる(自前の飛び方は ROOST の間は呼ばれない)
+        if (this.dive != DIVE_NONE && (mode() != MODE_FLY || f == null || f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.ROOST)) {
+            endDive();
         }
-        if (--this.takeoffTicks == 0) {
-            if (getActionState() == STATE_TAKEOFF) {
-                // 以降は速度から滑空/羽ばたきが選ばれる。
-                setActionState(STATE_GLIDE);
+        if (f == null || f.leader() != this) return;
+        boolean flying = mode() == MODE_FLY && f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.PATROL;
+        // 叩かれて止まり木から飛び立つ間(群れは驚いて逃げる段)は、叩いた相手を覚えたまま(前は次の tick に「飛んでいない」で忘れた。11-16 見直し ①7)
+        boolean takingOff = this.targetIsAttacker && f.state() == com.yayuy.overgrownvegetation.entity.flyer.Flock.State.FLEE;
+        net.minecraft.world.entity.LivingEntity t = this.flockTarget;
+        if (t != null) {
+            if (!validTarget(t) || this.distanceToSqr(t) > LOSE_RANGE * LOSE_RANGE || !flying && !takingOff) {
+                t = null;
+            } else if (exposedToSky(t)) {
+                this.targetSeen = sl.getGameTime();
+            } else if (sl.getGameTime() - this.targetSeen > LOSE_UNSEEN) {
+                t = null;
+            }
+            if (t == null) {
+                this.flockTarget = null;
+                this.targetIsAttacker = false;
+            }
+        }
+        if (!flying) return;
+        if (DEV && this.tickCount % 200 == 0) LOG.info("VELO_SEARCH 回数 {} 平均 {} us", searchCalls, searchCalls == 0 ? "0" : String.format("%.1f", searchNanos / 1e3 / searchCalls));
+        if (t == null && (this.tickCount + this.getId()) % SEARCH_EVERY == 0) {
+            t = findTarget(sl);
+            if (t != null) {
+                this.flockTarget = t;
+                this.targetSeen = sl.getGameTime();
+                this.targetIsAttacker = false;
+                this.circleAngle = Math.atan2(this.getZ() - t.getZ(), this.getX() - t.getX());
+            }
+        }
+        if (t == null) return;
+        // 相手の上空を回る(回る向きは反時計回り。半径 CIRCLE_R の円の少し先を行き先にする)
+        if (this.tickCount % 10 == 0) {
+            this.circleAngle = Math.atan2(this.getZ() - t.getZ(), this.getX() - t.getX()) + 0.6D;
+            f.steerPatrol(t.getX() + Math.cos(this.circleAngle) * CIRCLE_R, t.getZ() + Math.sin(this.circleAngle) * CIRCLE_R);
+        }
+        // 端の 1 体ずつ急降下(見えている間だけ)
+        if (--this.bombCooldown <= 0 && exposedToSky(t)) {
+            java.util.List<com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer> ms = f.membersView();
+            for (int i = ms.size() - 1; i >= 0; i--) {
+                if (ms.get(i) instanceof VelophyllEntity v && v.mode() == MODE_FLY && v.dive == DIVE_NONE
+                        && (ms.size() == 1 || v != this) && v.distanceToSqr(t) < LOSE_RANGE * LOSE_RANGE) {
+                    v.startDive(t);
+                    this.bombCooldown = BOMB_INTERVAL;
+                    break;
+                }
             }
         }
     }
 
     /**
-     * 「3 分プレイヤーを見つけられなかったか」を数える。
-     *
-     * <p><b>見ているのはプレイヤーだけ</b>(ユーザー指定)。フィロセンスで一度やらかしたように
-     * 「襲う相手がいないこと」を条件にすると、牛 1 頭や地下のコウモリ 1 匹で永久に発動しなくなる。
+     * 相手を探す【仮】: 見えるプレイヤー(近い順)→ ほかの生き物(近い順)。植物側・創造・観戦は狙わない。
+     * 軽くする作り(11-15 全体管理「1 万の桁の群れ」): プレイヤーは面のプレイヤーの一覧から見る(安い)。ほかの生き物の箱の検索は重いので
+     * {@link #MOB_SEARCH_EVERY} 回に 1 回だけ(群れごとに番号で時刻をずらす)。
      */
-    private void tickPlayerSearch() {
-        double range = OvergrownVegetationConfig.COMMON.velophyllSightRange.get();
-        double rangeSq = range * range;
-        for (Player player : this.level().players()) {
-            if (this.distanceToSqr(player) > rangeSq
-                    || !Predation.isInvaderTarget(this, player)
-                    // 地下に潜っているプレイヤーは「見つけた」に数えない。数えてしまうと、
-                    // 近くの洞窟に 1 人いるだけで<b>永久に地上へ降りて胞子をまかなくなる</b>。
-                    || !VelophyllTargetGoal.isAttackable(this, player)) {
-                continue;
+    @org.jetbrains.annotations.Nullable
+    private net.minecraft.world.entity.LivingEntity findTarget(net.minecraft.server.level.ServerLevel sl) {
+        long t0 = System.nanoTime();
+        try {
+            net.minecraft.world.entity.LivingEntity best = null;
+            double bestD = Double.MAX_VALUE;
+            for (net.minecraft.server.level.ServerPlayer p : sl.players()) {
+                if (!inSearchBox(p) || !validTarget(p) || !exposedToSky(p)) continue;
+                double d = p.distanceToSqr(this);
+                if (d < bestD) {
+                    best = p;
+                    bestD = d;
+                }
             }
-            this.playerFreeTicks = 0;
-            return;
+            if (best != null) return best;
+            if ((this.searchCount++ + this.getId()) % MOB_SEARCH_EVERY != 0) return null;
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(this.getX() - SEARCH_H, this.getY() - SEARCH_DOWN, this.getZ() - SEARCH_H,
+                    this.getX() + SEARCH_H, this.getY() - MIN_BELOW, this.getZ() + SEARCH_H);
+            for (net.minecraft.world.entity.Mob e : sl.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, box,
+                    e -> validTarget(e) && exposedToSky(e))) {
+                double d = e.distanceToSqr(this);
+                if (d < bestD) {
+                    best = e;
+                    bestD = d;
+                }
+            }
+            return best;
+        } finally {
+            searchNanos += System.nanoTime() - t0;
+            searchCalls++;
         }
-        this.playerFreeTicks++;
+    }
+
+    private boolean inSearchBox(net.minecraft.world.entity.Entity e) {
+        return Math.abs(e.getX() - this.getX()) <= SEARCH_H && Math.abs(e.getZ() - this.getZ()) <= SEARCH_H
+                && e.getY() < this.getY() - MIN_BELOW && e.getY() >= this.getY() - SEARCH_DOWN;
+    }
+
+    /** 計測: 相手探しにかけた時間・回数(サーバー全体)。 */
+    public static volatile long searchNanos, searchCalls;
+    private int searchCount;
+
+    /** 急降下を始める(先頭が選ぶ)。 */
+    public void startDive(net.minecraft.world.entity.LivingEntity t) {
+        if (DEV) LOG.info("VELO_DIVE {} が {} へ急降下を始める(高さの差 {})", this.getId(), t.getName().getString(), String.format("%.1f", this.getY() - t.getY()));
+        this.dive = DIVE_WINDUP_P;
+        this.diveTicks = 0;
+        this.diveTarget = t;
+        this.diveLost = false;
+        this.tpx = Double.NaN;
+        this.tvx = this.tvz = 0.0D;
+        this.diveSpeed = WINDUP_SPEED;
+        this.entityData.set(DATA_DIVE, (byte) this.dive);
+        this.entityData.set(DATA_DIVE_TARGET, t.getId());
+    }
+
+    private void setDive(int d) {
+        this.dive = d;
+        this.diveTicks = 0;
+        this.entityData.set(DATA_DIVE, (byte) d);
     }
 
     @Override
-    public void tick() {
-        super.tick();
-        this.pitchAmountO = this.pitchAmount;
-        this.bankAmountO = this.bankAmount;
-        this.groundAmountO = this.groundAmount;
-        this.groundAmount += ((isGrounded() ? 1.0F : 0.0F) - this.groundAmount) * 0.12F;
-        if (isGrounded()) {
-            // 地上では機体姿勢を水平へ戻す。
-            this.pitchAmount += (0.0F - this.pitchAmount) * 0.2F;
-            this.bankAmount += (0.0F - this.bankAmount) * 0.2F;
+    protected boolean ownFlightPitches() {
+        return true;
+    }
+
+    /** 急降下の間だけ自前で飛ぶ(土台の巡回・隊列・惰性を外れる)。 */
+    @Override
+    protected boolean ownFlight(net.minecraft.server.level.ServerLevel sl, com.yayuy.overgrownvegetation.entity.flyer.Flock f) {
+        if (this.dive == DIVE_NONE) return false;
+        this.diveTicks++;
+        net.minecraft.world.entity.LivingEntity t = this.diveTarget;
+        boolean lost = t == null || !validTarget(t);
+        if (!lost) trackTarget(t);
+        switch (this.dive) {
+            case DIVE_WINDUP_P -> {
+                // 列を外れて傾きながら相手へ向き直る(叫び)。高さは保つ
+                if (lost) {
+                    endDive();
+                    return false;
+                }
+                turnToward(com.yayuy.overgrownvegetation.entity.flyer.FlightBody.yawOf(t.getX() - this.getX(), t.getZ() - this.getZ()), WINDUP_TURN);
+                double h = Math.toRadians(this.getYRot());
+                double ws = this.debugWindupInPlace ? 0.0D : WINDUP_SPEED;
+                this.dvx = -Math.sin(h) * ws;
+                this.dvz = Math.cos(h) * ws;
+                this.dvy = 0.0D;
+                if (this.diveTicks >= DIVE_WINDUP) setDive(DIVE_FALL);
+            }
+            case DIVE_FALL -> {
+                if (lost) {
+                    this.diveLost = true;
+                    setDive(DIVE_RECOVER_P);
+                    break;
+                }
+                // 相手の先回りの位置の頭上 RELEASE_ABOVE へまっすぐ、だんだん速く(着くまで + 爆弾が落ちる間に相手が進む分だけ先へ)
+                double lead = Math.min(LEAD_MAX, Math.sqrt(Math.pow(t.getX() - this.getX(), 2) + Math.pow(t.getEyeY() + RELEASE_ABOVE - this.getY(), 2)
+                        + Math.pow(t.getZ() - this.getZ(), 2)) / Math.max(this.diveSpeed, 0.3D) + BOMB_AT + FALL_LEAD);
+                double rx = t.getX() + this.tvx * lead - this.getX(), ry = t.getEyeY() + RELEASE_ABOVE - this.getY(), rz = t.getZ() + this.tvz * lead - this.getZ();
+                double d = Math.sqrt(rx * rx + ry * ry + rz * rz);
+                this.diveSpeed = Math.min(DIVE_SPEED, this.diveSpeed + DIVE_ACCEL);
+                double s = Math.min(this.diveSpeed, d);
+                this.dvx = d > 1e-4 ? rx / d * s : 0.0D;
+                this.dvy = d > 1e-4 ? ry / d * s : 0.0D;
+                this.dvz = d > 1e-4 ? rz / d * s : 0.0D;
+                turnToward(com.yayuy.overgrownvegetation.entity.flyer.FlightBody.yawOf(rx, rz), 12.0F);
+                double hd = Math.sqrt(rx * rx + rz * rz);
+                if (d < 1.5D || hd < RELEASE_NEAR && this.getY() <= t.getEyeY() + RELEASE_ABOVE + 1.0D || this.horizontalCollision || this.verticalCollision
+                        || this.diveTicks >= DIVE_MAX) {
+                    setDive(DIVE_RECOVER_P);
+                }
+            }
+            case DIVE_RECOVER_P -> {
+                // 胞子嚢が弾けて爆弾を放す → 翼を開いて引き起こし、羽ばたいて昇る
+                if (this.diveTicks == BOMB_AT && !this.diveLost && !lost) dropBomb(sl);
+                double h = Math.toRadians(this.getYRot());
+                double k = Math.min(1.0D, this.diveTicks / 8.0D);
+                this.dvx = Mth.lerp(k, this.dvx, -Math.sin(h) * 0.6D);
+                this.dvz = Mth.lerp(k, this.dvz, Math.cos(h) * 0.6D);
+                this.dvy = Mth.lerp(k, this.dvy, 0.25D);
+                if (this.diveTicks >= DIVE_RECOVER) {
+                    endDive();
+                    return false;
+                }
+            }
+            default -> {
+                endDive();
+                return false;
+            }
+        }
+        setOwnMotion(this.dvx, this.dvy, this.dvz);
+        return true;
+    }
+
+    /** 列へ戻る: 土台の飛び方に今の向きと速さを渡す(隊列から離れていれば土台がまっすぐ追いつく)。 */
+    private void endDive() {
+        if (this.dive == DIVE_FALL || this.dive == DIVE_WINDUP_P) {
+            // 放さないまま終わる(見失った)ときは爆弾を出さない
+        }
+        this.dive = DIVE_NONE;
+        this.diveTicks = 0;
+        this.diveTarget = null;
+        this.entityData.set(DATA_DIVE, (byte) DIVE_NONE);
+        this.entityData.set(DATA_DIVE_TARGET, -1);
+        this.body.heading = this.getYRot();
+        this.body.speed = 0.6D;
+        this.body.vy = 0.1D;
+        this.body.turnRate = 0.0D;
+    }
+
+    /**
+     * 翼の裏の胞子嚢から爆弾を放す。着く所を逆算して初速を決める(11-16 ユーザー「狙いが下手・着く所を計算できていない」):
+     * 爆弾の落ち方(毎 tick 位置 += 速さ → 速さ × 0.99・下へ 0.03)をそのまま数えて、相手の体の高さまで落ちる tick n を出し、
+     * n tick 後の相手の位置(今の速さで先回り)へ着く横の初速を与える。下への初速は {@link #BOMB_VY}。横の初速は {@link #BOMB_HMAX} まで。
+     * 相手を見失っていれば真下へ落とす。
+     */
+    private void dropBomb(net.minecraft.server.level.ServerLevel sl) {
+        Vec3 p = this.position().add(0.0D, 0.2D, 0.0D);
+        VelophyllBomb b = new VelophyllBomb(sl, this, p);
+        net.minecraft.world.entity.LivingEntity t = this.diveTarget;
+        double[] v0 = new double[3];
+        if (t != null && t.isAlive()) {
+            aimBomb(p, t.getX(), t.getY() + t.getBbHeight() * 0.5D, t.getZ(), this.tvx, this.tvz, v0);
         } else {
-            tickFlightPosture();
-            if (this.level().isClientSide()) {
-                spawnWingTrail();
+            v0[1] = BOMB_VY;
+        }
+        b.setDeltaMovement(v0[0], v0[1], v0[2]);
+        b.aimed = t;
+        if (DEV && this.hasCustomName() && this.getCustomName().getString().contains("oldaim")) {
+            // 確かめ用(開発用クライアントだけ): 11-16 の直しの前の放し方(今の速さの半分 + 下へ 0.2・自分の翼にも当たる)
+            b.setDeltaMovement(this.dvx * 0.5D, Math.min(this.dvy, 0.0D) * 0.5D - 0.2D, this.dvz * 0.5D);
+            b.oldAim = true;
+        }
+        sl.addFreshEntity(b);
+        bombsDropped++;
+        lastBombAt = b.position();
+        if (DEV) LOG.info("VELO_BOMB {} が放した: 位置 {} {} {}・相手との水平の距離 {}", this.getId(), String.format("%.1f", this.getX()), String.format("%.1f", this.getY()), String.format("%.1f", this.getZ()),
+                this.diveTarget == null ? "-" : String.format("%.1f", Math.sqrt(Math.pow(this.diveTarget.getX() - this.getX(), 2) + Math.pow(this.diveTarget.getZ() - this.getZ(), 2))));
+    }
+
+    private static final boolean DEV = Boolean.getBoolean("ov.devbridge");
+    private static final org.slf4j.Logger LOG = com.mojang.logging.LogUtils.getLogger();
+
+    /** 爆弾の下への初速・横の初速の上限(ブロック/tick)・落ちる tick の上限【仮】。弾の重さ・空気の抵抗は {@code ThrowableProjectile} と同じ値。 */
+    public static final double BOMB_VY = -0.3D, BOMB_HMAX = 1.5D, BOMB_GRAVITY = 0.03D, BOMB_DRAG = 0.99D;
+    static final int BOMB_MAX_TICKS = 60;
+    /** 急降下の先回り: 爆弾が落ちる間の見込み(tick)と、先回りの上限(tick)【仮】。 */
+    static final double FALL_LEAD = 10.0D, LEAD_MAX = 60.0D;
+
+    /**
+     * p から放した爆弾が (tx, ty, tz)(速さ tvx, tvz で動く相手)に着く初速を out へ。素の計算(GameTest からも呼ぶ)。
+     * 下への初速は {@link #BOMB_VY} に決め、ty まで落ちる tick n を数えてから、横は n tick で相手の n tick 後の位置へ着く速さ。
+     */
+    public static void aimBomb(Vec3 p, double tx, double ty, double tz, double tvx, double tvz, double[] out) {
+        double y = p.y, vy = BOMB_VY, sum = 0.0D, k = 1.0D;
+        int n = 0;
+        while (n < BOMB_MAX_TICKS) {
+            sum += k;   // 横の進み = 初速 × (1 + 0.99 + 0.99² + …)
+            k *= BOMB_DRAG;
+            y += vy;
+            vy = vy * BOMB_DRAG - BOMB_GRAVITY;
+            n++;
+            if (y <= ty) break;
+        }
+        double hx = (tx + tvx * n - p.x) / sum, hz = (tz + tvz * n - p.z) / sum;
+        double h = Math.sqrt(hx * hx + hz * hz);
+        if (h > BOMB_HMAX) {
+            hx *= BOMB_HMAX / h;
+            hz *= BOMB_HMAX / h;
+        }
+        out[0] = hx;
+        out[1] = BOMB_VY;
+        out[2] = hz;
+    }
+
+    /** 相手の速さを位置の差から(ならして)出す。 */
+    private void trackTarget(net.minecraft.world.entity.LivingEntity t) {
+        if (!Double.isNaN(this.tpx)) {
+            this.tvx = Mth.lerp(0.5D, this.tvx, t.getX() - this.tpx);
+            this.tvz = Mth.lerp(0.5D, this.tvz, t.getZ() - this.tpz);
+        }
+        this.tpx = t.getX();
+        this.tpz = t.getZ();
+    }
+
+    /**
+     * テスト用: 前触れの間その場で向き直るだけにする(前へ進まない)。GameTest の場は狭く、前触れの 24 tick で 13 ブロック進むと
+     * エンティティを動かさないチャンクへ出て止まってしまうため(11-17。急降下のテストがいつも時間切れで落ちていた)。
+     */
+    public boolean debugWindupInPlace;
+
+    /** 計測・テスト用: 放した爆弾の数(サーバー全体)。 */
+    public static volatile int bombsDropped;
+    /** 計測・テスト用: 最後に爆弾を放した所。 */
+    public static volatile net.minecraft.world.phys.Vec3 lastBombAt = net.minecraft.world.phys.Vec3.ZERO;
+
+    /** 叩かれたら叩いた相手を群れで狙う(止まり木で叩かれて飛び立ったときも)。 */
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        boolean hit = super.hurt(source, amount);
+        if (hit && !this.level().isClientSide && source.getEntity() instanceof net.minecraft.world.entity.LivingEntity a && validTarget(a)) {
+            VelophyllEntity l = leaderOrSelf();
+            if (!l.targetIsAttacker || l.flockTarget == null) {
+                l.flockTarget = a;
+                l.targetIsAttacker = true;
+                l.targetSeen = this.level().getGameTime();
             }
         }
-        this.lastX = this.getX();
-        this.lastY = this.getY();
-        this.lastZ = this.getZ();
+        return hit;
     }
 
-    /**
-     * 速度から機首の上げ下げとバンクを決める(エリトラ飛行の見え方に寄せる)。
-     * どちらも指数平滑して急に折れないようにする。
-     *
-     * <p>見るのは {@code getDeltaMovement()} ではなく<b>実際に動いた量</b>。
-     * クライアントでは遠くの Mob の {@code deltaMovement} は更新されない(座標は補間で動く)ので、
-     * それを見ると機首が永久に水平のままになる。
-     */
-    private void tickFlightPosture() {
-        Vec3 motion = new Vec3(this.getX() - this.lastX, this.getY() - this.lastY, this.getZ() - this.lastZ);
-        double horizontal = motion.horizontalDistance();
-        // 上下速度を水平速度で割った角度を -1..1 に写す。止まっているときは水平。
-        float wantedPitch = horizontal < 1.0E-4D
-                ? 0.0F
-                : (float) Mth.clamp(motion.y / Math.max(horizontal, 0.08D), -1.0D, 1.0D);
-        this.pitchAmount += (wantedPitch - this.pitchAmount) * 0.12F;
-
-        // 旋回の速さからバンクを作る。yRotO との差はそのままこの tick の旋回量。
-        float turn = Mth.wrapDegrees(this.getYRot() - this.yRotO);
-        float wantedBank = Mth.clamp(turn / 6.0F, -1.0F, 1.0F);
-        this.bankAmount += (wantedBank - this.bankAmount) * 0.15F;
-    }
-
-    /**
-     * ファントムのように翼の後ろへ粒子を曳く(ユーザー要望)。色は汚染シダなどと同じ胞子だが、
-     * 粒は {@link ModParticles#FINE_SPORE 細かいほう}を使う —— 地割れ用の
-     * {@code OVERGROWN_SPORE} は 1 粒が大きすぎて、航跡には向かなかった(2026-09-14 の指摘)。
-     *
-     * <p>翼端 1 点ではなく、<b>翼の外寄り数か所から少しずつ散らす</b>ことで「粉が筋を引く」形にする。
-     * クライアント側だけで出すので通信は一切発生しない。
-     */
-    private void spawnWingTrail() {
-        if (this.tickCount % TRAIL_INTERVAL != 0 || this.isInvisible()) {
-            return;
-        }
-        float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
-        double sideX = Mth.cos(yaw);
-        double sideZ = Mth.sin(yaw);
-        // 翼は後退しているので、翼端は体の中心より少し後ろにある。
-        double backX = Mth.sin(yaw) * 0.4D;
-        double backZ = -Mth.cos(yaw) * 0.4D;
-        double y = this.getY() + this.getBbHeight() * 0.6D;
-        for (int side = -1; side <= 1; side += 2) {
-            for (int i = 0; i < TRAIL_PER_WING; i++) {
-                // 翼端寄りほど濃く出す(付け根側は薄い)。
-                double along = WING_TIP_OFFSET * (0.55D + 0.45D * this.random.nextDouble());
-                double x = this.getX() + sideX * along * side + backX;
-                double z = this.getZ() + sideZ * along * side + backZ;
-                this.level().addParticle(ModParticles.FINE_SPORE.get(),
-                        x + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        y + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        z + (this.random.nextDouble() - 0.5D) * 0.12D,
-                        0.0D, -0.005D, 0.0D);
-            }
-        }
-    }
-
-    /** 描画用: 機首の上げ下げ(-1 = 真下、+1 = 真上)。 */
-    public float getPitchAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.pitchAmountO, this.pitchAmount);
-    }
-
-    /** 描画用: 旋回のバンク(-1 = 左、+1 = 右)。 */
-    public float getBankAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.bankAmountO, this.bankAmount);
-    }
-
-    /**
-     * 描画用: 地上モードへの寄り具合(0 = 飛行、1 = 地上)。
-     *
-     * <p>このモデルは<b>翼の膜が原点(= 足元の高さ)より 0.5 ブロックほど下へ垂れている</b>
-     * (飛んでいる姿で作られているので当然)。そのまま地面に置くと膜が床へ沈むので、
-     * 地上にいる間だけレンダラーが体を持ち上げる。切り替えでガクッと跳ねないよう、
-     * この値を補間して使う。
-     */
-    public float getGroundAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.groundAmountO, this.groundAmount);
-    }
-
-    // --- 移動 ---
-
-    /** 空気抵抗(1 tick あたり)。バニラの {@code FlyingMob} と同じ値。 */
-    private static final float AIR_DRAG = 0.91F;
-
-    /**
-     * 飛んでいる間は<b>重力も脚の推力も無い</b> — 速度は
-     * {@link VelophyllFlightMoveControl} が機首方向へ直接入れたものだけで、ここは
-     * それを動かして空気抵抗を掛けるだけ(バニラの {@code FlyingMob#travel} と同じ形)。
-     *
-     * <p>これが「飛行機のような動き」の土台になっている: 推力が常に機首方向にしか入らないので
-     * <b>横滑りができず、行き先が真横にあっても回り込むしかない</b>。
-     * 地上モードでは普通の歩行({@code super.travel})に戻り、重力も戻る。
-     *
-     * <h2>⚠ {@code isControlledByLocalInstance()} の囲みは必須</h2>
-     * {@code travel()} は<b>クライアントでも毎 tick 呼ばれる</b>。この囲みを忘れると、
-     * クライアントが「サーバーから来た座標へ補間する」のと「自分で {@code move()} して進む」のを
-     * 同時にやってしまい、<b>飛んでいる姿がガクガク震える</b>(2026-09-14 のユーザー報告
-     * 「飛行中がくついてしまっています」の原因。速いほど目立つ)。
-     * バニラの {@code LivingEntity#travel} も {@code FlyingMob#travel} も同じ囲みを持っている。
-     */
+    /** 死んだら急降下をやめる(影を消す)。 */
     @Override
-    public void travel(Vec3 travelVector) {
-        if (isGrounded()) {
-            super.travel(travelVector);
-            return;
-        }
-        if (this.isControlledByLocalInstance()) {
-            this.move(net.minecraft.world.entity.MoverType.SELF, this.getDeltaMovement());
-            this.setDeltaMovement(this.getDeltaMovement().scale(AIR_DRAG));
-        }
-        this.calculateEntityAnimation(false);
-    }
-
-    /** 飛行 Mob なので落下では傷まない(地上へ降りるのも自分の意思)。 */
-    @Override
-    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
-        return false;
-    }
-
-    @Override
-    protected void checkFallDamage(double y, boolean onGround,
-                                   net.minecraft.world.level.block.state.BlockState state, BlockPos pos) {
-    }
-
-    @Override
-    public boolean isFlapping() {
-        return !isGrounded();
-    }
-
-    /**
-     * バニラ既定の描画距離は「当たり判定の辺の平均 × 64」で、この Mob だと約 88 ブロックで
-     * 描画が切れる。当たり判定は<b>胴体だけ</b>に絞ってあり、実際の見た目(翼を広げて 5.8 ブロック)
-     * より遥かに小さいので、そのままだと上空を旋回している姿が近距離で唐突に消える。
-     * {@code clientTrackingRange}(16 チャンク)に見合う距離まで広げる。
-     */
-    @Override
-    public boolean shouldRenderAtSqrDistance(double distanceSq) {
-        return distanceSq < 192.0D * 192.0D;
-    }
-
-    // --- 死亡時の汚染(グループ4 共通) ---
-
-    @Override
-    public void die(DamageSource source) {
-        if (this.level() instanceof ServerLevel serverLevel && !this.isRemoved()) {
-            int radius = OvergrownVegetationConfig.COMMON.invaderDeathCorruptionRadius.get();
-            double noise = OvergrownVegetationConfig.COMMON.invaderDeathCorruptionNoise.get();
-            if (radius > 0
-                    && !SporeDeviceData.inhibits(serverLevel, this.blockPosition(), SporeDeviceData.Inhibit.CORRUPTION)) {
-                NoisyCorruptionBurst.sphere(serverLevel, this.position(), radius, noise);
-            }
+    public void die(net.minecraft.world.damagesource.DamageSource source) {
+        if (this.dive != DIVE_NONE) {
+            this.dive = DIVE_NONE;
+            this.entityData.set(DATA_DIVE, (byte) DIVE_NONE);
+            this.entityData.set(DATA_DIVE_TARGET, -1);
         }
         super.die(source);
     }
 
-    // --- アニメーション ---
+    // ------------------------------------------------------------------ アニメ
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
-            switch (getActionState()) {
-                case STATE_TAKEOFF -> {
-                    return state.setAndContinue(TAKEOFF_ANIM);
-                }
-                case STATE_SPORE -> {
-                    return state.setAndContinue(SPORE_ANIM);
-                }
-                case STATE_DIVE -> {
-                    return state.setAndContinue(DIVE_ANIM);
-                }
-                case STATE_CRAWL -> {
-                    return state.setAndContinue(CRAWL_ANIM);
-                }
-                case STATE_GROUND_IDLE -> {
-                    return state.setAndContinue(GROUND_IDLE_ANIM);
-                }
-                default -> {
-                }
+        controllers.add(new AnimationController<>(this, "main", ENTRY_FLY, this::mainState));
+    }
+
+    /**
+     * つなぎを選ぶ。入りの補間は流し始めにだけ使い、それを過ぎたら 0 にする(つないだ段の間は差 0。GeckoLib は段の間でも補間の長さを使うので)。
+     */
+    private PlayState mainState(AnimationState<VelophyllEntity> state) {
+        int m = mode();
+        RawAnimation want;
+        int entry;
+        int dv = diveState();
+        if (m == MODE_FLY && dv == DIVE_WINDUP_P) {
+            want = DIVE_WINDUP_A;   // 叫び(飛んでいる途中から入る)
+            entry = this.curAnim == DIVE_WINDUP_A ? this.curEntry : ENTRY;
+        } else if (m == MODE_FLY && dv == DIVE_FALL) {
+            want = DIVE_A;
+            entry = this.curAnim == DIVE_WINDUP_A ? 0 : (this.curAnim == DIVE_A ? this.curEntry : ENTRY);   // 叫びの終わり = dive の 0 秒(差 0)
+        } else if (m == MODE_FLY && (dv == DIVE_RECOVER_P || this.curAnim == DIVE_RECOVER_A && flapping())) {
+            want = DIVE_RECOVER_A;   // 落ちる繰り返しの途中から引き起こしへ(短く補間)。その後は fly を繰り返す
+            entry = this.curAnim == DIVE_RECOVER_A ? this.curEntry : ENTRY_SHORT;
+        } else if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+            if (alerted()) {
+                want = KAMAE;
+                entry = ENTRY;
+            } else if (this.curAnim == LAND || this.curAnim == LAND_RECOVER) {
+                want = LAND_RECOVER;   // 止まった tick に掴む(制動の羽ばたきの途中から入るので短く補間)
+                entry = this.curAnim == LAND ? ENTRY_SHORT : this.curEntry;
+            } else {
+                want = PERCH_IDLE;   // セーブから止まった姿で読み込んだ個体は land_recover を通さず直に
+                entry = ENTRY;
             }
-            // 滑空か羽ばたきかは上下速度で決める:降りている間は翼を止め(滑空)、
-            // 高度を保つ・上げるときだけ羽ばたく。これが「モモンガのような滑空」の見え方を作る。
-            return state.setAndContinue(
-                    this.getDeltaMovement().y > FLAP_CLIMB_SPEED ? FLY_ANIM : GLIDE_ANIM);
-        }));
+        } else if (m == MODE_TAKEOFF && takeoffPhase() == 1) {
+            want = WINDUP;
+            entry = ENTRY_SHORT;
+        } else if (m == MODE_TAKEOFF) {
+            want = TAKEOFF;
+            entry = this.curAnim == WINDUP ? 0 : (this.curAnim == TAKEOFF ? this.curEntry : ENTRY);   // 溜めの終わり = takeoff の 0 秒(差 0)
+        } else if (m == MODE_LANDING) {
+            want = LAND;
+            entry = this.curAnim == LAND ? this.curEntry : ENTRY;
+        } else if (this.curAnim == TAKEOFF && flapping()) {
+            want = TAKEOFF;   // takeoff の後はそのまま fly を繰り返している
+            entry = this.curEntry;
+        } else {
+            want = flapping() ? FLY : GLIDE;
+            entry = ENTRY_FLY;
+        }
+        if (want != this.curAnim) {
+            this.curAnim = want;
+            this.curStart = this.tickCount;
+            this.curEntry = entry;
+        }
+        boolean chained = want == TAKEOFF || want == LAND || want == LAND_RECOVER || want == WINDUP
+                || want == DIVE_WINDUP_A || want == DIVE_A || want == DIVE_RECOVER_A;
+        state.getController().transitionLength(chained && this.tickCount - this.curStart > this.curEntry ? 0 : this.curEntry);
+        return state.setAndContinue(want);
     }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.geoCache;
     }
-
-    // --- 音 ---
-
-    @Override
-    protected SoundEvent getAmbientSound() {
-        return SoundEvents.PHANTOM_AMBIENT;
-    }
-
-    @Override
-    protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.PHANTOM_HURT;
-    }
-
-    @Override
-    protected SoundEvent getDeathSound() {
-        return SoundEvents.PHANTOM_DEATH;
-    }
-
-    @Override
-    protected float getSoundVolume() {
-        return 0.8F;
-    }
-    @Override
-    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        this.packBond.save(tag);
-    }
-
-    @Override
-    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.packBond.load(tag,
-                com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig.COMMON.invaderPackCompleteGraceTicks.get());
-    }
-
 }

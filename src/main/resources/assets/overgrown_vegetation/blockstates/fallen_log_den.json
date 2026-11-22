@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=west,occupied=false": { "model": "overgrown_vegetation:block/fallen_log_den_empty" },
+    "facing=north,occupied=false": { "model": "overgrown_vegetation:block/fallen_log_den_empty", "y": 90 },
+    "facing=east,occupied=false": { "model": "overgrown_vegetation:block/fallen_log_den_empty", "y": 180 },
+    "facing=south,occupied=false": { "model": "overgrown_vegetation:block/fallen_log_den_empty", "y": 270 },
+    "facing=west,occupied=true": { "model": "overgrown_vegetation:block/fallen_log_den_occupied" },
+    "facing=north,occupied=true": { "model": "overgrown_vegetation:block/fallen_log_den_occupied", "y": 90 },
+    "facing=east,occupied=true": { "model": "overgrown_vegetation:block/fallen_log_den_occupied", "y": 180 },
+    "facing=south,occupied=true": { "model": "overgrown_vegetation:block/fallen_log_den_occupied", "y": 270 }
+  }
+}

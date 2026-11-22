@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
+import com.yayuy.overgrownvegetation.entity.EggPreviewPose;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -16,10 +17,18 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * スポーンエッグを「卵の絵」ではなく、そのスポーンエッグが出す Mob 本体の立体モデルで描画する
@@ -72,9 +81,48 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
     /** {@link #previews} を作ったワールド。変わったら作り直す(Mob は生成時のワールドを掴んだままなので)。 */
     private Level cachedLevel;
 
+    /**
+     * 作った描画器(ふつうは 1 つ)。切断・次元の移動のときに {@link ForgetLevel} が中身を空にする(2026-10-10)。
+     * 弱参照なので、描画器が捨てられればここからも消える。触るのはメインスレッドだけ。
+     */
+    private static final Set<SpawnEggEntityItemRenderer> INSTANCES = Collections.newSetFromMap(new WeakHashMap<>());
+
     public SpawnEggEntityItemRenderer() {
         super(Minecraft.getInstance().getBlockEntityRenderDispatcher(),
                 Minecraft.getInstance().getEntityModels());
+        INSTANCES.add(this);
+    }
+
+    /** 描画用の Mob を全部手放す(次に描くときに、そのときのワールドで作り直す)。メインスレッドから呼ぶこと。 */
+    private static void forgetAll() {
+        for (SpawnEggEntityItemRenderer renderer : INSTANCES) {
+            renderer.previews.clear();
+            renderer.cachedLevel = null;
+        }
+    }
+
+    /**
+     * 捨てられる ClientLevel を描画用の Mob ごと手放す(ゲームバス・クライアント、2026-10-10)。今までは次にスポーンエッグを
+     * 描くまで、前のワールド(とそのチャンク・エンティティ)が丸ごと残っていた。統合サーバーのワールドの Unload は
+     * サーバーのスレッドから来るので、クライアントのワールドのときだけ空にする。
+     */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+    public static final class ForgetLevel {
+
+        @SubscribeEvent
+        public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+            forgetAll();
+        }
+
+        @SubscribeEvent
+        public static void onLevelUnload(LevelEvent.Unload event) {
+            if (event.getLevel().isClientSide()) {
+                forgetAll();
+            }
+        }
+
+        private ForgetLevel() {
+        }
     }
 
     @Override
@@ -162,7 +210,7 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
      * 足したら必ず実測して入れること。素の 幅×高さ×奥行き は {@code tools/anim-preview}
      * (モーションビューア)の「モデルの大きさ」表示からも読める。
      */
-    private static float fitSizeOf(EntityType<?> type, float fallback) {
+    public static float fitSizeOf(EntityType<?> type, float fallback) {
         ResourceLocation id = EntityType.getKey(type);
         if (!id.getNamespace().equals(OvergrownVegetation.MODID)) {
             return fallback;
@@ -202,6 +250,10 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
                     living.yBodyRotO = PREVIEW_YAW;
                     living.yHeadRot = PREVIEW_YAW;
                     living.yHeadRotO = PREVIEW_YAW;
+                }
+                // tick の中で描く形を作る種(フォディムネスの体)は、ここで決まった姿勢を付けてもらう(この個体は tick しない)
+                if (preview instanceof EggPreviewPose pose) {
+                    pose.prepareEggPreview();
                 }
             }
         } catch (Exception e) {

@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "overgrown_vegetation:block/overgrown_slab"
+    },
+    "type=double": {
+      "model": "overgrown_vegetation:block/overgrown_planks"
+    },
+    "type=top": {
+      "model": "overgrown_vegetation:block/overgrown_slab_top"
+    }
+  }
+}

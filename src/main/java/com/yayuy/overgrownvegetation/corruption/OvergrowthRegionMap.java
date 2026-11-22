@@ -161,7 +161,7 @@ public final class OvergrowthRegionMap {
     private static volatile boolean spawnKnown;
 
     /**
-     * ワールドスポーンの位置を覚える({@code ClimaxTicker} と同じくオーバーワールドのみ)。
+     * ワールドスポーンの位置を覚える(オーバーワールドのみ)。
      * 地域マップは<b>シードと座標だけの決定的な関数</b>なので、スポーンを混ぜるとキャッシュが
      * 食い違う。位置が変わったらキャッシュを捨てる。
      *
@@ -216,6 +216,7 @@ public final class OvergrowthRegionMap {
         double limit = radius * (1.0D + wobble);
         return distSq <= limit * limit;
     }
+
     /** ワールドシードと座標だけから環境を決める(決定的)。 */
     public static OvergrowthVariant variantAt(long seed, int blockX, int blockZ) {
         if (forcedJungle(seed, blockX, blockZ)) {
@@ -363,6 +364,9 @@ public final class OvergrowthRegionMap {
     }
 
     private static OvergrowthVariant pickVariant(long seed, long cellId, OvergrownVegetationConfig.Common cfg) {
+        if (SealedBiomes.swampSealed()) {
+            return OvergrowthVariant.JUNGLE; // 湿地・菌湿地は 0.2.0 まで封印(2026-10-23 ユーザー決定)
+        }
         double jungle = Math.max(0.0D, cfg.overgrowthVariantWeightJungle.get());
         double swamp = Math.max(0.0D, cfg.overgrowthVariantWeightSwamp.get());
         double fungal = Math.max(0.0D, cfg.overgrowthVariantWeightFungalSwamp.get());

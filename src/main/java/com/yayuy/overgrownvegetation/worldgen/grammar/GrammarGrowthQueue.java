@@ -2,6 +2,8 @@ package com.yayuy.overgrownvegetation.worldgen.grammar;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -59,7 +61,23 @@ public final class GrammarGrowthQueue {
         if (JOBS.isEmpty() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
-        int budget = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        // サーバーが重いときは予算の番人が次の tick へ回す(2026-10-06。結果は同じで遅れるだけ)。
+        if (JOBS.stream().noneMatch(job -> job.level == serverLevel) || !TickBudget.mayStart(PerfJob.GRAMMAR_GROWTH)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        int perTick = OvergrownVegetationConfig.COMMON.giantTreeBlocksPerTick.get();
+        int left = perTick;
+        try {
+            left = tickJobs(serverLevel, perTick);
+        } finally {
+            TickBudget.end(PerfJob.GRAMMAR_GROWTH, start, perTick - left);
+        }
+    }
+
+    /** 1 tick ぶん置く。戻り値は使い残した予算。 */
+    private static int tickJobs(ServerLevel serverLevel, int perTick) {
+        int budget = perTick;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
         Iterator<Job> it = JOBS.iterator();
@@ -71,16 +89,20 @@ public final class GrammarGrowthQueue {
             while (job.cursor < job.blocks.size() && budget > 0) {
                 StagedBlock sb = job.blocks.get(job.cursor);
                 cursor.set(BlockPos.getX(sb.packedPos()), BlockPos.getY(sb.packedPos()), BlockPos.getZ(sb.packedPos()));
-                if (serverLevel.isLoaded(cursor)) {
+                // 読み込み・生成の途中なら触らず、このジョブは次の tick に同じ所から(11-18 見直し ③4。isLoaded は生成中でも true)
+                com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge edge = com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.edge(serverLevel, cursor, 0);
+                if (edge == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.WAIT) break;
+                if (edge == com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.Edge.READY) {
                     serverLevel.setBlock(cursor.immutable(), sb.state(), UPDATE_FLAGS);
                 }
                 job.cursor++;
-                budget--;
+                budget = TickBudget.spend(budget);
             }
             if (job.cursor >= job.blocks.size()) {
                 it.remove();
             }
         }
+        return Math.max(0, budget);
     }
 
     @SubscribeEvent

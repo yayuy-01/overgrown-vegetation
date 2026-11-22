@@ -1,0 +1,25 @@
+{
+    "vertex": "overgrown_vegetation:water_motes",
+    "fragment": "overgrown_vegetation:water_motes",
+    "samplers": [
+    ],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "FogStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FogEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+        { "name": "FogColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "FogShape", "type": "int", "count": 1, "values": [ 0 ] },
+        { "name": "CamMod", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "Clock", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.045 ] },
+        { "name": "Box", "type": "float", "count": 4, "values": [ 16.0, 10.0, 0.4, 2.5 ] },
+        { "name": "Flow", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0006, 0.0 ] },
+        { "name": "Look", "type": "float", "count": 4, "values": [ 1.0, 0.0, 0.0, 0.0 ] },
+        { "name": "Spore", "type": "float", "count": 4, "values": [ 0.56, 0.69, 0.25, 0.0 ] },
+        { "name": "Peat", "type": "float", "count": 4, "values": [ 0.42, 0.32, 0.2, 0.3 ] },
+        { "name": "Algae", "type": "float", "count": 4, "values": [ 0.8, 0.86, 0.74, 0.15 ] },
+        { "name": "Clear", "type": "float", "count": 4, "values": [ 0.82, 0.88, 0.92, 0.0 ] },
+        { "name": "DepthA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 192.0, 0.0 ] }
+    ]
+}

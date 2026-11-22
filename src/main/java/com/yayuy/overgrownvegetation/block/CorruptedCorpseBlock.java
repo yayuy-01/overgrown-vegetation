@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.mojang.serialization.MapCodec;
-import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -52,12 +51,51 @@ public class CorruptedCorpseBlock extends BaseEntityBlock {
         return new CorruptedCorpseBlockEntity(pos, state);
     }
 
+
+    /**
+     * 死体ブロックを壊すと、起き上がった後の G1 を倒したときと同じドロップを出す(11-08 ユーザー決定。壊した死体は起き上がらない)。
+     * G1 のルート表({@code entities/parasitized_<種>})を、その場に作った G1(世界には足さない)とプレイヤーで引く。
+     * スケルトンの死体が持っていた弓は、G1 を倒したときと同じ確率(バニラの 8.5%)で落とす。創造モードでは落とさない。
+     */
+    @Override
+    public void playerDestroy(Level level, net.minecraft.world.entity.player.Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, net.minecraft.world.item.ItemStack tool) {
+        super.playerDestroy(level, player, pos, state, blockEntity, tool);
+        if (!(level instanceof net.minecraft.server.level.ServerLevel server) || player.isCreative()) {
+            return;
+        }
+        com.yayuy.overgrownvegetation.corpse.G1Species species = com.yayuy.overgrownvegetation.corpse.G1Species.ofCorpse(state.getBlock());
+        if (species == null) {
+            return;
+        }
+        net.minecraft.world.entity.Mob g1 = species.entityType().create(server);
+        if (g1 == null) {
+            return;
+        }
+        g1.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+        net.minecraft.world.level.storage.loot.LootTable table = server.getServer().reloadableRegistries().getLootTable(g1.getLootTable());
+        net.minecraft.world.level.storage.loot.LootParams params = new net.minecraft.world.level.storage.loot.LootParams.Builder(server)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY, g1)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(pos))
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DAMAGE_SOURCE, server.damageSources().playerAttack(player))
+                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ATTACKING_ENTITY, player)
+                .withOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DIRECT_ATTACKING_ENTITY, player)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.LAST_DAMAGE_PLAYER, player)
+                .withLuck(player.getLuck())
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.ENTITY);
+        table.getRandomItems(params, stack -> popResource(level, pos, stack));
+        if (blockEntity instanceof CorruptedCorpseBlockEntity be && !be.heldItem().isEmpty() && server.random.nextFloat() < 0.085F) {
+            popResource(level, pos, be.heldItem().copy());
+        }
+        g1.discard();
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
             return null;
         }
-        return createTickerHelper(type, ModBlockEntities.CORRUPTED_CORPSE.get(), CorruptedCorpseBlockEntity::serverTick);
+        return createTickerHelper(type, com.yayuy.overgrownvegetation.registry.ModG1.CORRUPTED_CORPSE.get(), CorruptedCorpseBlockEntity::serverTick);
     }
 }

@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "flag=false": [
+      { "model": "overgrown_vegetation:block/medullosa_trunk" },
+      { "model": "overgrown_vegetation:block/medullosa_trunk", "y": 90 },
+      { "model": "overgrown_vegetation:block/medullosa_trunk", "y": 180 },
+      { "model": "overgrown_vegetation:block/medullosa_trunk", "y": 270 }
+    ],
+    "flag=true": [
+      { "model": "overgrown_vegetation:block/medullosa_trunk_base" },
+      { "model": "overgrown_vegetation:block/medullosa_trunk_base", "y": 90 },
+      { "model": "overgrown_vegetation:block/medullosa_trunk_base", "y": 180 },
+      { "model": "overgrown_vegetation:block/medullosa_trunk_base", "y": 270 }
+    ]
+  }
+}

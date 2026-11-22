@@ -1,178 +1,28 @@
 {
-  "_comment": "胞子感染デバフの設計値。数値の反映には再起動が必要。",
+  "_comment": "効果の設計値。数値の反映には再起動が必要。2026-11-04 にプレイヤーの胞子感染 10 段階だけの版として戻した(10-30 に退避した前の版は parked/。薬・装備の汚染・装置・Mob の 3 段階などは退避のまま)。",
   "sporeInfection": {
-    "exposure": {
-      "playerLowMinPercent": 1,
-      "playerLowRollIntervalTicks": 600,
-      "playerHighMinPercent": 51,
-      "playerHighDwellTicks": 400,
-      "mobMinPercent": 50,
-      "mobDwellTicks": 600
-    },
-    "level1": {
-      "playerDurationTicks": 1200,
-      "mobDurationTicks": 1200,
-      "armorReduction": 0.2,
-      "moveReduction": 0,
-      "hungerExhaustionPerTick": 0.005,
-      "chunkSporeBonusPercent": 1,
-      "attackDamageReduction": 0,
-      "detectionRangeBonus": 0,
-      "upgradeChanceOnAttack": 0,
-      "overgrownBiomeDwellTicks": 0,
-      "continuePercent": 51,
-      "giantTreeCoreRadius": 0,
-      "vanillaHungerDurationTicks": 0,
-      "vanillaHungerAmplifier": 0,
-      "revealInFoliage": false,
-      "killPlayerOnExpiry": false
-    },
-    "level2": {
-      "playerDurationTicks": 6000,
-      "mobDurationTicks": 1200,
-      "armorReduction": 0.4,
-      "moveReduction": 0.1,
-      "hungerExhaustionPerTick": 0.01,
-      "chunkSporeBonusPercent": 5,
-      "attackDamageReduction": 0,
-      "detectionRangeBonus": 20,
-      "upgradeChanceOnAttack": 0.05,
-      "overgrownBiomeDwellTicks": 6000,
-      "continuePercent": 0,
-      "giantTreeCoreRadius": 0,
-      "vanillaHungerDurationTicks": 0,
-      "vanillaHungerAmplifier": 0,
-      "revealInFoliage": false,
-      "killPlayerOnExpiry": false
-    },
-    "level3": {
-      "playerDurationTicks": 6000,
-      "mobDurationTicks": 1200,
-      "armorReduction": 0.6,
-      "moveReduction": 0.2,
-      "hungerExhaustionPerTick": 0,
-      "chunkSporeBonusPercent": 0,
-      "attackDamageReduction": 0,
-      "detectionRangeBonus": 30,
-      "upgradeChanceOnAttack": 0.05,
-      "overgrownBiomeDwellTicks": 12000,
-      "continuePercent": 0,
-      "giantTreeCoreRadius": 60,
-      "vanillaHungerDurationTicks": 12000,
-      "vanillaHungerAmplifier": 1,
-      "revealInFoliage": true,
-      "killPlayerOnExpiry": true
+    "player": {
+      "_comment": "プレイヤーの胞子感染 10 段階(2026-10-14 ユーザー指定・11-15 に進み方を作り直し。経緯は Vault「胞子濃度と暴露量(作り直し)」)。かかるのは暴露量が spore_field.json の exposure.infectDose(1500 %秒)に届いたときか、植物側(G1・G2〜G8・汎用の感染体)に傷を付けられて attackInfectChance(30%。マスクでは防げない)。段の進みは暴露量で数える(11-15 ユーザー決定「暴露量 + 体の中でゆっくり育つ」): 感染中も、息で浴びた胞子(濃度 5% 以上・閉じた部屋・汚れた装備から染みる分)・傷の暴露・G1 の胞子の技を積み、段 n → n+1 に stageDose × (1 + stageDoseGrowth × (n − 1)) たまるごとに 1 段(後の段ほど多く要る)。きれいな空気でも growStageSeconds で 1 段ぶん育つ(段で遅くならない。疲労で ×1.5 まで)。感染10 からさらに 1 段ぶんで死に、その場で萌芽体が生える。進みは下がらない。防護マスクは息で浴びる分だけ止める(傷は止めない)。段が上がるたびに damagePerStage のダメージ、治るまで最大体力が maxHealthPerStage × (段階 − 1) 減る。感染中は xpDrainIntervalTicks ごとに経験値を xpDrainPoints 吸われる。牛乳では治らない。stages は感染1〜10 の症状(hunger = 空腹の強さ、detectionRangeBonus = 被検知距離 +ブロック(今は効かない)、armorReduction / attackDamageReduction = 防御力 / 攻撃力の低下)。数は 30% と 10 段階の症状(10-14)だけユーザー指定、ほかは仮決め。",
+      "stageDose": 9000.0,
+      "growStageSeconds": 3600.0,
+      "stageDoseGrowth": 0.25,
+      "attackInfectChance": 0.3,
+      "xpDrainIntervalTicks": 200,
+      "xpDrainPoints": 1,
+      "damagePerStage": 1,
+      "maxHealthPerStage": 1,
+      "stages": [
+        { "hunger": 1, "detectionRangeBonus": 0, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 1, "detectionRangeBonus": 5, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 2, "detectionRangeBonus": 5, "armorReduction": 0, "attackDamageReduction": 0 },
+        { "hunger": 2, "detectionRangeBonus": 10, "armorReduction": 0.1, "attackDamageReduction": 0 },
+        { "hunger": 3, "detectionRangeBonus": 10, "armorReduction": 0.1, "attackDamageReduction": 0 },
+        { "hunger": 3, "detectionRangeBonus": 15, "armorReduction": 0.2, "attackDamageReduction": 0 },
+        { "hunger": 4, "detectionRangeBonus": 15, "armorReduction": 0.2, "attackDamageReduction": 0 },
+        { "hunger": 4, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.1 },
+        { "hunger": 5, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.1 },
+        { "hunger": 5, "detectionRangeBonus": 20, "armorReduction": 0.2, "attackDamageReduction": 0.15 }
+      ]
     }
-  },
-  "gearContamination": {
-    "_comment": "装備の胞子汚染。胞子濃度 minConcentrationPercent 以上の場所に居ると、武器・道具・防具が徐々に汚染される。濃度が下限ちょうどなら ticksToFullAtMin、100% なら ticksToFullAtMax で汚染 100%(間は直線補間)。steps は汚染度 % → 性能低下率。除染機は decontaminationTicksPerPercent tick ごとに 1% 落とす。鍛冶台で樹液結晶を打ち込んだ装備は、汚染の進みが sapCrystalRateFactor 倍(既定 0.1 = 10 分の 1)になる。",
-    "enabled": true,
-    "minConcentrationPercent": 15,
-    "ticksToFullAtMin": 72000,
-    "ticksToFullAtMax": 12000,
-    "checkIntervalTicks": 100,
-    "wholeInventory": true,
-    "decontaminationTicksPerPercent": 40,
-    "sapCrystalRateFactor": 0.1,
-    "steps": [
-      {
-        "atLeastPercent": 25,
-        "performanceReduction": 0.05
-      },
-      {
-        "atLeastPercent": 50,
-        "performanceReduction": 0.25
-      },
-      {
-        "atLeastPercent": 75,
-        "performanceReduction": 0.45
-      },
-      {
-        "atLeastPercent": 100,
-        "performanceReduction": 0.65
-      }
-    ]
-  },
-  "sporeDevices": {
-    "_comment": "centerPercent=装置のチャンク、edgePercent=半径末端。間は距離(チャンク、円形)に比例して直線的に減衰。除去装置は −、拡散装置は +。",
-    "purifier": {
-      "centerPercent": 100,
-      "edgePercent": 10,
-      "radiusChunks": 3,
-      "ticksPerRedstone": 6000,
-      "sporeIntervalTicks": 600,
-      "sporesPerCycleAtFull": 4,
-      "sporesPerRedstone": 0,
-      "inhibitCorruption": true,
-      "inhibitFernSpawn": true,
-      "inhibitBiomeConversion": true,
-      "requiresFilter": true,
-      "filterWearPerCycle": 1,
-      "filterWearPerSpore": 1,
-      "filterRepairPerCycle": 2
-    },
-    "diffuser": {
-      "centerPercent": 100,
-      "edgePercent": 10,
-      "radiusChunks": 3,
-      "ticksPerRedstone": 6000,
-      "sporeIntervalTicks": 0,
-      "sporesPerCycleAtFull": 0,
-      "sporesPerRedstone": 1
-    }
-  },
-  "sporophyllSpores": {
-    "durationTicks": 1200,
-    "amplifier": 1,
-    "armorPiercing": 0.2,
-    "armorDurabilityFactor": 1
-  },
-  "clingingSpores": {
-    "durationTicks": 600,
-    "amplifier": 0,
-    "detectionBonus": 24,
-    "escalatesInfection": true
-  },
-  "phyllosensWatch": {
-    "durationTicks": 1200
-  },
-  "phyllosensGuidance": {
-    "durationTicks": 1200
-  },
-  "waterRot": {
-    "_comment": "水ぐされ。グループ1〜10 の Mob が水に soakTicks 連続で浸かると発症し、毎秒 damagePerHit のダメージ。浸かっているあいだは張り直され続け、上がってから lingerTicks で切れる。水生種 (#overgrown_vegetation:water_rot_immune と AquaticOvergrownMob) は対象外。",
-    "enabled": true,
-    "soakTicks": 600,
-    "lingerTicks": 600,
-    "damagePerHit": 1,
-    "damageIntervalTicks": 20,
-    "checkIntervalTicks": 10
-  },
-  "glowFruit": {
-    "_comment": "「熟した垂れ草の光る果実」(overgrown_glowberry)を食べたときに付く2つの効果。バフ「栄養満点！」は付いているあいだ毎tick食料ゲージが1回復し、デバフ「香ばしいにおい」は過繫茂Mob(グループ1〜10)からの被検知距離を detectionBonus ブロック伸ばす。",
-    "wellFedTicks": 600,
-    "savoryScentTicks": 1200,
-    "detectionBonus": 15
-  },
-  "undevelopedSeed": {
-    "_comment": "「未発達な種子」(undeveloped_seed)を食べたときに付く効果。再生と耐性はバニラの効果そのもの。持続を0にするとその効果は付かなくなる。",
-    "regenerationTicks": 40,
-    "regenerationAmplifier": 0,
-    "resistanceTicks": 40,
-    "resistanceAmplifier": 0,
-    "savoryScentTicks": 100
-  },
-  "largeUndevelopedFruit": {
-    "_comment": "「大きな未発達な果実」(large_undeveloped_fruit)を食べたときの効果一式。再生・耐性・空腹はバニラの効果そのもの(段階は0始まりで2=III)。escalateInfection が true だと食べるたび胞子感染が一段進み、すでに胞子感染3なら切れるのを待たずにその場で満了時の結末(level3.killPlayerOnExpiry)が起きる。空腹は hungerDelayTicks 経ってから来る。持続を0にするとその効果は付かなくなる。",
-    "regenerationTicks": 600,
-    "regenerationAmplifier": 2,
-    "resistanceTicks": 600,
-    "resistanceAmplifier": 1,
-    "wellFedTicks": 3600,
-    "savoryScentTicks": 6000,
-    "escalateInfection": true,
-    "hungerDelayTicks": 7200,
-    "hungerTicks": 3600,
-    "hungerAmplifier": 2
   }
 }

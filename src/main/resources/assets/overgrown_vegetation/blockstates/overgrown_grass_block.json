@@ -1,7 +1,18 @@
 {
   "variants": {
-    "": {
-      "model": "overgrown_vegetation:block/overgrown_grass_block"
-    }
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_grass_block" },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block", "y": 90 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block", "y": 180 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block", "y": 270 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_2" },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_2", "y": 90 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_2", "y": 180 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_2", "y": 270 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_3" },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_3", "y": 90 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_3", "y": 180 },
+      { "model": "overgrown_vegetation:block/overgrown_grass_block_3", "y": 270 }
+    ]
   }
 }

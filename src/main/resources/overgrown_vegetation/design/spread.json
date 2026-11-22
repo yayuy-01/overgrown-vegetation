@@ -1,0 +1,23 @@
+{
+  "_comment": "台帳の書き換え待ちと睡眠(2026-09-26。広がりそのものは 2026-10-23 から胞子の場 spore_field.json の発芽が担い、止まっていた「5 分おきに縁を面の数 × 25%」の値 enabled・intervalTicks・chanceByContacts・includeLoadedChunks は 2026-10-30 に消した)。発芽して台帳に載ったチャンクは、読み込まれたとき(読み込まれていればすぐ)にバイオームを過繁茂へ書き換える。sleepAdvancesClock = 寝て飛ばした時間を汚染の暦に足す(ユーザー指定)、sleepGivesPhasePoints = 飛ばした夜ぶんの時間経過ポイントも入れるか(仮決め)。catchUp.columnsPerTick は仮決め(1 tick の書き換えの予算。1 チャンク = 16 列)。地表を四角くまだらに塗る古い道と、その値 surfaceCoverage・patchSize・surfaceDepth・placementsPerTick は 2026-11-14 に消した(地表は芽と萌芽体が広げる)。",
+  "sleepAdvancesClock": true,
+  "sleepGivesPhasePoints": true,
+  "catchUp": {
+    "columnsPerTick": 2048
+  },
+  "_wallPlants": "壁の側面の植物を場所で選ぶ(2026-11-08。決定はユーザー、数はすべて仮決め)。湿った壁 = 半径 wetRadius(上下 -2〜+1)に水がある か 真上の張り出しの上に水がある。地上 = 湿っていなくて空の光が skyLight 以上。洞窟 = どちらでもない。重みは場所ごとの相対の重み(地上: 壁の小葉類 surfaceLycopsid・短い垂れ苔 surfaceMoss・壁シダ surfaceFern / 湿った壁: 長い垂れ苔 wetMoss・壁シダ wetFern・大きく垂れる壁シダ wetFernLarge / 洞窟: 灰緑の垂れ苔 caveMoss・胞子嚢のこぶ caveSporeSacs・菌の棚 caveBracket)。引いたものが置けない所(垂れ苔は真上が固体の面だけ)では何も置かない(引き直さない)。clubmossShare は地上の壁の小葉類のうちヒカゲノカズラにする割合(手前の床に小葉類がある最下段は床から続く絵)。反映は再起動",
+  "wallPlants": {
+    "skyLight": 10,
+    "wetRadius": 2,
+    "surfaceLycopsid": 5,
+    "surfaceMoss": 2,
+    "surfaceFern": 1,
+    "wetMoss": 4,
+    "wetFern": 2,
+    "wetFernLarge": 1,
+    "caveMoss": 5,
+    "caveSporeSacs": 2,
+    "caveBracket": 1,
+    "clubmossShare": 0.3
+  }
+}

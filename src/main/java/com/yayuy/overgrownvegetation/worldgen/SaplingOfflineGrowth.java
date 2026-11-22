@@ -3,7 +3,10 @@ package com.yayuy.overgrownvegetation.worldgen;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.CorruptedSaplingBlock;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.registry.ModAttachments;
+import com.yayuy.overgrownvegetation.util.LoadedChunks;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -14,6 +17,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.ArrayDeque;
@@ -30,7 +34,7 @@ import java.util.List;
  *         苗木が壊れた/育ったとき({@code onRemove})に記録を消す。この機能より前から生えていた苗木は
  *         ランダムティックを受けたときに記録される({@link #ensureRecorded})。</li>
  *     <li>チャンクが読み込まれたとき({@link ChunkEvent.Load})、記録を舐めて「設置から
- *         {@code saplingOfflineGrowthTicks}(既定 9600 = 8 分)以上経った苗木」をキューに積む。
+ *         {@code saplingOfflineGrowthTicks}(既定 4800 = 4 分)以上経った苗木」をキューに積む。
  *         読み込みイベントの最中にブロックは触らない(隣のまだ読み込まれていないチャンクへ木の葉を書くと
  *         そのチャンクを引っ張り込んで詰まる)。</li>
  *     <li>次のサーバー tick から、1 tick あたり {@code saplingOfflineGrowthPerTick}(既定 2)本ずつ、
@@ -53,6 +57,11 @@ public final class SaplingOfflineGrowth {
     private static final int MAX_QUEUE = 4096;
 
     private record Pending(ServerLevel level, long pos) {
+    }
+
+    /** {@code /ov perf} の表示用: 育てる順番を待っている苗木の数。 */
+    public static int queued() {
+        return QUEUE.size();
     }
 
     private SaplingOfflineGrowth() {
@@ -153,7 +162,23 @@ public final class SaplingOfflineGrowth {
         if (QUEUE.isEmpty() || !(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        int budget = OvergrownVegetationConfig.COMMON.saplingOfflineGrowthPerTick.get();
+        // サーバーが重いときは予算の番人が次の tick へ回す(2026-10-06。結果は同じで遅れるだけ)。
+        if (!TickBudget.mayStart(PerfJob.SAPLING_OFFLINE)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        int perTick = OvergrownVegetationConfig.COMMON.saplingOfflineGrowthPerTick.get();
+        int left = perTick;
+        try {
+            left = grow(level, perTick);
+        } finally {
+            TickBudget.end(PerfJob.SAPLING_OFFLINE, start, perTick - left);
+        }
+    }
+
+    /** 1 tick ぶん育てる。戻り値は使い残した本数。 */
+    private static int grow(ServerLevel level, int perTick) {
+        int budget = perTick;
         int scanned = 0;
         int size = QUEUE.size();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -166,8 +191,16 @@ public final class SaplingOfflineGrowth {
                 continue;
             }
             pos.set(pending.pos());
-            if (!level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+            int cx = pos.getX() >> 4;
+            int cz = pos.getZ() >> 4;
+            if (!LoadedChunks.loaded(level, cx, cz)) {
                 // もうアンロードされている。記録は残っているので次の読み込みで拾い直す。
+                continue;
+            }
+            if (!LoadedChunks.neighbourhoodLoaded(level, cx, cz)) {
+                // 木は UPDATE_ALL で置くので、葉・枝が隣のチャンクへかかる。隣が読み込みの途中(読み込み範囲の縁)だと
+                // サーバースレッドがその読み込み・生成を待って止まる(2026-10-06 の計測で見つかった)。後ろへ回して待つ。
+                QUEUE.add(pending);
                 continue;
             }
             BlockState state = level.getBlockState(pos);
@@ -178,6 +211,22 @@ public final class SaplingOfflineGrowth {
             }
             sapling.growNow(level, pos.immutable(), state, level.random);
             budget--;
+            if (budget < perTick && !TickBudget.timeLeft()) {
+                break;
+            }
+        }
+        return budget;
+    }
+
+    /**
+     * 次元が閉じられた(ワールドを抜けた/サーバー停止)。その次元のぶんは二度と tick されず消化できないので捨てる。
+     * 残すと旧 {@link ServerLevel} を掴んだままになり、次のワールドの tick で毎回回され続けるうえ
+     * {@link #MAX_QUEUE} の枠も埋める。記録({@link SaplingRecords})はチャンクに残るので、次の読み込みで拾い直す。
+     */
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel serverLevel) {
+            QUEUE.removeIf(p -> p.level() == serverLevel);
         }
     }
 }

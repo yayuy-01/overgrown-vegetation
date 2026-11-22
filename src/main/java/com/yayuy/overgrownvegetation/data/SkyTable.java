@@ -1,0 +1,245 @@
+package com.yayuy.overgrownvegetation.data;
+
+/**
+ * 空と雲の設計値({@code sky.json}、2026-11-08 雲の段階 1「土台」。正本は Vault「ボクセル調の雲・積乱雲・雲の中の巨大生物」)。
+ * 10-30 に退避した雲(parked の U7)の設定項目(COMMON の {@code voxelClouds}・{@code cloud*}・{@code crepuscularRays}・{@code highSky*} など)を、
+ * 今の作法(design の json + mod マネージャー)へ移したもの。サーバー(雲の風の積分 {@code sky.CloudDrift})とクライアント(描画)の両方が読む。
+ *
+ * <p>ユーザー指定の値: 雲の層 y 300〜350(これは {@code CloudField} の定数のまま)・高空の晴天 300〜350。ほかは全部仮決め。
+ * オン/オフはクライアント設定 {@code OvergrownClientConfig#clouds}、重さの段は {@code atmosphereQuality}(高・中・低)。
+ */
+public final class SkyTable {
+
+    public static final SkyTable DEFAULT = new SkyTable(null);
+
+    /** Gson の受け皿。null は既定値。 */
+    public static final class Json {
+        public CloudsJson clouds;
+        public WindJson wind;
+        public ShadowsJson shadows;
+        public RaysJson rays;
+        public HighSkyJson highSky;
+        public StormsJson storms;
+        public CirrusJson cirrus;
+        public WeatherJson weather;
+        public SkyColorJson skyColor;
+        /** ワールドイベントの見た目(11-16。{@link WorldEventLooks})。 */
+        public WorldEventLooks worldEvents;
+    }
+
+    public static final class CloudsJson {
+        /** 雲の量を固定する(−1 = 日ごとに変わる)。 */
+        public Double coverage;
+        /** 雲の並び方(1 = 群れ・2 = 谷のある雲の海・3 = 壁と橋)。10-17 の既定 2。 */
+        public Integer style;
+        /** 雲の見た目(0〜1): セル画の陰影・輪郭のやわらかさ・荒天の青灰・風の筋・遠くの青い霞・質感・夜の雲の明るさ・雲の海の丸み・雲の上の遠景。 */
+        public Double celShading;
+        public Double softEdges;
+        public Double roughWeather;
+        public Double windStreaks;
+        public Double blueHaze;
+        public Double texture;
+        public Double nightClouds;
+        public Double curvature;
+        public Double farClouds;
+        /** 谷のある雲の海(並び方 2・3)の厚さの上限(ブロック。y 300 から)。ユーザー指定 11-08「下の層 y 300〜350 を守る」で 50。空のボス(G8)が戻るときに 252(前の 1.3 倍の厚さ)へ上げ直せるように値にした。 */
+        public Double floorThickness;
+        /** 雲の海の上面の平らさ(0 = 丘のまま 〜 1 = ほぼ平ら)。11-08 ユーザーの見本(ナウシカ 11〜23 秒「なめらかな薄紫の床」)と、雲の床を水面のように使う決定から。仮決め 0.75。 */
+        public Double floorFlatness;
+        /** 時間帯ごとの雲の色(日の当たる側・影の側に掛ける色 [r, g, b])。昼・夕方・夜。11-08 仮決め(色はユーザーと風景を見ながら決める)。 */
+        public double[] litDay, litDusk, litNight, shadeDay, shadeDusk, shadeNight;
+    }
+
+    /** 積乱雲(2026-11-09 雲の段階 2a)。形を決める値なのでサーバーから送る({@code sky.CloudShape})。 */
+    public static final class StormsJson {
+        /** 積乱雲・入道雲を立てるか(0 / 1)。 */
+        public Double enabled;
+        /** 1 升に立つ確率の固定(−1 = 日の雲の量で 0.03〜0.45)。 */
+        public Double chance;
+        /** 立つ雲のうち巨大になる割合(−1 = 既定 0.12)。 */
+        public Double giantChance;
+        /** 足元の裾野(雲の海から山へつなぐ坂)の高さの倍率。 */
+        public Double footScale;
+        /** 現実寄りの並び(11-18 ユーザー決定。1 = 積乱雲は少なく・尾根は足元の低い棚・一部は谷間・浮いた雲は 1 段 / 0 = 前の山並みとトンネル)。 */
+        public Double realistic;
+        /** 現実寄りのとき、ふつうの積乱雲の立つ確率に掛ける値(ユーザー指定 0.6)。 */
+        public Double share;
+        /** ふつうの積乱雲のうち、ずっと大きくする割合(空の目印。11-18 ユーザー決定 0.2。0 = 出さない)。 */
+        public Double big;
+        /** 嵐の巣のまれさの倍率(11-18 ユーザー決定。1 = 約 22 km 四方に 1 つ・0 = 出さない)。 */
+        public Double nest;
+    }
+
+    /** 巻雲(2026-11-09 雲の段階 2a)。見た目だけ(送らない)。 */
+    /** 天気(2026-11-09 雲の段階 2a-5、ユーザー決定「バニラの雨を雲の多い日だけに合わせる」)。形の値と同じくサーバーの値を送る({@code sky.CloudShape})。 */
+    public static final class WeatherJson {
+        /** バニラの雨を雲の多い日に合わせるか(0 / 1)。0 ならバニラのまま。 */
+        public Double syncRain;
+        /** 雲の多い日のうち雨の日の割合。 */
+        public Double rainDays;
+        /** 雨のうち雷雨の割合。 */
+        public Double thunderShare;
+        /** 雨の前にだんだん曇る長さ(tick)。 */
+        public Double preRainTicks;
+    }
+
+    public static final class CirrusJson {
+        public Double strength;
+        /** 量の固定(−1 = 日ごとに変わる)。 */
+        public Double amount;
+        /** 高さ(y)。 */
+        public Double height;
+        /** 下の雲に対する流れる速さの倍率(ユーザー指定 10-18「1.5 倍以下」)。 */
+        public Double windScale;
+        /** 板を遠くで下げる丸みの半径(0 = 下げない。11-18: 21000 で板の端が地平線の近くまで下がる。見た目だけ)。 */
+        public Double curve;
+    }
+
+    public static final class WindJson {
+        /** 卓越風の強さ 1(ふだんの午後)のときに雲が流れる速さ(ブロック/tick)。前の雲の風の平均 0.05 に合わせた。 */
+        public Double blocksPerTick;
+        /** 雲の高さの風の強さの下限(地上の夜の凪でも、雲の高さでは止まらない)。 */
+        public Double minStrength;
+        /** 強さの上限(嵐 3 のとき雲が速すぎないように)。 */
+        public Double maxStrength;
+    }
+
+    public static final class ShadowsJson {
+        public Double strength;
+    }
+
+    public static final class RaysJson {
+        public Double strength;
+    }
+
+    public static final class HighSkyJson {
+        public Double clarity;
+        public Double clearFrom;
+        public Double clearTo;
+    }
+
+    /**
+     * 空の色(2026-11-13 シェーダーの仕上げ A。ユーザー決定: 普通の世界は「鮮やか」・汚染地域の森の中は「太陽がにじむ + 天頂が少し抜ける」)。
+     * 見た目だけ(送らない)。色の中身は仮決め(見本 tools/sky-color で選んだ案 2・案 イ)。切り替わる太陽の高さは atmosphere.json の skyTintHeights と同じ。
+     */
+    public static final class SkyColorJson {
+        /** 強さ(0 = バニラの空のまま 〜 1)。 */
+        public Double strength;
+        /** 金の時間・日の入り・日没後(= 夜明け前)の、天頂・太陽の反対側の地平・太陽の側の地平・太陽のまわりの暈の色 [r, g, b] と暈の強さ。 */
+        public double[] zenithGold, awayGold, towardGold, glowGold;
+        public double[] zenithSunset, awaySunset, towardSunset, glowSunset;
+        public double[] zenithTwilight, awayTwilight, towardTwilight, glowTwilight;
+        public Double glowGoldStrength, glowSunsetStrength, glowTwilightStrength;
+        /** 森の中の霞で満ちた空: 霞ごしの太陽のにじみの強さ(0 = 今までの平らな空)・真上で霞が薄れる割合。 */
+        public Double hazeGlow, hazeZenith;
+    }
+
+    public final double coverage;
+    public final int style;
+    public final float celShading, softEdges, roughWeather, windStreaks, blueHaze, texture, nightClouds, curvature, farClouds;
+    public final float floorThickness;
+    public final float floorFlatness;
+    public final float[] litDay, litDusk, litNight, shadeDay, shadeDusk, shadeNight;
+    public final double windBlocksPerTick, windMinStrength, windMaxStrength;
+    public final float shadows;
+    public final float rays;
+    public final float highSkyClarity, highSkyClearFrom, highSkyClearTo;
+    public final float storms, stormChance, giantChance, footScale, realistic, stormShare, stormBig, stormNest;
+    public final float cirrus, cirrusAmount, cirrusHeight, cirrusWindScale, cirrusCurve;
+    public final float syncRain, rainDays, thunderShare, preRainTicks;
+    /** 空の色(11-13): 強さ、金の時間・日の入り・日没後の順の色(天頂・反対側・太陽の側・暈)と暈の強さ、霞ごしの太陽のにじみ・天頂の抜け。 */
+    public final float skyColorStrength;
+    public final float[][] skyZenith, skyAway, skyToward, skyGlow;
+    public final float[] skyGlowStrength;
+    public final float skyHazeGlow, skyHazeZenith;
+    /** ワールドイベントの見た目の値(節 worldEvents。無ければ初期値)。 */
+    public final WorldEventLooks events;
+
+    private SkyTable(Json j) {
+        CloudsJson c = j == null || j.clouds == null ? new CloudsJson() : j.clouds;
+        WindJson w = j == null || j.wind == null ? new WindJson() : j.wind;
+        ShadowsJson s = j == null || j.shadows == null ? new ShadowsJson() : j.shadows;
+        RaysJson r = j == null || j.rays == null ? new RaysJson() : j.rays;
+        HighSkyJson h = j == null || j.highSky == null ? new HighSkyJson() : j.highSky;
+        StormsJson st = j == null || j.storms == null ? new StormsJson() : j.storms;
+        CirrusJson ci = j == null || j.cirrus == null ? new CirrusJson() : j.cirrus;
+        WeatherJson we = j == null || j.weather == null ? new WeatherJson() : j.weather;
+        coverage = clamp(c.coverage, -1.0, -1.0, 1.0);
+        style = c.style == null ? 2 : Math.max(1, Math.min(3, c.style));
+        celShading = f(c.celShading, 1.0);
+        softEdges = f(c.softEdges, 1.0);
+        roughWeather = f(c.roughWeather, 1.0);
+        windStreaks = f(c.windStreaks, 1.0);
+        blueHaze = f(c.blueHaze, 1.0);
+        texture = f(c.texture, 1.0);
+        nightClouds = f(c.nightClouds, 1.0);
+        curvature = f(c.curvature, 1.0);
+        farClouds = f(c.farClouds, 1.0);
+        floorThickness = (float) clamp(c.floorThickness, 50.0, 8.0, 600.0);
+        floorFlatness = f(c.floorFlatness, 0.75);
+        litDay = rgb(c.litDay, 1.0F, 1.0F, 1.0F);
+        litDusk = rgb(c.litDusk, 1.0F, 0.84F, 0.74F);
+        litNight = rgb(c.litNight, 1.0F, 1.0F, 1.0F);
+        shadeDay = rgb(c.shadeDay, 1.0F, 1.0F, 1.0F);
+        shadeDusk = rgb(c.shadeDusk, 0.86F, 0.82F, 1.0F);
+        shadeNight = rgb(c.shadeNight, 1.0F, 1.0F, 1.0F);
+        windBlocksPerTick = clamp(w.blocksPerTick, 0.05, 0.0, 1.0);
+        windMinStrength = clamp(w.minStrength, 0.5, 0.0, 3.0);
+        windMaxStrength = Math.max(windMinStrength, clamp(w.maxStrength, 2.0, 0.0, 10.0));
+        shadows = f(s.strength, 1.0);
+        rays = f(r.strength, 1.0);
+        highSkyClarity = f(h.clarity, 1.0);
+        highSkyClearFrom = (float) clamp(h.clearFrom, 300.0, 64.0, 2000.0);
+        highSkyClearTo = (float) Math.max(highSkyClearFrom + 1.0, clamp(h.clearTo, 350.0, 65.0, 2100.0));
+        storms = f(st.enabled, 1.0);
+        stormChance = (float) clamp(st.chance, -1.0, -1.0, 1.0);
+        giantChance = (float) clamp(st.giantChance, -1.0, -1.0, 1.0);
+        footScale = (float) clamp(st.footScale, 1.0, 0.0, 3.0);
+        realistic = f(st.realistic, 1.0);
+        stormShare = (float) clamp(st.share, 0.6, 0.05, 1.0);
+        stormBig = (float) clamp(st.big, 0.2, 0.0, 1.0);
+        stormNest = (float) clamp(st.nest, 1.0, 0.0, 100.0);
+        cirrus = f(ci.strength, 1.0);
+        cirrusAmount = (float) clamp(ci.amount, -1.0, -1.0, 1.0);
+        cirrusHeight = (float) clamp(ci.height, 3500.0, 400.0, 6000.0);
+        cirrusWindScale = (float) clamp(ci.windScale, 1.0, 0.0, 1.5);
+        cirrusCurve = (float) clamp(ci.curve, 21000.0, 0.0, 400000.0);
+        syncRain = f(we.syncRain, 1.0);
+        rainDays = f(we.rainDays, 0.75); // 11-09 段階 2a-6 ユーザー決定: 0.5 → 0.75(雨の時間をバニラ並みの約 15% に。胞子の降り積もりは雨の間 10 倍で、汚染の速さはバニラの雨の量で合わせてある)
+        thunderShare = f(we.thunderShare, 0.3);
+        preRainTicks = (float) clamp(we.preRainTicks, 4000.0, 0.0, 24000.0);
+        SkyColorJson sc = j == null || j.skyColor == null ? new SkyColorJson() : j.skyColor;
+        skyColorStrength = f(sc.strength, 1.0);
+        skyZenith = new float[][]{rgb(sc.zenithGold, 0.36F, 0.52F, 0.92F), rgb(sc.zenithSunset, 0.22F, 0.30F, 0.62F), rgb(sc.zenithTwilight, 0.07F, 0.10F, 0.26F)};
+        skyAway = new float[][]{rgb(sc.awayGold, 0.78F, 0.78F, 0.92F), rgb(sc.awaySunset, 0.62F, 0.52F, 0.70F), rgb(sc.awayTwilight, 0.16F, 0.19F, 0.36F)};
+        skyToward = new float[][]{rgb(sc.towardGold, 1.00F, 0.82F, 0.55F), rgb(sc.towardSunset, 1.00F, 0.50F, 0.22F), rgb(sc.towardTwilight, 0.75F, 0.38F, 0.30F)};
+        skyGlow = new float[][]{rgb(sc.glowGold, 1.00F, 0.85F, 0.55F), rgb(sc.glowSunset, 1.00F, 0.55F, 0.25F), rgb(sc.glowTwilight, 0.90F, 0.40F, 0.30F)};
+        skyGlowStrength = new float[]{(float) clamp(sc.glowGoldStrength, 0.6, 0.0, 2.0), (float) clamp(sc.glowSunsetStrength, 0.9, 0.0, 2.0),
+                (float) clamp(sc.glowTwilightStrength, 0.5, 0.0, 2.0)};
+        skyHazeGlow = (float) clamp(sc.hazeGlow, 1.0, 0.0, 3.0);
+        skyHazeZenith = f(sc.hazeZenith, 0.3);
+        events = j == null || j.worldEvents == null ? new WorldEventLooks() : j.worldEvents;
+    }
+
+    public static SkyTable fromJson(Json j) {
+        return new SkyTable(j);
+    }
+
+    private static float[] rgb(double[] v, float r, float g, float b) {
+        if (v == null || v.length < 3) {
+            return new float[]{r, g, b};
+        }
+        return new float[]{(float) Math.max(0.0, Math.min(2.0, v[0])), (float) Math.max(0.0, Math.min(2.0, v[1])), (float) Math.max(0.0, Math.min(2.0, v[2]))};
+    }
+
+    private static float f(Double v, double def) {
+        return (float) clamp(v, def, 0.0, 1.0);
+    }
+
+    private static double clamp(Double v, double def, double lo, double hi) {
+        if (v == null || v.isNaN()) {
+            return def;
+        }
+        return Math.max(lo, Math.min(hi, v));
+    }
+}

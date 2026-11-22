@@ -1,164 +1,268 @@
 package com.yayuy.overgrownvegetation.organ;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
-import com.yayuy.overgrownvegetation.data.DesignData;
-import com.yayuy.overgrownvegetation.data.OrganTable;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import com.yayuy.overgrownvegetation.phase.PhaseData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
+import java.util.Locale;
+
 /**
- * {@code /ov organ …} — 器官の確認用コマンド(OP、2026-09-23)。
+ * 森の器官の確かめ用コマンド(2026-11-17。{@code /ov} の下の決めた一覧を増やさないよう {@code /ov perf organ} に置く)。
  * <ul>
- *     <li>{@code status} … 生えている数・いま効いている<b>下限</b>・この場の上乗せ・いちばん近い器官</li>
- *     <li>{@code list} … 生えている器官の位置と育ち具合</li>
- *     <li>{@code site} … いちばん近い<b>候補地</b>(まだ生えていなくてもよい)。
- *     「極相にしたのに器官が生えない」ときに、そもそもここが候補地なのかを見る</li>
- *     <li>{@code grow} … いま立っているチャンクに候補地かどうかを無視して 1 つ生やす</li>
- *     <li>{@code clear} … 台帳を空にする(ブロックは残る)</li>
+ *   <li>{@code /ov perf organ list} — 器官の一覧・値段・嚢の上限・根のステータス。</li>
+ *   <li>{@code /ov perf organ plant <種類> [形]} / {@code plantsmall <種類> [形]} — 足元に芽吹かせる(予算は払わない)。</li>
+ *   <li>{@code /ov perf organ build <id>} — 育ち具合を無視してその場で全部置く(育ち切った扱いにする)。</li>
+ *   <li>{@code /ov perf organ wither <id>} — 芯を壊したのと同じに枯らす(ポイント・予算も引く)。</li>
+ *   <li>{@code /ov perf organ remove <id>} — 記録から消す(ブロックは残る)。</li>
+ *   <li>{@code /ov perf organ plan [種類]} / {@code plansmall [種類]} — 司令塔に 1 回考えさせる(種類を付けると予算・数を見ない)。</li>
  * </ul>
- *
- * <p>器官は<b>わざと何も知らせない</b>設計なので、
- * 開発中にこれが無いと「効いているのかどうか」すら分からない。
- *
- * <p>出力は開発用なので {@code Component.literal}(翻訳キーを作らない)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class OrganCommand {
+    private OrganCommand() {
+    }
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("ov")
-                .then(Commands.literal("organ")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.literal("status").executes(OrganCommand::status))
-                        .then(Commands.literal("list").executes(OrganCommand::list))
-                        .then(Commands.literal("site").executes(OrganCommand::site))
-                        .then(Commands.literal("grow").executes(OrganCommand::grow))
-                        .then(Commands.literal("clear").executes(OrganCommand::clear))));
+        LiteralArgumentBuilder<CommandSourceStack> organ = Commands.literal("organ")
+                .then(Commands.literal("list").executes(OrganCommand::list))
+                // 11-20 ユーザー「器官が育つところを見たいから、器官ができたらその場所に飛べるコマンドを」: 器官全体が見える所へ飛ぶ・できたときの知らせ
+                .then(Commands.literal("tp")
+                        .then(Commands.literal("latest").executes(c -> tp(c, -1)))
+                        .then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(c -> tp(c, IntegerArgumentType.getInteger(c, "id")))))
+                .then(Commands.literal("notify")
+                        .executes(c -> notifyStatus(c))
+                        .then(Commands.literal("on").executes(c -> setNotify(c, true)))
+                        .then(Commands.literal("off").executes(c -> setNotify(c, false))))
+                .then(plantNode("plant", false))
+                .then(plantNode("plantsmall", true))
+                .then(Commands.literal("build").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::build)))
+                .then(Commands.literal("wither").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::wither)))
+                .then(Commands.literal("remove").then(Commands.argument("id", IntegerArgumentType.integer(1)).executes(OrganCommand::remove)))
+                .then(planNode("plan", false))
+                .then(planNode("plansmall", true))
+                // 重さの測り(11-18): 足元のまわりにまとめて芽吹かせる・育ち具合を進める・器官の処理の時間
+                .then(Commands.literal("scatter")
+                        .then(Commands.argument("big", IntegerArgumentType.integer(0, 200))
+                                .then(Commands.argument("small", IntegerArgumentType.integer(0, 1000))
+                                        .then(Commands.argument("radius", IntegerArgumentType.integer(16, 4000))
+                                                .executes(OrganCommand::scatter)))))
+                .then(Commands.literal("age")
+                        .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100)).executes(OrganCommand::age)))
+                .then(Commands.literal("stats")
+                        .executes(c -> {
+                            c.getSource().sendSuccess(() -> Component.literal(OrganMeter.summary()), false);
+                            for (String s : OrganMeter.slowLines()) c.getSource().sendSuccess(() -> Component.literal("  遅い: " + s), false);
+                            return 1;
+                        })
+                        .then(Commands.literal("reset").executes(c -> {
+                            OrganMeter.reset();
+                            c.getSource().sendSuccess(() -> Component.literal("器官の処理の物差しを空にした"), false);
+                            return 1;
+                        })));
+        event.getDispatcher().register(Commands.literal("ov").then(Commands.literal("perf").requires(s -> s.hasPermission(2)).then(organ)));
     }
 
-    private static int status(CommandContext<CommandSourceStack> ctx) {
-        ServerPlayer player = ctx.getSource().getPlayer();
-        if (player == null) {
+    private static LiteralArgumentBuilder<CommandSourceStack> plantNode(String name, boolean small) {
+        return Commands.literal(name).then(Commands.argument("kind", StringArgumentType.word())
+                .suggests((c, b) -> {
+                    for (OrganKind k : OrganKind.values()) b.suggest(k.id);
+                    return b.buildFuture();
+                })
+                .executes(c -> plant(c, -1, small))
+                .then(Commands.argument("variant", IntegerArgumentType.integer(0, 3))
+                        .executes(c -> plant(c, IntegerArgumentType.getInteger(c, "variant"), small))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> planNode(String name, boolean small) {
+        return Commands.literal(name)
+                .executes(c -> plan(c, null, small))
+                .then(Commands.argument("kind", StringArgumentType.word())
+                        .executes(c -> plan(c, OrganKind.byId(StringArgumentType.getString(c, "kind")), small)));
+    }
+
+    private static int list(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        ForestOrgans data = ForestOrgans.get(level);
+        long now = PhaseData.clockNow(level);
+        double[] buffs = LeyBuffs.totals(level);
+        StringBuilder b = new StringBuilder();
+        for (LeyBuffs.Stat s : LeyBuffs.Stat.values()) {
+            if (buffs[s.ordinal()] > 0.0D) b.append(String.format(Locale.ROOT, " %s +%.2f", s.label, buffs[s.ordinal()]));
+        }
+        String buffLine = b.length() == 0 ? " なし" : b.toString();
+        c.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT,
+                "森の器官 %d(生きている・育っている 大 %d・小 %d)・値段 大 %.0f・小 %.0f・嚢で上限 +ハイヴノード %.1f 個分・根のステータス%s",
+                data.organs().size(), data.livingCount(false), data.livingCount(true), OrganPlanner.price(level, false),
+                OrganPlanner.price(level, true), OrganWorld.sacHiveEquivalent(level), buffLine)), false);
+        for (ForestOrgans.Organ o : data.organs()) {
+            LeyBuffs.Stat s = o.kind == OrganKind.LEY ? LeyBuffs.statOf(level, o) : null;
+            c.getSource().sendSuccess(() -> Component.literal(o.describe(now) + (s != null ? " 上げる: " + s.label : "")), false);
+        }
+        return data.organs().size();
+    }
+
+    private static int plant(CommandContext<CommandSourceStack> c, int variant, boolean small) {
+        OrganKind kind = OrganKind.byId(StringArgumentType.getString(c, "kind"));
+        if (kind == null) {
+            c.getSource().sendFailure(Component.literal("種類は phase / tower / sac / nursery / ley"));
             return 0;
         }
-        ServerLevel level = player.serverLevel();
-        OrganData data = OrganData.get(level);
-        OrganTable table = DesignData.organs();
-        OrganTable.SporeGland spec = table.sporeGland();
-        ChunkPos here = new ChunkPos(player.blockPosition());
+        ServerLevel level = c.getSource().getServer().overworld();
+        int n = small ? OrganShapes.SMALL_VARIANTS : OrganShapes.variants(kind);
+        int v = variant < 0 ? level.getRandom().nextInt(n) : Math.min(variant, n - 1);
+        var pos = net.minecraft.core.BlockPos.containing(c.getSource().getPosition());
+        ForestOrgans.Organ o = ForestOrgans.get(level).plant(level, kind, small, v, level.getRandom().nextInt(), level.getRandom().nextInt(4),
+                pos.getX(), pos.getZ());
+        c.getSource().sendSuccess(() -> Component.literal("芽吹かせた: " + o.describe(PhaseData.clockNow(level))), true);
+        return o.id;
+    }
 
-        reply(ctx, "器官: 生きている " + data.count() + " 個 / 枯れかけ " + data.withering().size()
-                + (table.enabled() ? "" : " ※ organs.json で無効"));
-        reply(ctx, "世界の下限: " + fmt(OrganInfluence.worldFloorPercent(level)) + "%"
-                + "  (1 個あたり " + fmt(spec.worldFloorPercent())
-                + "% / 頭打ち " + fmt(spec.worldFloorMaxPercent()) + "%)");
-        reply(ctx, "この場の上乗せ: " + fmt(OrganInfluence.localPercentAt(level, here)) + "%"
-                + "  (真上で " + fmt(spec.localPercent())
-                + "% / " + spec.localReachChunks() + " チャンクで 0)");
-
-        BlockPos nearest = data.nearest(player.blockPosition());
-        if (nearest == null) {
-            reply(ctx, "生えている器官はまだ無い。");
-        } else {
-            reply(ctx, "いちばん近い器官: " + nearest.toShortString()
-                    + " (" + Math.round(Math.sqrt(nearest.distSqr(player.blockPosition()))) + " ブロック)");
+    private static int build(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestOrgans.Organ o = data.byId(IntegerArgumentType.getInteger(c, "id"));
+        if (o == null) return missing(c);
+        long t0 = System.nanoTime();
+        int n = OrganWorld.buildNow(level, data, o);
+        if (o.state == ForestOrgans.State.GROWING) {
+            o.state = ForestOrgans.State.ALIVE;
+            o.roleAt = PhaseData.clockNow(level);
+            OrganWorld.invalidateCaches();
         }
+        long ms = (System.nanoTime() - t0) / 1_000_000L;
+        c.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "置いた %d(%d ms): %s", n, ms,
+                o.describe(PhaseData.clockNow(level)))), true);
+        return n;
+    }
+
+    private static int wither(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestOrgans.Organ o = data.byId(IntegerArgumentType.getInteger(c, "id"));
+        if (o == null) return missing(c);
+        ForestOrgans.Penalty p = data.wither(level, o, "コマンド");
+        c.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "枯らした(ポイント −%d・予算 −%.0f): %s", p.points(),
+                p.budget(), o.describe(PhaseData.clockNow(level)))), true);
         return 1;
     }
 
-    private static int list(CommandContext<CommandSourceStack> ctx) {
-        ServerPlayer player = ctx.getSource().getPlayer();
-        if (player == null) {
-            return 0;
-        }
-        ServerLevel level = player.serverLevel();
-        OrganData data = OrganData.get(level);
-        if (data.count() == 0) {
-            reply(ctx, "生えている器官はまだ無い。");
-            return 1;
-        }
-        OrganTable.SporeGland spec = OrganData.spec();
-        long now = level.getGameTime();
-        for (Long2ObjectMap.Entry<OrganData.Organ> entry : data.nodes().long2ObjectEntrySet()) {
-            BlockPos pos = BlockPos.of(entry.getLongKey());
-            double maturity = OrganData.maturity(entry.getValue().born(), now, spec);
-            reply(ctx, entry.getValue().kind().getSerializedName() + " " + pos.toShortString()
-                    + "  育ち " + Math.round(maturity * 100.0D) + "%"
-                    + "  下限への寄与 " + fmt(spec.worldFloorPercent() * maturity) + "%");
-        }
+    private static int remove(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        boolean r = ForestOrgans.get(level).remove(IntegerArgumentType.getInteger(c, "id"));
+        if (!r) return missing(c);
+        c.getSource().sendSuccess(() -> Component.literal("記録から消した(ブロックは残る)"), true);
         return 1;
     }
 
-    private static int site(CommandContext<CommandSourceStack> ctx) {
-        ServerPlayer player = ctx.getSource().getPlayer();
-        if (player == null) {
-            return 0;
-        }
-        ServerLevel level = player.serverLevel();
-        OrganTable.SporeGland spec = DesignData.organs().sporeGland();
-        ChunkPos here = new ChunkPos(player.blockPosition());
-        boolean isSite = OrganField.isSite(level.getSeed(), here.x, here.z, spec.cellSizeChunks());
-        ChunkPos nearest = OrganField.nearestSite(level.getSeed(), here, spec.cellSizeChunks());
-
-        reply(ctx, "このチャンク " + here + " は候補地" + (isSite ? "である。" : "ではない。")
-                + " 地脈" + (OrganField.hasVein(level.getSeed(), here.x, here.z) ? "あり" : "なし"));
-        if (nearest == null) {
-            reply(ctx, "近くの升目に候補地が無い —— まわりに地脈が 1 本も通っていない。"
-                    + "  升目 " + spec.cellSizeChunks() + " チャンク");
-        } else {
-            reply(ctx, "いちばん近い候補地: " + nearest
-                    + " (中心 " + nearest.getMiddleBlockX() + ", " + nearest.getMiddleBlockZ() + ")"
-                    + "  升目 " + spec.cellSizeChunks() + " チャンク");
-        }
-        reply(ctx, "※ 候補地が極相になって全層置換を終えたときに生える。既に生えているかは list を見ること。");
-        return 1;
+    private static int plan(CommandContext<CommandSourceStack> c, OrganKind kind, boolean small) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        String r = OrganPlanner.tryPlan(level, level.getRandom(), kind, small);
+        c.getSource().sendSuccess(() -> Component.literal(r == null ? "建てない(フェーズが早い・数が上限・ピースフル)" : r), true);
+        return r == null ? 0 : 1;
     }
 
-    private static int grow(CommandContext<CommandSourceStack> ctx) {
-        ServerPlayer player = ctx.getSource().getPlayer();
-        if (player == null) {
-            return 0;
+    /** 足元のまわり(半径 radius の中、互いに少し離して)に大きい版 big・小さい版 small を芽吹かせる。種類と形はくじ。予算は払わない。 */
+    private static int scatter(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        int big = IntegerArgumentType.getInteger(c, "big"), small = IntegerArgumentType.getInteger(c, "small");
+        int radius = IntegerArgumentType.getInteger(c, "radius");
+        var at = net.minecraft.core.BlockPos.containing(c.getSource().getPosition());
+        net.minecraft.util.RandomSource r = level.getRandom();
+        ForestOrgans data = ForestOrgans.get(level);
+        java.util.List<long[]> used = new java.util.ArrayList<>();
+        int made = 0;
+        for (int i = 0; i < big + small; i++) {
+            boolean isSmall = i >= big;
+            int minGap = isSmall ? 24 : 96;
+            for (int tries = 0; tries < 200; tries++) {
+                double ang = r.nextDouble() * Math.PI * 2.0D, d = Math.sqrt(r.nextDouble()) * radius;
+                int x = at.getX() + (int) (Math.cos(ang) * d), z = at.getZ() + (int) (Math.sin(ang) * d);
+                boolean ok = true;
+                for (long[] u : used) {
+                    double dx = u[0] - x, dz = u[1] - z, need = Math.max(minGap, u[2] == 1 ? 24 : 96);
+                    if (dx * dx + dz * dz < need * need) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                OrganKind kind = OrganKind.values()[r.nextInt(OrganKind.values().length)];
+                int v = r.nextInt(isSmall ? OrganShapes.SMALL_VARIANTS : OrganShapes.variants(kind));
+                data.plant(level, kind, isSmall, v, r.nextInt(), r.nextInt(4), x, z);
+                used.add(new long[]{x, z, isSmall ? 1 : 0});
+                made++;
+                break;
+            }
         }
-        ServerLevel level = player.serverLevel();
-        ChunkPos here = new ChunkPos(player.blockPosition());
-        BlockPos grown = OrganPlacer.plant(level, here, OrganKind.SPORE_GLAND);
-        if (grown == null) {
-            reply(ctx, "生やせなかった。このチャンクに<地脈が通っていて地面がある>列が無い —— "
-                    + "先に /ov climax ley force で地脈の上へ飛ぶこと(/ov organ site でも確かめられる)。");
-            return 0;
-        }
-        reply(ctx, "胞子腺の節を置いた: " + grown.toShortString() + " (体はそこから組み上がる)");
-        return 1;
+        int n = made;
+        c.getSource().sendSuccess(() -> Component.literal("芽吹かせた " + n), true);
+        return n;
     }
 
-    private static int clear(CommandContext<CommandSourceStack> ctx) {
-        ServerPlayer player = ctx.getSource().getPlayer();
-        if (player == null) {
+    /** 枯れていない器官の育ち具合を percent % にする(芽吹いた時刻を戻す。100 で育ち切る)。 */
+    private static int age(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        int pct = IntegerArgumentType.getInteger(c, "percent");
+        long now = PhaseData.clockNow(level);
+        int n = 0;
+        for (ForestOrgans.Organ o : ForestOrgans.get(level).organs()) {
+            if (o.state == ForestOrgans.State.WITHERED) continue;
+            o.plantedAt = now - (long) (com.yayuy.overgrownvegetation.data.DesignData.organs().growDays(o.small) * 24000.0D * pct / 100.0D);
+            n++;
+        }
+        ForestOrgans.get(level).changed();
+        int m = n;
+        c.getSource().sendSuccess(() -> Component.literal("育ち具合を " + pct + "% にした: " + m), true);
+        return n;
+    }
+
+    /** いちばん新しい器官(id が最大)。無ければ null。 */
+    static ForestOrgans.Organ latest(ForestOrgans data) {
+        ForestOrgans.Organ best = null;
+        for (ForestOrgans.Organ o : data.organs()) if (best == null || o.id > best.id) best = o;
+        return best;
+    }
+
+    /** 器官全体が見える所へ飛ぶ({@code id} = -1 でいちばん新しい器官)。 */
+    private static int tp(CommandContext<CommandSourceStack> c, int id) {
+        ServerLevel level = c.getSource().getServer().overworld();
+        ForestOrgans data = ForestOrgans.get(level);
+        ForestOrgans.Organ o = id < 0 ? latest(data) : data.byId(id);
+        if (o == null) return missing(c);
+        if (!(c.getSource().getEntity() instanceof net.minecraft.server.level.ServerPlayer p)) {
+            c.getSource().sendFailure(Component.translatable("commands.overgrown_vegetation.organ_notice.not_player"));
             return 0;
         }
-        OrganData data = OrganData.get(player.serverLevel());
-        int count = data.count();
-        data.clear();
-        reply(ctx, "台帳から " + count + " 個を外した(ブロックはそのまま残っている)。");
-        return 1;
+        OrganNotices.tp(level, p, o);
+        c.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.organ_notice.tp", o.id,
+                Component.translatable("commands.overgrown_vegetation.forest.kind." + o.kind.id), o.x, o.resolved() ? Integer.toString(o.y) : "?", o.z), false);
+        return o.id;
     }
 
-    private static String fmt(double value) {
-        return String.format("%.1f", value);
+    private static int notifyStatus(CommandContext<CommandSourceStack> c) {
+        c.getSource().sendSuccess(() -> Component.translatable("commands.overgrown_vegetation.organ_notice."
+                + (OrganNotices.enabled() ? "status_on" : "status_off")), false);
+        return OrganNotices.enabled() ? 1 : 0;
     }
 
-    private static void reply(CommandContext<CommandSourceStack> ctx, String text) {
-        ctx.getSource().sendSuccess(() -> Component.literal(text), false);
+    private static int setNotify(CommandContext<CommandSourceStack> c, boolean on) {
+        OrganNotices.setEnabled(on);
+        return notifyStatus(c);
+    }
+
+    private static int missing(CommandContext<CommandSourceStack> c) {
+        c.getSource().sendFailure(Component.literal("その番号の器官は無い"));
+        return 0;
     }
 }

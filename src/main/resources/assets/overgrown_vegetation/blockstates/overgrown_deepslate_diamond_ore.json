@@ -1,7 +1,9 @@
 {
   "variants": {
-    "": {
-      "model": "overgrown_vegetation:block/overgrown_deepslate_diamond_ore"
-    }
+    "": [
+      { "model": "overgrown_vegetation:block/overgrown_deepslate_diamond_ore" },
+      { "model": "overgrown_vegetation:block/overgrown_deepslate_diamond_ore_2" },
+      { "model": "overgrown_vegetation:block/overgrown_deepslate_diamond_ore_3" }
+    ]
   }
 }

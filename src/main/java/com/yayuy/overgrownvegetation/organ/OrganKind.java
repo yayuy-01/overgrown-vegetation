@@ -1,44 +1,28 @@
 package com.yayuy.overgrownvegetation.organ;
 
-import net.minecraft.util.StringRepresentable;
+/** 森の器官の役割(2026-11-17 ユーザー決定の 5 つ)。 */
+public enum OrganKind {
+    /** フェーズを進める器官(植物の研究施設)。フェーズのポイントを作る。 */
+    PHASE("phase", "フェーズを進める器官"),
+    /** 胞子の塔。胞子を吹き上げ、風下へ汚染を広げる。 */
+    TOWER("tower", "胞子の塔"),
+    /** 蓄えの嚢。司令塔の予算の上限を上げる(ハイヴノードと同じ考え)。 */
+    SAC("sac", "蓄えの嚢"),
+    /** 苗床の群体。手先を産み続ける。 */
+    NURSERY("nursery", "苗床の群体"),
+    /** 地脈を吸う根。まわりの汲み上げ器を弱め、根晶が育つ。 */
+    LEY("ley", "地脈を吸う根");
 
-/**
- * <b>器官の種類</b>(2026-09-23)。
- *
- * <p><b>形は種類ごとに違う</b>(要望)。三つ編みの塔は<b>胞子腺だけ</b>の姿であって、
- * 器官一般の姿ではない。だから「節を置いて、そこから生やす」という段取りだけを共通にし、
- * <b>何が生えるかは種類に委ねる</b>({@link OrganShape})。
- *
- * <p>台帳({@link OrganData})は節ごとに種類を覚えるので、
- * 種類が増えても保存の形は変わらない。
- */
-public enum OrganKind implements StringRepresentable {
+    public final String id;
+    public final String label;
 
-    /**
-     * <b>胞子腺</b> —— 最初の器官。世界の胞子濃度に下限を作る。
-     * 姿は地脈の上に立つ<b>三つ編みの塔</b>({@code shape/SporeGlandTower})で、
-     * 先端から胞子を噴いている。
-     */
-    SPORE_GLAND("spore_gland");
-
-    private final String name;
-
-    OrganKind(String name) {
-        this.name = name;
+    OrganKind(String id, String label) {
+        this.id = id;
+        this.label = label;
     }
 
-    @Override
-    public String getSerializedName() {
-        return name;
-    }
-
-    /** 保存された名前から引く。読めなければ {@link #SPORE_GLAND}(古いセーブはこれしか無い)。 */
-    public static OrganKind byName(String name) {
-        for (OrganKind kind : values()) {
-            if (kind.name.equals(name)) {
-                return kind;
-            }
-        }
-        return SPORE_GLAND;
+    public static OrganKind byId(String id) {
+        for (OrganKind k : values()) if (k.id.equals(id)) return k;
+        return null;
     }
 }

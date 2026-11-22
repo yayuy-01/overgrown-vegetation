@@ -20,18 +20,23 @@ import software.bernie.geckolib.model.GeoModel;
  */
 public class BlightFernModel extends LodGeoModel<BlightFernEntity> {
 
+    // 2026-09-24 軽量化(監査 1318): 描画のたびに ResourceLocation を作り直さないよう定数にする(中身は同じ)。
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/blight_fern.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/blight_fern.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/blight_fern.animation.json");
+
     @Override
     public ResourceLocation getModelResource(BlightFernEntity animatable) {
-        return OvergrownVegetation.id("geo/blight_fern.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(BlightFernEntity animatable) {
-        return OvergrownVegetation.id("textures/entity/blight_fern.png");
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(BlightFernEntity animatable) {
-        return OvergrownVegetation.id("animations/blight_fern.animation.json");
+        return ANIMATION;
     }
 }

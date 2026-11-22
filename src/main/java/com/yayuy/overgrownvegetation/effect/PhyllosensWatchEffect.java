@@ -1,33 +1,37 @@
 package com.yayuy.overgrownvegetation.effect;
 
+import com.yayuy.overgrownvegetation.registry.ModPhyllosens;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
 
 /**
- * 「Philosense is watching you」— フィロセンス
- * ({@link com.yayuy.overgrownvegetation.entity.PhyllosensEntity})に見つかり、
- * <b>周りの汚染側へ居場所を共有されている</b>あいだ付くデバフ(ユーザー要望 2026-09-14)。
+ * 「フィロセンスの視線 / Phyllosens' Gaze」(2026-11-14、竹馬型 段 2)。フィロセンスの見張り・覗きで見られた相手に付く印。
+ * <b>能力値は何も変えない</b>(決定 11-10 ユーザー「印が付くだけ」)。「見られている」と分かるだけ。味方を呼ぶ誘導は能力の段で足す。
  *
- * <p>能力値は一切いじらない。<b>これは「いま狙われている」という通知そのもの</b>で、
- * これが付いている間、
- * {@link com.yayuy.overgrownvegetation.registry.ModMobEffects#PHYLLOSENS_GUIDANCE 誘導}を受けた
- * Mob が<b>距離も視界も問わず</b>襲いに来る
- * ({@link com.yayuy.overgrownvegetation.entity.GuidedHuntGoal})。
- * 持続は {@code phyllosensWatchTicks}(既定 1200 = 1 分)で、範囲内に居るあいだは延び続ける —
- * アイコンが消えた＝もう追われていない、と読める。
- *
- * <p>付与は {@link com.yayuy.overgrownvegetation.entity.PhyllosensInfluence#markPlayers} の一箇所だけ。
- * ふだんの 32 ブロックの輪も、索敵中の 512 ブロックも、そこを通る。
+ * <p>前の版の印(退避中の {@code parked/…/PhyllosensWatchEffect}・{@code PhyllosensInfluence})は戻していない: 長さを設計データの効果の表
+ * ({@code DesignData.effects()})から読み、誘導の効果・退避中の寄生植物装備({@code PlantArmor})にも絡むため。長さは {@link #TICKS}【仮】。
  */
 public class PhyllosensWatchEffect extends MobEffect {
+
+    /** 印の長さ(tick)【仮 1200 = 1 分。仕様 3 節「1 分で切れる」】。見られている間は付け直して延びる。 */
+    public static final int TICKS = 1200;
 
     public PhyllosensWatchEffect(MobEffectCategory category, int color) {
         super(category, color);
     }
 
-    /** 能力値も満腹度もいじらないので、毎 tick 呼ばれる必要がない。 */
     @Override
     public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
         return false;
+    }
+
+    /** 印を付ける / 付け直す(残りが 1 秒以上減ってから。通信を毎 tick 出さない)。 */
+    public static void mark(LivingEntity target) {
+        MobEffectInstance cur = target.getEffect(ModPhyllosens.PHYLLOSENS_WATCH);
+        if (cur == null || cur.getDuration() < TICKS - 20) {
+            target.addEffect(new MobEffectInstance(ModPhyllosens.PHYLLOSENS_WATCH, TICKS, 0, true, false, true));
+        }
     }
 }

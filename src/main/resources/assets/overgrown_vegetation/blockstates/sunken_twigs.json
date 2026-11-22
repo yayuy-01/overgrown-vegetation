@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      { "model": "overgrown_vegetation:block/sunken_twigs" },
+      { "model": "overgrown_vegetation:block/sunken_twigs", "y": 90 },
+      { "model": "overgrown_vegetation:block/sunken_twigs", "y": 180 },
+      { "model": "overgrown_vegetation:block/sunken_twigs", "y": 270 }
+    ]
+  }
+}

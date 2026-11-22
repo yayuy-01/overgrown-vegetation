@@ -65,14 +65,17 @@ public final class SwingThroughFoliage {
      * @param partialTick そのフレームの補間係数(バニラの照準決定と同じ値を使う)
      */
     public static void retarget(float partialTick) {
-        if (!OvergrownVegetationConfig.COMMON.swingThroughFoliage.get()) {
-            return;
-        }
-
+        // バニラの Minecraft#tick は起動中のロード画面の間も毎 tick pick を呼ぶ(ワールドが無ければ中身は何もしない)。
+        // そのときはまだ COMMON の config が読み込まれていないことがあり、先に config を読むと
+        // 「Cannot get config value before config is loaded」で落ちる(2026-11-15 に mod の多い環境で実際に落ちた)。
+        // だからワールドとプレイヤーがあるかを先に確かめ、config は読み込み済みのときだけ読む。
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         ClientLevel level = minecraft.level;
         if (player == null || level == null || minecraft.getCameraEntity() != player) {
+            return;
+        }
+        if (!OvergrownVegetationConfig.SPEC.isLoaded() || !OvergrownVegetationConfig.COMMON.swingThroughFoliage.get()) {
             return;
         }
         // スニーク中は「草そのものを刈りたい」意思表示とみなしてバニラのまま

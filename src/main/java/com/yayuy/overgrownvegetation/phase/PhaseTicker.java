@@ -30,7 +30,16 @@ public final class PhaseTicker {
             return;
         }
 
-        PhaseData.get(serverLevel).tick(serverLevel);
+        PhaseData data = PhaseData.get(serverLevel);
+        data.tick(serverLevel);
+        // 進みの % が動いたらクライアントへ(2026-11-14 小さな段)。
+        PhaseSync.tickProgress(serverLevel.getServer(), data);
+    }
+
+    /** サーバーを止めた後、台帳の書き出し(IO スレッド)が終わるのを待つ(見直し ②10)。 */
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        PhaseData.awaitLedgerWrites();
     }
 
     private PhaseTicker() {

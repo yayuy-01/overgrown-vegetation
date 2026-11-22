@@ -1,0 +1,9 @@
+{
+  "_comment": "g1_baby_zombie_v2_r6 の burst.json の写し(tools/g5-models/g1/install_v2.sh)。死体ブロックは置かれたら burst_animation を流し、swapTick(置かれてからの tick)で絵を intact_texture から傷のある絵へ替える。その後は idle_animation",
+  "species": "overgrown_baby_zombie",
+  "intact_texture": "overgrown_baby_zombie_intact.png",
+  "burst_animation": "corpse_burst",
+  "burst_ticks": 60,
+  "swapTick": 24,
+  "idle_animation": "corpse_idle"
+}

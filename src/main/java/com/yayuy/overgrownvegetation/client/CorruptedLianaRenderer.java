@@ -6,6 +6,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity;
+import com.yayuy.overgrownvegetation.client.atmosphere.Atmosphere;
+import com.yayuy.overgrownvegetation.client.atmosphere.LeafSway;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -18,6 +21,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RegisterRenderBuffersEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
@@ -128,12 +136,19 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     /** テクスチャがワールド内で何ブロックの実長ごとに縦方向へ1回繰り返すか(主リボン・垂れ蔦共通)。 */
     private static final float TILE_LENGTH = 1.0F;
 
+    // 2026-11-01(側面・底面): 帯を下絵 a 案(2 本よじり)に替えた。前の絵 overgrown_liana_vine.png は残してある。
     private static final ResourceLocation MAIN_TEXTURE =
-            OvergrownVegetation.id("textures/entity/overgrown_liana_vine.png");
+            OvergrownVegetation.id("textures/entity/overgrown_liana_ribbon_a.png");
     private static final ResourceLocation DROOP_TEXTURE =
             OvergrownVegetation.id("textures/entity/overgrown_liana_droop.png");
     private static final ResourceLocation DROOP_LIGHT_TEXTURE =
             OvergrownVegetation.id("textures/entity/overgrown_liana_droop_light.png");
+    /**
+     * 節の葉と莢(2026-11-01、側面・底面の S8)。48×16 の 1 枚に 節の葉 | 莢 a(若い)| 莢 b(熟した)を並べ、1 つの RenderType で描く。
+     * どの分割点に何を吊るかはブロックの位置から決める(飾りだけなので同期しない。垂れ蔦・光る実とは別の分割点)。
+     */
+    private static final ResourceLocation TRIM_TEXTURE =
+            OvergrownVegetation.id("textures/entity/overgrown_liana_trim.png");
 
     /**
      * 垂れ蔦が取りうる最大の長さ(ブロック単位)。垂れ蔦自体の長さは
@@ -151,11 +166,24 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      */
     private static final float DROOP_ORIGIN_LIFT = 0.15F;
 
-    private static final RenderType MAIN_RENDER_TYPE = createRenderType("overgrown_vegetation_liana", MAIN_TEXTURE);
+    /**
+     * 林冠の光のシェーダー(2026-11-05 光の点検 6 で登る蔓に、11-06 ユーザー「やりましょう」で今の蔦・垂れ蔦にも)。文字のシェーダーのままだと
+     * 地形の林冠の影・森の青緑・空の光の色・夜の色を通らず、蔦だけ夜に緑で浮いていた。地形の草・シダと同じ {@code ovCanopyLight}(背面の影なし)と、
+     * 幹の面と同じ向きの明暗を掛ける({@code shaders/core/liana_canopy_lit.fsh})。読み込めない・シェーダーパック使用中は文字のシェーダー。
+     */
+    static final RenderStateShard.ShaderStateShard CANOPY_LIT_SHADER = new RenderStateShard.ShaderStateShard(() -> {
+        net.minecraft.client.renderer.ShaderInstance lit = com.yayuy.overgrownvegetation.client.shader.ModShaders.lianaCanopyLit();
+        return lit != null && !com.yayuy.overgrownvegetation.client.shader.ShaderPacks.active() ? lit
+                : net.minecraft.client.renderer.GameRenderer.getRendertypeTextShader();
+    });
+
+    private static final RenderType MAIN_RENDER_TYPE = createRenderType("overgrown_vegetation_liana", MAIN_TEXTURE, CANOPY_LIT_SHADER);
     private static final RenderType DROOP_RENDER_TYPE =
-            createRenderType("overgrown_vegetation_liana_droop", DROOP_TEXTURE);
+            createRenderType("overgrown_vegetation_liana_droop", DROOP_TEXTURE, CANOPY_LIT_SHADER);
     private static final RenderType DROOP_LIGHT_RENDER_TYPE =
-            createRenderType("overgrown_vegetation_liana_droop_light", DROOP_LIGHT_TEXTURE);
+            createRenderType("overgrown_vegetation_liana_droop_light", DROOP_LIGHT_TEXTURE, CANOPY_LIT_SHADER);
+    private static final RenderType TRIM_RENDER_TYPE =
+            createRenderType("overgrown_vegetation_liana_trim", TRIM_TEXTURE, CANOPY_LIT_SHADER);
 
     /**
      * 分割点(0..{@link #SEGMENTS})ごとのパック済み光量を使い回す再利用可能なスクラッチ配列。
@@ -197,7 +225,28 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     private record CurveGeometryCache(float sx, float sy, float sz, float px, float pz, float dirX, float dirZ,
             float[] x, float[] y, float[] z, float[] length,
             BlockPos sourceLightPos, BlockPos targetLightPos,
-            int[] droopIndices, float[] droopLengths, boolean[] droopIsLight) {
+            int[] droopIndices, float[] droopLengths, boolean[] droopIsLight, float[] swayWeight,
+            int[] trimIndices, int[] trimKinds) {
+    }
+
+    /**
+     * 風で揺れる大きさの倍率(葉の揺れ {@link LeafSway#displacement} の何倍か)。長い縄は葉より大きく揺れる(最大 0.2 ブロックほど)。
+     * 描画範囲の箱は 0.5 ブロック広げてあるので、垂れ蔦の先と合わせてもそれを超えない。仮決め。
+     */
+    private static final float ROPE_SWAY = 2.0F;
+    /** 垂れ蔦の先の揺れが、ぶら下がっている縄の点の揺れ(水平)の何倍か(先ほど大きく振れる)。仮決め。 */
+    private static final float DROOP_SWAY = 1.6F;
+    /** 幹に刺さった端から、揺れが全開になるまでの縄の長さ(ブロック。幹の中の 0.5 ブロックは止めておく)。 */
+    private static final float PINNED_RAMP = 2.5F;
+    /** 分割点ごとの今のフレームの揺れ(ブロック)。描画のスレッドだけが使う。 */
+    private static final float[] SWAY_X = new float[SEGMENTS + 1];
+    private static final float[] SWAY_Y = new float[SEGMENTS + 1];
+    private static final float[] SWAY_Z = new float[SEGMENTS + 1];
+    private static final double[] SWAY_TMP = new double[3];
+
+    /** なめらかな 0 → 1(前は林冠の光 CanopyLight の同じ式を借りていた。2026-10-30 に林冠の光を parked/ へ退避したのでここへ)。 */
+    private static float smooth(float t) {
+        return t * t * (3.0F - 2.0F * t);
     }
 
     public CorruptedLianaRenderer() {
@@ -208,7 +257,12 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      * 半透明合成({@code TRANSLUCENT_TRANSPARENCY})にしてあるので、テクスチャの縁を
      * 完全な不透明(アルファ0/255の2値)にする必要はなく、葉のような柔らかい輪郭も使える。
      */
-    private static RenderType createRenderType(String name, ResourceLocation texture) {
+    static RenderType createRenderType(String name, ResourceLocation texture) {
+        return createRenderType(name, texture, RenderStateShard.RENDERTYPE_TEXT_SHADER);
+    }
+
+    /** シェーダーを選べる版(登る蔓が林冠の光のシェーダー {@code liana_canopy_lit} で使う。2026-11-05 光の点検 6)。 */
+    static RenderType createRenderType(String name, ResourceLocation texture, RenderStateShard.ShaderStateShard shader) {
         return RenderType.create(
                 name,
                 DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP,
@@ -217,13 +271,71 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
                 false,
                 false,
                 RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.RENDERTYPE_TEXT_SHADER)
+                        .setShaderState(shader)
                         .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
                         .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                         .setLightmapState(RenderStateShard.LIGHTMAP)
                         .setCullState(RenderStateShard.NO_CULL)
                         .createCompositeState(false)
         );
+    }
+
+    /**
+     * 蔦の 3 つの RenderType を<b>専用のバッファ</b>にする(MOD バス・クライアント)。
+     *
+     * <p>2026-09-24 軽量化(監査 457): この 3 つはバニラの固定バッファに入っていないので、共有バッファを
+     * 取り合って、蔦 1 本ごとに(主リボン → 垂れ蔦 → 発光する垂れ蔦 と切り替わるたびに)描画命令が確定していた。
+     * 専用のバッファにすると、見えている蔦を全部積んでから {@link AfterBlockEntities} で 3 回だけ描く。
+     *
+     * <p>見た目が変わらない理由: 3 枚のテクスチャはアルファが 0 か 255 だけ(頂点のアルファも 1)で、
+     * 0 の画素はシェーダーが捨て、残りは深度も書く不透明な画素になるので、蔦どうし・他の不透明なものとの
+     * 前後は描く順番に関係なく深度で決まる。確定させる段階はブロックエンティティの直後(水・色ガラスなど
+     * 半透明の地形より前)で、今までと同じ層に描かれる。将来テクスチャに中間のアルファを塗った場合も、
+     * 変わるのは「手前の蔦の垂れ蔦が奥の蔦の主リボンより後に描かれる」ことだけで、重なりは今より正しくなる側。
+     */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static final class FixedBuffers {
+
+        @SubscribeEvent
+        public static void onRegisterRenderBuffers(RegisterRenderBuffersEvent event) {
+            event.registerRenderBuffer(MAIN_RENDER_TYPE);
+            event.registerRenderBuffer(DROOP_RENDER_TYPE);
+            event.registerRenderBuffer(DROOP_LIGHT_RENDER_TYPE);
+            event.registerRenderBuffer(TRIM_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.BODY_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.TRIM_RENDER_TYPE);
+            event.registerRenderBuffer(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
+        }
+
+        private FixedBuffers() {
+        }
+    }
+
+    /**
+     * {@link FixedBuffers} に積んだ蔦を、ブロックエンティティを描き終えた段階で描く(ゲームバス・クライアント)。
+     * これをしないとレベル描画の最後の {@code endBatch()} まで持ち越され、半透明の地形より後に描かれて
+     * 水やガラス越しの蔦の見え方が変わる。
+     */
+    @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+    public static final class AfterBlockEntities {
+
+        @SubscribeEvent
+        public static void onRenderLevelStage(RenderLevelStageEvent event) {
+            if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
+                return;
+            }
+            MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+            bufferSource.endBatch(MAIN_RENDER_TYPE);
+            bufferSource.endBatch(DROOP_RENDER_TYPE);
+            bufferSource.endBatch(DROOP_LIGHT_RENDER_TYPE);
+            bufferSource.endBatch(TRIM_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.BODY_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.TRIM_RENDER_TYPE);
+            bufferSource.endBatch(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
+        }
+
+        private AfterBlockEntities() {
+        }
     }
 
     /**
@@ -235,6 +347,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      */
     @Override
     public AABB getRenderBoundingBox(CorruptedLianaBlockEntity blockEntity) {
+        if (blockEntity.hasClimb()) {
+            return ClimbingVineRenderer.box(blockEntity); // 登る蔓(2026-11-03 試作)
+        }
         AABB cached = blockEntity.getRenderBoxCache();
         if (cached != null) {
             return cached;
@@ -248,8 +363,14 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             BlockPos sourcePos = blockEntity.getSourcePos();
             BlockPos targetPos = blockEntity.getTargetPos();
             if (sourcePos == null || targetPos == null) {
-                // 未同期の一瞬。この状態はキャッシュしない(同期が届いたら本来の範囲を計算する)。
-                return new AABB(blockEntity.getBlockPos());
+                AABB anchorBox = new AABB(blockEntity.getBlockPos());
+                if (blockEntity.getPrimaryPos() != null) {
+                    // 副アンカーは始点・終点を恒久的に持たない(同期待ちではない)ので 1x1x1 を使い回す。
+                    // 同期が届けば loadAdditional が renderBoxCache を捨てる。
+                    blockEntity.setRenderBoxCache(anchorBox);
+                }
+                // 主アンカーの未同期の一瞬は、これまでどおりキャッシュしない(同期が届いたら本来の範囲を計算する)。
+                return anchorBox;
             }
             source = Vec3.atLowerCornerOf(sourcePos);
             target = Vec3.atLowerCornerOf(targetPos).add(1.0, 1.0, 1.0);
@@ -287,12 +408,24 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         double dx = Math.max(0.0, Math.max(box.minX - cameraPos.x, cameraPos.x - box.maxX));
         double dy = Math.max(0.0, Math.max(box.minY - cameraPos.y, cameraPos.y - box.maxY));
         double dz = Math.max(0.0, Math.max(box.minZ - cameraPos.z, cameraPos.z - box.maxZ));
-        return dx * dx + dy * dy + dz * dz <= (double) VIEW_DISTANCE * VIEW_DISTANCE;
+        // 距離の判定の後ろに足した条件は、render() が何も描かずに return する条件(ジオメトリキャッシュ無し
+        // かつ buildGeometryCache が null を返す)の否定そのもの。何も描かないなら tryRender / getLightColor /
+        // render 呼び出しごと省く(副アンカーは毎フレームここで落ちる)。
+        // 林冠の細い蔓は 20 ブロックまで(ClimbingVineRenderer#CANOPY_VIEW_DISTANCE)
+        double limit = blockEntity.isClimbCanopy() ? ClimbingVineRenderer.CANOPY_VIEW_DISTANCE : VIEW_DISTANCE;
+        return dx * dx + dy * dy + dz * dz <= limit * limit
+                && (blockEntity.hasSwag()
+                        || (blockEntity.getSourcePos() != null && blockEntity.getTargetPos() != null)
+                        || GEOMETRY_CACHE.containsKey(blockEntity));
     }
 
     @Override
     public void render(CorruptedLianaBlockEntity blockEntity, float partialTick, PoseStack poseStack,
             MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+        if (blockEntity.hasClimb()) {
+            ClimbingVineRenderer.render(blockEntity, partialTick, poseStack, bufferSource); // 登る蔓(2026-11-03 試作)
+            return;
+        }
         Level level = blockEntity.getLevel();
         if (level == null) {
             return;
@@ -320,6 +453,36 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         int targetSkyLight = level.getBrightness(LightLayer.SKY, cache.targetLightPos());
         for (int i = 0; i <= SEGMENTS; i++) {
             SCRATCH_LIGHT[i] = lightAt(i, sourceBlockLight, targetBlockLight, sourceSkyLight, targetSkyLight);
+        }
+
+        // 風の揺れ(2026-10-16、ユーザー「垂れ苔と太い蔦も揺れるように」。2026-10-30 夜 第 2 段「動き」で戻した)。葉・草と同じ風で、
+        // 風の音が鳴っている間だけ({@link LeafSway#amount})。揺れは世界の位置だけで決まるので、親の蔦の上に端を置いたぶら下がり蔦も
+        // 親と一緒に動き、離れない。幹に刺さった端の近くだけ動きを抑える(swayWeight)。凪では何も計算しない。
+        float swayAmount = LeafSway.amount(partialTick);
+        float[] weights = cache.swayWeight();
+        if (swayAmount > 0.0F) {
+            BlockPos self = blockEntity.getBlockPos();
+            double ox = self.getX() + cache.sx();
+            double oy = self.getY() + cache.sy();
+            double oz = self.getZ() + cache.sz();
+            double time = Atmosphere.time(partialTick);
+            for (int i = 0; i <= SEGMENTS; i++) {
+                if (weights[i] <= 0.0F) {
+                    SWAY_X[i] = 0.0F;
+                    SWAY_Y[i] = 0.0F;
+                    SWAY_Z[i] = 0.0F;
+                    continue;
+                }
+                LeafSway.displacement(ox + cache.x()[i], oy + cache.y()[i], oz + cache.z()[i], time, swayAmount, SWAY_TMP);
+                float k = ROPE_SWAY * weights[i];
+                SWAY_X[i] = (float) SWAY_TMP[0] * k;
+                SWAY_Y[i] = (float) SWAY_TMP[1] * k;
+                SWAY_Z[i] = (float) SWAY_TMP[2] * k;
+            }
+        } else {
+            java.util.Arrays.fill(SWAY_X, 0.0F);
+            java.util.Arrays.fill(SWAY_Y, 0.0F);
+            java.util.Arrays.fill(SWAY_Z, 0.0F);
         }
 
         poseStack.pushPose();
@@ -353,10 +516,41 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         // (生成時に1回だけ組む)ではなくブロックエンティティから毎フレーム読み直す。分割点の座標・
         // 長さ・生える位置は変わらないのでキャッシュのままでよい。
         boolean[] droopIsLight = blockEntity.getDroopIsLight();
+        // 2026-09-24 軽量化(監査 457): 発光と非発光が交互に並ぶと、そのたびに共有バッファが確定して
+        // 描画命令が増えていた。1 周目で発光しないものを全部、2 周目で発光するものを全部描く
+        // (1 本あたりの切り替えは 主リボン → 非発光 → 発光 の最大 2 回)。上の注意どおり、2 周目の
+        // getBuffer で 1 周目のバッファは閉じるが、そのあと 1 周目のバッファへは書かない。
+        // (その後 3 つとも専用のバッファにした({@link FixedBuffers})ので今は閉じないが、専用のバッファが
+        // 登録されていない環境でも壊れないよう、この書き方のまま残す。)
+        // 変わるのは同じ蔦の垂れ蔦どうしの描く順番だけで、垂れ蔦は経路上の別々の位置に垂れていて交わらず、
+        // テクスチャのアルファも 0 か 255 だけ(深度で前後が決まる)なので、見た目は同じ。
+        VertexConsumer droopBuffer = null;
         for (int i = 0; i < droopIndices.length; i++) {
-            boolean lit = i < droopIsLight.length && droopIsLight[i];
-            VertexConsumer buffer = bufferSource.getBuffer(lit ? DROOP_LIGHT_RENDER_TYPE : DROOP_RENDER_TYPE);
-            addDroopingTendril(buffer, pose, cache, droopIndices[i], droopLengths[i]);
+            if (i < droopIsLight.length && droopIsLight[i]) {
+                continue;
+            }
+            if (droopBuffer == null) {
+                droopBuffer = bufferSource.getBuffer(DROOP_RENDER_TYPE);
+            }
+            addDroopingTendril(droopBuffer, pose, cache, droopIndices[i], droopLengths[i]);
+        }
+        VertexConsumer droopLightBuffer = null;
+        for (int i = 0; i < droopIndices.length; i++) {
+            if (!(i < droopIsLight.length && droopIsLight[i])) {
+                continue;
+            }
+            if (droopLightBuffer == null) {
+                droopLightBuffer = bufferSource.getBuffer(DROOP_LIGHT_RENDER_TYPE);
+            }
+            addDroopingTendril(droopLightBuffer, pose, cache, droopIndices[i], droopLengths[i]);
+        }
+
+        // 節の葉と莢(2026-11-01)。垂れ蔦の後に別のバッファで。
+        if (cache.trimIndices().length > 0) {
+            VertexConsumer trimBuffer = bufferSource.getBuffer(TRIM_RENDER_TYPE);
+            for (int i = 0; i < cache.trimIndices().length; i++) {
+                addTrim(trimBuffer, pose, cache, cache.trimIndices()[i], cache.trimKinds()[i], i);
+            }
         }
 
         poseStack.popPose();
@@ -480,9 +674,28 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         // 垂れ蔦(どの分割点に、どんな長さで、発光する見た目かどうか)は、サーバー側の
         // TreeVineConnector#placeDroops が生成時に既に決定し、ブロックエンティティに同期済み
         // ——ここでは配列をそのまま読むだけ(クラスの Javadoc「発光する垂れ蔦」参照)。
+        // 風の揺れの重み: 幹(不透明なブロック)に刺さった端から PINNED_RAMP ブロックかけて 0 → 1。
+        // ぶら下がり蔦・ほかの蔦の上に端を置いた蔦の端は止めない(親の蔦と同じ揺れの場で一緒に動く)。
+        Level level = blockEntity.getLevel();
+        boolean sourcePinned = !hasSwag && level != null && level.getBlockState(blockEntity.getSourcePos()).canOcclude();
+        boolean targetPinned = !hasSwag && level != null && level.getBlockState(blockEntity.getTargetPos()).canOcclude();
+        float total = length[SEGMENTS];
+        float[] swayWeight = new float[SEGMENTS + 1];
+        for (int i = 0; i <= SEGMENTS; i++) {
+            float w = 1.0F;
+            if (sourcePinned) {
+                w *= smooth(Mth.clamp((length[i] - 0.5F) / PINNED_RAMP, 0.0F, 1.0F));
+            }
+            if (targetPinned) {
+                w *= smooth(Mth.clamp((total - length[i] - 0.5F) / PINNED_RAMP, 0.0F, 1.0F));
+            }
+            swayWeight[i] = w;
+        }
+        int[][] trims = pickTrims(blockEntity);
         return new CurveGeometryCache(sx, sy, sz, px, pz, dirX, dirZ, x, y, z, length,
                 sourceLightPos, targetLightPos,
-                blockEntity.getDroopIndices(), blockEntity.getDroopLengths(), blockEntity.getDroopIsLight());
+                blockEntity.getDroopIndices(), blockEntity.getDroopLengths(), blockEntity.getDroopIsLight(), swayWeight,
+                trims[0], trims[1]);
     }
 
     /**
@@ -513,12 +726,13 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     private static void addRibbonSegment(VertexConsumer buffer, Matrix4f pose, CurveGeometryCache cache, int index) {
         float px = cache.px();
         float pz = cache.pz();
-        float p0x = cache.x()[index];
-        float p0y = cache.y()[index];
-        float p0z = cache.z()[index];
-        float p1x = cache.x()[index + 1];
-        float p1y = cache.y()[index + 1];
-        float p1z = cache.z()[index + 1];
+        // 風の揺れ(凪では 0)を足す。キャッシュの座標は書き換えない。
+        float p0x = cache.x()[index] + SWAY_X[index];
+        float p0y = cache.y()[index] + SWAY_Y[index];
+        float p0z = cache.z()[index] + SWAY_Z[index];
+        float p1x = cache.x()[index + 1] + SWAY_X[index + 1];
+        float p1y = cache.y()[index + 1] + SWAY_Y[index + 1];
+        float p1z = cache.z()[index + 1] + SWAY_Z[index + 1];
         float v0 = cache.length()[index] / TILE_LENGTH;
         float v1 = cache.length()[index + 1] / TILE_LENGTH;
         int light0 = SCRATCH_LIGHT[index];
@@ -564,12 +778,15 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             int index, float length) {
         // 分割点の座標は buildGeometryCache が計算済みの cache から読むだけ、光量だけは
         // render が毎フレーム書き直す SCRATCH_LIGHT から読む(クラスのJavadoc「軽量化」参照)。
-        float ox = cache.x()[index];
+        float ox = cache.x()[index] + SWAY_X[index];
         // 主リボンの下端(中心線)からではなく、そこから少し持ち上げた位置を起点にする
         // ({@link #DROOP_ORIGIN_LIFT} 参照)。始点・終点も超えて浮かないよう安全側にクランプはしない
         // ——垂れ蔦は経路の中間の候補地点にしか生えない({@link #render} 参照)ため、通常は問題にならない。
-        float oy = cache.y()[index] + DROOP_ORIGIN_LIFT;
-        float oz = cache.z()[index];
+        float oy = cache.y()[index] + DROOP_ORIGIN_LIFT + SWAY_Y[index];
+        float oz = cache.z()[index] + SWAY_Z[index];
+        // 先はぶら下がっている点より大きく振れる(風の揺れ。凪では 0)。
+        float tipX = SWAY_X[index] * (DROOP_SWAY - 1.0F);
+        float tipZ = SWAY_Z[index] * (DROOP_SWAY - 1.0F);
         int light = SCRATCH_LIGHT[index];
         // 幅を長さと同じにする(テクスチャが正方形なので、面も正方形にすれば歪まない)。
         float half = length / 2.0F;
@@ -581,8 +798,76 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
         addQuad(buffer, pose,
                 ox - px, oy, oz - pz, 0.0F, 0.0F, light,
                 ox + px, oy, oz + pz, 1.0F, 0.0F, light,
-                ox + px, oy - length, oz + pz, 1.0F, bottomV, light,
-                ox - px, oy - length, oz - pz, 0.0F, bottomV, light);
+                ox + px + tipX, oy - length, oz + pz + tipZ, 1.0F, bottomV, light,
+                ox - px + tipX, oy - length, oz - pz + tipZ, 0.0F, bottomV, light);
+    }
+
+    /** 節の葉の数(1 本に 3〜5 枚)・莢の房の数(0〜2)。下絵の配置の図の目安(仮決め)。 */
+    private static final int TRIM_LEAVES_MIN = 3;
+    private static final int TRIM_LEAVES_MAX = 5;
+    private static final int TRIM_PODS_MAX = 2;
+    /** 節の葉・莢の板の大きさ(ブロック。正方形の絵を 1 回だけ)。 */
+    private static final float TRIM_LEAF_SIZE = 0.45F;
+    private static final float TRIM_POD_SIZE = 0.5F;
+
+    /**
+     * 節の葉と莢を吊る分割点と種類(0 = 節の葉、1 = 莢 a 若い、2 = 莢 b 熟した)を、ブロックの位置から決める(毎回同じ。同期しない)。
+     * 端の 2 点と垂れ蔦の分割点は避け、互いに 2 点以上離す。
+     */
+    private static int[][] pickTrims(CorruptedLianaBlockEntity blockEntity) {
+        net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(blockEntity.getBlockPos().asLong() * 0x9E3779B97F4A7C15L + 0x51ED);
+        int leaves = TRIM_LEAVES_MIN + random.nextInt(TRIM_LEAVES_MAX - TRIM_LEAVES_MIN + 1);
+        int pods = random.nextInt(TRIM_PODS_MAX + 1);
+        boolean[] used = new boolean[SEGMENTS + 1];
+        for (int d : blockEntity.getDroopIndices()) {
+            if (d >= 0 && d <= SEGMENTS) {
+                used[d] = true;
+            }
+        }
+        int[] indices = new int[leaves + pods];
+        int[] kinds = new int[leaves + pods];
+        int n = 0;
+        for (int k = 0; k < leaves + pods; k++) {
+            for (int tries = 0; tries < 12; tries++) {
+                int i = 2 + random.nextInt(SEGMENTS - 3);
+                if (used[i] || used[i - 1] || used[i + 1]) {
+                    continue;
+                }
+                used[i] = true;
+                indices[n] = i;
+                kinds[n] = k < leaves ? 0 : (random.nextBoolean() ? 1 : 2);
+                n++;
+                break;
+            }
+        }
+        return new int[][]{java.util.Arrays.copyOf(indices, n), java.util.Arrays.copyOf(kinds, n)};
+    }
+
+    /**
+     * 分割点 {@code index} から節の葉か莢を 1 枚吊る(垂れ蔦と同じく、上の辺を縄に付けて下へ垂らす正方形の板)。
+     * 葉は 1 枚おきに縄と直交する向きにして、どの向きから見ても何枚かは面で見えるようにする。先は風で縄より大きく振れる。
+     */
+    private static void addTrim(VertexConsumer buffer, Matrix4f pose, CurveGeometryCache cache, int index, int kind, int order) {
+        float size = kind == 0 ? TRIM_LEAF_SIZE : TRIM_POD_SIZE;
+        float ox = cache.x()[index] + SWAY_X[index];
+        float oy = cache.y()[index] + DROOP_ORIGIN_LIFT * 0.6F + SWAY_Y[index];
+        float oz = cache.z()[index] + SWAY_Z[index];
+        float tipX = SWAY_X[index] * (DROOP_SWAY - 1.0F);
+        float tipZ = SWAY_Z[index] * (DROOP_SWAY - 1.0F);
+        int light = SCRATCH_LIGHT[index];
+        float half = size / 2.0F;
+        boolean across = kind == 0 && order % 2 == 1;
+        float wx = across ? cache.px() / (WIDTH / 2.0F) : cache.dirX();
+        float wz = across ? cache.pz() / (WIDTH / 2.0F) : cache.dirZ();
+        float px = wx * half;
+        float pz = wz * half;
+        float u0 = kind / 3.0F;
+        float u1 = (kind + 1) / 3.0F;
+        addQuad(buffer, pose,
+                ox - px, oy, oz - pz, u0, 0.0F, light,
+                ox + px, oy, oz + pz, u1, 0.0F, light,
+                ox + px + tipX, oy - size, oz + pz + tipZ, u1, 1.0F, light,
+                ox - px + tipX, oy - size, oz - pz + tipZ, u0, 1.0F, light);
     }
 
     /** 4頂点(それぞれ座標・UV・パック済み光量)から、白色(=テクスチャの色をそのまま出す)の四角形を1枚積む。 */

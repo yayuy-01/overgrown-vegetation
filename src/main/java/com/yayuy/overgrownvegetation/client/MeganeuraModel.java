@@ -2,38 +2,40 @@ package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.entity.MeganeuraEntity;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.model.GeoModel;
 
-public class MeganeuraModel extends LodGeoModel<MeganeuraEntity> {
+/**
+ * 「メガネウラ」のモデル。正本は Blockbench の {@code デスクトップ\blockbench\mobs\meganeura.bbmodel}(9 月製の形のまま、絵は 11-16 に MOD の色へ塗り直し)。
+ * geo・アニメ・絵は 11-16 に正本から書き出した({@code tools/g5-models/g1/BbExport}。退避前の geo とは UV と絵の大きさ 64×32 だけが違う)。
+ * 体の傾き・機首の上下は骨ではなく描画({@link MeganeuraRenderer})で全体を回す。
+ */
+public class MeganeuraModel extends GeoModel<MeganeuraEntity> {
+
+    private static final ResourceLocation MODEL = OvergrownVegetation.id("geo/meganeura.geo.json");
+    private static final ResourceLocation TEXTURE = OvergrownVegetation.id("textures/entity/meganeura.png");
+    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/meganeura.animation.json");
 
     @Override
     public ResourceLocation getModelResource(MeganeuraEntity animatable) {
-        return OvergrownVegetation.id("geo/meganeura.geo.json");
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureResource(MeganeuraEntity animatable) {
-        return MobVariantTextures.of(animatable, "meganeura"); // 亜種は接尾辞付きの png(2026-09-19)
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationResource(MeganeuraEntity animatable) {
-        return OvergrownVegetation.id("animations/meganeura.animation.json");
+        return ANIMATION;
     }
 
     /**
-     * 羽を半透明で描くための描画タイプ。
-     *
-     * <p>GeckoLib の既定は {@code RenderType.entityCutoutNoCull} で、これはアルファを
-     * 「抜くか抜かないか」でしか扱えない(閾値以上は全部不透明)ため、テクスチャの羽の部分に
-     * 半端なアルファ(α=135 / 199)を塗っても真っ白に潰れて不透明になってしまう。
-     * {@code entityTranslucent} に変えるとアルファがそのままブレンドされる。
-     * {@code entityTranslucent} は背面カリングもしないので、厚さ0の羽ポリゴンは裏からも見える。
+     * 翅を半透明に描く(9 月製と同じ。GeckoLib の既定は切り抜きで、半透明の画素が透けない)。11-18 ユーザーの指摘「翅が不透明になっている」。
      */
     @Override
-    public RenderType getRenderType(MeganeuraEntity animatable, ResourceLocation texture) {
-        return RenderType.entityTranslucent(texture);
+    public net.minecraft.client.renderer.RenderType getRenderType(MeganeuraEntity animatable, ResourceLocation texture) {
+        return net.minecraft.client.renderer.RenderType.entityTranslucent(texture);
     }
 }

@@ -1,9 +1,11 @@
 package com.yayuy.overgrownvegetation.block;
 
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.mixin.LevelChunkTickerInvoker;
 import com.yayuy.overgrownvegetation.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.protocol.Packet;
@@ -17,6 +19,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -134,6 +137,24 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
      * ここに含まれる座標のブロックも一緒に取り除く。
      */
     private List<BlockPos> lightBlockPositions = List.of();
+    /**
+     * 登る蔓(2026-11-03 試作、設定 vineClimb)の経路。点ごとに {@link #CLIMB_STRIDE} 個の float
+     * (x, y, z = この印のマスの角からの相対座標、nx, nz = 幹の外向きの水平の向き)。空なら今までの蔦。
+     * 片端(添字 0)は地面か幹の根元。計算は {@code worldgen.ClimbingVine}、描くのは {@code client.ClimbingVineRenderer}。
+     */
+    private float[] climbPath = new float[0];
+    /** 登る蔓のうち、隣の木へ渡る(揺れる)区間の点の添字 [start, end]。渡らない蔓は -1。 */
+    private int climbBridgeStart = -1;
+    private int climbBridgeEnd = -1;
+    /** 登る蔓の太さの倍率(1 = 本体、束に添う細い蔓・垂れる綱は小さく)。 */
+    private float climbScale = 1.0F;
+    /** 垂れる綱なら、上の端の揺れの重み(渡りから垂れるなら渡りと同じ、林冠からなら 0)。垂れる綱でなければ -1。 */
+    private float climbHangTop = -1.0F;
+    /** 蔓の種類の印。bit0 = 本体、bit1 = 林冠の細い蔓(2026-11-03 4 回目の試作)。-1 = 2 回目までの印(太さ 0.6 以上を本体とみなす)。 */
+    private int climbFlags = -1;
+    public static final int CLIMB_MAIN = 1;
+    public static final int CLIMB_CANOPY = 2;
+    public static final int CLIMB_STRIDE = 5;
 
     public CorruptedLianaBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.OVERGROWN_LIANA.get(), pos, state);
@@ -192,6 +213,19 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     @Nullable
     private AABB renderBoxCache;
 
+    /** 主アンカーの狙いの箱(CorruptedLianaBlock#getShape が経路から求める。2026-11-08)。経路が変わる setClimb と loadAdditional で捨てる。保存しない。 */
+    @Nullable
+    private net.minecraft.world.phys.shapes.VoxelShape shapeCache;
+
+    @Nullable
+    public net.minecraft.world.phys.shapes.VoxelShape getShapeCache() {
+        return shapeCache;
+    }
+
+    public void setShapeCache(@Nullable net.minecraft.world.phys.shapes.VoxelShape shape) {
+        this.shapeCache = shape;
+    }
+
     @Nullable
     public AABB getRenderBoxCache() {
         return renderBoxCache;
@@ -214,6 +248,73 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         this.swagStart = swagStart;
         this.swagEnd = swagEnd;
         this.renderBoxCache = null;
+        syncToClient();
+    }
+
+    public boolean hasClimb() {
+        return climbPath.length >= CLIMB_STRIDE * 2;
+    }
+
+    public float[] getClimbPath() {
+        return climbPath;
+    }
+
+    public int getClimbBridgeStart() {
+        return climbBridgeStart;
+    }
+
+    public int getClimbBridgeEnd() {
+        return climbBridgeEnd;
+    }
+
+    public float getClimbScale() {
+        return climbScale;
+    }
+
+    public float getClimbHangTop() {
+        return climbHangTop;
+    }
+
+    public int getClimbFlags() {
+        return climbFlags;
+    }
+
+    /** 本体の蔓か(束に添う細い蔓・垂れる綱でない)。 */
+    public boolean isClimbMain() {
+        return climbFlags >= 0 ? (climbFlags & CLIMB_MAIN) != 0 : climbScale >= 0.6F && climbHangTop < 0.0F;
+    }
+
+    /** 林冠の細い蔓か(葉だけを付け、苔の房は付けない)。 */
+    public boolean isClimbCanopy() {
+        return climbFlags >= 0 && (climbFlags & CLIMB_CANOPY) != 0;
+    }
+
+    public boolean isClimbHanging() {
+        return climbHangTop >= 0.0F;
+    }
+
+    /** 太さの倍率と垂れる綱かどうか({@link #setClimb} の前に呼ぶ。同期は setClimb が出す)。 */
+    public void setClimbStyle(float scale, float hangTop, int flags) {
+        this.climbScale = scale;
+        this.climbHangTop = hangTop;
+        this.climbFlags = flags;
+    }
+
+    /**
+     * 登る蔓にする。{@code source} は登り始めた幹の根元の原木、{@code target} は最後に貼り付いた幹の原木
+     * (木を倒したときの片付け {@code SwampTreeFall} が両端の原木を見るので、今までの蔦と同じ意味で持たせる)。
+     */
+    public void setClimb(float[] path, int bridgeStart, int bridgeEnd, BlockPos source, BlockPos target) {
+        this.climbPath = path.clone();
+        this.climbBridgeStart = bridgeStart;
+        this.climbBridgeEnd = bridgeEnd;
+        this.sourcePos = source;
+        this.targetPos = target;
+        this.sag = 0.0F;
+        this.swagStart = null;
+        this.swagEnd = null;
+        this.renderBoxCache = null;
+        this.shapeCache = null;
         syncToClient();
     }
 
@@ -325,11 +426,26 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
     private static final int DROOP_SEGMENTS = 24;
 
     /**
+     * {@link #detachTicker} でティッカーを外したかどうか。外したあとで主アンカーに変わったときに
+     * {@link #loadAdditional} が付け直すための目印。サーバー側だけのフィールドで、保存はしない
+     * (チャンクを読み込み直すとバニラが {@code getTicker} から付け直し、この目印も新しいインスタンスで false に戻る)。
+     */
+    private boolean tickerDetached;
+
+    /**
      * 主アンカーのサーバーティック。{@link com.yayuy.overgrownvegetation.block.CorruptedLianaBlock#getTicker}
      * から呼ばれる。副アンカー・垂れ蔦を1本も持たない蔦では即座に何もしない。
+     * 副アンカーは最初の 1 tick で自分のティッカーを外す({@link #detachTicker})。
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, CorruptedLianaBlockEntity be) {
+        if (be.primaryPos == null && !be.segmentsPlaced && be.climbPath.length > 0 && level instanceof ServerLevel serverLevel
+                && Math.floorMod(level.getGameTime() + pos.hashCode(), SEGMENT_RETROFIT_SPREAD) == 0) {
+            be.retrofitSegments(serverLevel);
+        }
         if (be.primaryPos != null || be.droopIndices.length == 0) {
+            if (be.primaryPos != null) {
+                be.detachTicker(level);
+            }
             return;
         }
         int interval = OvergrownVegetationConfig.COMMON.vineFruitRipenIntervalTicks.get();
@@ -347,6 +463,66 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         }
         if (level instanceof ServerLevel serverLevel) {
             be.ripenRandomDroop(serverLevel, level.getRandom());
+        }
+    }
+
+    /** 狙いのマスを後から足す処理を、読み込んだ蔦ごとにこの tick 数の中でばらす。 */
+    private static final int SEGMENT_RETROFIT_SPREAD = 20;
+
+    /**
+     * 狙いのマス({@link LianaSegmentBlock})をもう置いたか(2026-11-08)。11-08 より前に生えた登る蔓には無いので、
+     * 読み込んだ後の最初の数 tick で経路をたどって 1 回だけ置く({@link #retrofitSegments})。新しく生やした蔓は生やしたときに置いて true。
+     */
+    private boolean segmentsPlaced;
+
+    public void markSegmentsPlaced() {
+        this.segmentsPlaced = true;
+        setChanged();
+    }
+
+    /** 前からある登る蔓に、経路の空気のマスへ狙いのマスを置く(1 回だけ。読み込まれていないチャンクのマスは飛ばす)。 */
+    private void retrofitSegments(ServerLevel level) {
+        int stride = CLIMB_STRIDE;
+        List<double[]> pts = new ArrayList<>(climbPath.length / stride);
+        for (int o = 0; o + 2 < climbPath.length; o += stride) {
+            pts.add(new double[]{worldPosition.getX() + climbPath[o], worldPosition.getY() + climbPath[o + 1],
+                    worldPosition.getZ() + climbPath[o + 2]});
+        }
+        double radius = climbScale * com.yayuy.overgrownvegetation.worldgen.ClimbingVine.RADIUS_ROOT + 0.04D;
+        List<BlockPos> placed = LianaSegmentBlock.placeAlong(level, worldPosition, pts, radius, Block.UPDATE_CLIENTS);
+        if (!placed.isEmpty()) {
+            List<BlockPos> all = new ArrayList<>(secondaryPositions);
+            all.addAll(placed);
+            secondaryPositions = List.copyOf(all);
+        }
+        segmentsPlaced = true;
+        setChanged();
+    }
+
+    /**
+     * 副アンカーのティッカーを外し、以後このブロックエンティティを毎 tick 回さないようにする(2026-09-24、軽量化)。
+     *
+     * <p>{@code getTicker} はブロックの状態しか見られないので主アンカーと副アンカーを見分けられず、
+     * 蔦のブロックエンティティの 9 割を占める副アンカーまで毎 tick 回っては {@link #serverTick} の先頭で
+     * return していた。副アンカーの {@link #primaryPos} が null に戻る道は NBT の読み直ししか無い
+     * ({@link #setPrimaryPos} は生成時に非 null で 1 回呼ばれるだけ)ので、最初の 1 tick でバニラの
+     * 「ティッカーを持たないブロックエンティティ」と同じ扱いに移す({@code LevelChunk#removeBlockEntityTicker}。
+     * 包みが {@code NULL_TICKER} に差し替わり、次の周回で {@code Level#tickBlockEntities} がリストから外す)。
+     * 外すのはサーバーのティッカーだけで、ブロックエンティティ・保存内容・同期・描画・切断は何も変わらない。
+     *
+     * <ul>
+     *     <li>チャンクを読み込み直すとバニラが {@code getTicker} から付け直し、また最初の 1 tick で外れる。</li>
+     *     <li>垂れ蔦の無い主アンカーは外さない(今までどおり回しておく)。</li>
+     *     <li>外したあとで主アンカーに変わった(/data などで "Primary" を消した)ときは {@link #loadAdditional} が付け直す。</li>
+     * </ul>
+     */
+    private void detachTicker(Level level) {
+        // getChunkAt ではなく getChunkNow: tick 中のチャンクは必ず読み込み済みで、チケットを足す副作用も無い。
+        LevelChunk chunk = level.getChunkSource().getChunkNow(
+                SectionPos.blockToSectionCoord(worldPosition.getX()), SectionPos.blockToSectionCoord(worldPosition.getZ()));
+        if (chunk != null) {
+            ((LevelChunkTickerInvoker) chunk).overgrown_vegetation$removeBlockEntityTicker(worldPosition);
+            tickerDetached = true;
         }
     }
 
@@ -377,7 +553,7 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
 
         int lightLevel = OvergrownVegetationConfig.COMMON.vineDroopLightLevel.get();
         BlockPos lightPos = droopLightPos(index);
-        if (lightLevel > 0 && lightPos != null && level.isLoaded(lightPos)) {
+        if (lightLevel > 0 && lightPos != null && com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, lightPos)) {
             BlockState at = level.getBlockState(lightPos);
             if (at.isAir() || at.canBeReplaced()) {
                 level.setBlock(lightPos, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, lightLevel),
@@ -594,12 +770,28 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             }
             tag.putLongArray("LightBlocks", packed);
         }
+        if (climbPath.length > 0) {
+            int[] packedClimb = new int[climbPath.length];
+            for (int i = 0; i < packedClimb.length; i++) {
+                packedClimb[i] = Float.floatToIntBits(climbPath[i]);
+            }
+            tag.putIntArray("ClimbPath", packedClimb);
+            tag.putInt("ClimbBridgeStart", climbBridgeStart);
+            tag.putInt("ClimbBridgeEnd", climbBridgeEnd);
+            tag.putFloat("ClimbScale", climbScale);
+            tag.putFloat("ClimbHang", climbHangTop);
+            tag.putInt("ClimbFlags", climbFlags);
+            if (segmentsPlaced) {
+                tag.putBoolean("Segs", true);
+            }
+        }
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         renderBoxCache = null;
+        shapeCache = null;
         sourcePos = NbtUtils.readBlockPos(tag, "Source").orElse(null);
         targetPos = NbtUtils.readBlockPos(tag, "Target").orElse(null);
         sag = tag.getFloat("Sag");
@@ -627,6 +819,29 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
             droopIsLight[i] = packedIsLight[i] != 0;
         }
         lightBlockPositions = readPositionList(tag, "LightBlocks");
+        int[] packedClimb = tag.getIntArray("ClimbPath");
+        climbPath = new float[packedClimb.length];
+        for (int i = 0; i < packedClimb.length; i++) {
+            climbPath[i] = Float.intBitsToFloat(packedClimb[i]);
+        }
+        climbBridgeStart = tag.contains("ClimbBridgeStart") ? tag.getInt("ClimbBridgeStart") : -1;
+        climbBridgeEnd = tag.contains("ClimbBridgeEnd") ? tag.getInt("ClimbBridgeEnd") : -1;
+        climbScale = tag.contains("ClimbScale") ? tag.getFloat("ClimbScale") : 1.0F;
+        climbHangTop = tag.contains("ClimbHang") ? tag.getFloat("ClimbHang") : -1.0F;
+        climbFlags = tag.contains("ClimbFlags") ? tag.getInt("ClimbFlags") : -1;
+        segmentsPlaced = tag.getBoolean("Segs");
+
+        // detachTicker で外したティッカーを、主アンカーに変わったときだけ付け直す(元は付けっぱなしだったので、
+        // 元どおり熟成させる)。チャンク読み込み時は新しいインスタンス(tickerDetached=false・level 未設定)なので素通り。
+        // ここに来るのは /data などで副アンカーの "Primary" を消したときだけ。
+        if (tickerDetached && primaryPos == null && level instanceof ServerLevel serverLevel && !isRemoved()) {
+            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+                    SectionPos.blockToSectionCoord(worldPosition.getX()), SectionPos.blockToSectionCoord(worldPosition.getZ()));
+            if (chunk != null) {
+                ((LevelChunkTickerInvoker) chunk).overgrown_vegetation$updateBlockEntityTicker(this);
+                tickerDetached = false;
+            }
+        }
     }
 
     /** {@code key} の long 配列(座標ぶんパック済み)を {@link BlockPos} のリストへ復元する。 */
@@ -639,9 +854,23 @@ public class CorruptedLianaBlockEntity extends BlockEntity {
         return positions;
     }
 
+    /**
+     * クライアントへ送る分(チャンク送信と {@link #syncToClient})。
+     *
+     * <p>2026-09-24 軽量化(監査 1252): 副アンカー・親子・光源ブロックの座標一覧はサーバーだけが使う
+     * (切ったときの撤去 {@code CorruptedLianaBlock#cut}。クライアントでは早々に return する)ので送らない。
+     * 描画と右クリックの判定が読む Source / Target / Sag / Swag* / Primary / Droop* はそのまま送る。
+     * 保存と同じ形から 4 つを抜くだけにしてあるので、それ以外(NeoForge の付随データなど)は前と同じ。
+     * クライアントの {@link #loadAdditional} では抜いたキーが空の一覧になるだけ。
+     */
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return saveWithoutMetadata(registries);
+        CompoundTag tag = saveWithoutMetadata(registries);
+        tag.remove("Secondaries");
+        tag.remove("Parents");
+        tag.remove("Children");
+        tag.remove("LightBlocks");
+        return tag;
     }
 
     @Nullable

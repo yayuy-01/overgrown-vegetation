@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.registry;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.worldgen.ForcedTreeFeature;
-import com.yayuy.overgrownvegetation.worldgen.FungalPillarFeature;
 import com.yayuy.overgrownvegetation.worldgen.GiantTreeFeature;
 import com.yayuy.overgrownvegetation.worldgen.StructureTreeFeature;
 import com.yayuy.overgrownvegetation.worldgen.grammar.GrammarStructureFeature;
@@ -38,6 +37,16 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, ForcedTreeFeature> FORCED_TREE =
             FEATURES.register("forced_tree", () -> new ForcedTreeFeature(ForcedTreeFeature.Config.CODEC));
 
+    /** 封印木(シギラリア。腕の型と柱の型。2026-11-01)。{@code overgrown_tree} の random_selector から 25% で選ばれる(仮決め)。 */
+    public static final DeferredHolder<Feature<?>, com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature> SIGILLARIA_TREE =
+            FEATURES.register("sigillaria_tree", () -> new com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature(
+                    com.yayuy.overgrownvegetation.worldgen.SigillariaTreeFeature.Config.CODEC));
+
+    /** 木生シダ(プサロニウス。一本幹と株立ち。2026-11-01)。苗木の selector には入れず、{@code CorruptionSpreader} が苗木の代わりに直接置く(仮決め 15%)。 */
+    public static final DeferredHolder<Feature<?>, com.yayuy.overgrownvegetation.worldgen.TreeFernFeature> TREE_FERN =
+            FEATURES.register("tree_fern", () -> new com.yayuy.overgrownvegetation.worldgen.TreeFernFeature(
+                    com.yayuy.overgrownvegetation.worldgen.TreeFernFeature.Config.CODEC));
+
     /**
      * ごく低確率(0.0003%)でのみ生える巨大樹。円錐状の根元 + 直径7マスの円柱の幹 +
      * 5本の太い根 + 20本以上の枝 + 通常の約2倍の大きさの葉、全高80ブロック。
@@ -54,13 +63,6 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, GrammarStructureFeature> GRAMMAR_STRUCTURE =
             FEATURES.register("grammar_structure",
                     () -> new GrammarStructureFeature(GrammarStructureFeature.Config.CODEC));
-
-    /**
-     * 菌湿地帯の「菌類の柱」。先細りの円柱を積み上げるだけの Feature。苗木がその位置の環境に
-     * 応じて {@code overgrown_tree_fungal_swamp} 経由で選ぶ。詳細は {@link FungalPillarFeature}。
-     */
-    public static final DeferredHolder<Feature<?>, FungalPillarFeature> FUNGAL_PILLAR =
-            FEATURES.register("fungal_pillar", () -> new FungalPillarFeature(FungalPillarFeature.Config.CODEC));
 
     public static void register(IEventBus modBus) {
         FEATURES.register(modBus);

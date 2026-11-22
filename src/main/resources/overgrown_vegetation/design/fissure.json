@@ -1,0 +1,78 @@
+{
+  "_comment": "地下の小さな亀裂と亀裂の巣(2026-11-20)。値はどれも【仮】。仕組みはユーザー決定(Vault「地形に合った汚染の生え方(11-19)」11-20 の節)。説明は FissureTable.java",
+  "enabled": true,
+  "plan": {
+    "minPhase": 4,
+    "maxActive": 3,
+    "intervalDays": 1.0,
+    "chance": 0.5,
+    "price": 4000.0,
+    "reachBlocks": 768,
+    "lineBlocks": 16,
+    "avoidOvergrown": true,
+    "spacingBlocks": 160,
+    "pumpClearBlocks": 48,
+    "samples": 96,
+    "maxRelocations": 4
+  },
+  "cave": {
+    "minDepth": 12,
+    "floorMargin": 6,
+    "minAir": 48,
+    "airScanCap": 400,
+    "preferMouth": true,
+    "mouthTries": 4,
+    "minMouthRoute": 24
+  },
+  "nest": {
+    "depth": 5,
+    "length": 9,
+    "rootDelayDays": 0.1,
+    "spreadRadius": 6
+  },
+  "roots": {
+    "ticksPerCell": 600,
+    "maxLength": 160,
+    "searchCells": 12000,
+    "searchPerTick": 1500,
+    "corruptRadius": 3,
+    "plantShare": 0.25,
+    "cellsPerTick": 4,
+    "witherPerTick": 32
+  },
+  "mouth": {
+    "arms": 6,
+    "armLength": 11,
+    "ticksPerArmCell": 400,
+    "maxStep": 4,
+    "ticksPerPoint": 2400,
+    "maxPoints": 8
+  },
+  "ledger": {
+    "intervalTicks": 100,
+    "caveChunkTicks": 6000,
+    "rockChunkTicks": 36000,
+    "fillTicks": 12000,
+    "borerDelayTicks": 24000,
+    "maxBorers": 3,
+    "maxCells": 300,
+    "maxRadiusChunks": 16,
+    "addsPerUpdate": 64,
+    "columnsPerTick": 6,
+    "applyMillis": 2.0,
+    "measuresPerTick": 1,
+    "surfaceKeep": 4
+  },
+  "wither": {
+    "points": 0,
+    "budgetCapShare": 0.0,
+    "budget": 4000.0,
+    "borerBudget": 4000.0
+  },
+  "omen": {
+    "rumbleVolume": 2.5,
+    "puffRange": 40,
+    "puffTicks": 30,
+    "windowTicks": 1200
+  }
+}

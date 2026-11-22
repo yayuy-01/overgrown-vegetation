@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "part=bottom": { "model": "overgrown_vegetation:block/horsetail_bottom" },
+    "part=middle": { "model": "overgrown_vegetation:block/horsetail_middle" },
+    "part=top": { "model": "overgrown_vegetation:block/horsetail_top" }
+  }
+}

@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -62,6 +63,18 @@ public final class EarthquakeData extends SavedData {
         return eruptionActive;
     }
 
+    /** 止めたら噴出の印を下ろす(次のワールドの最初の tick まで侵食が速いままにしない。11-18 見直し ⑤7)。 */
+    @net.neoforged.fml.common.EventBusSubscriber(modid = com.yayuy.overgrownvegetation.OvergrownVegetation.MODID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+    public static final class StopEvents {
+        private StopEvents() {
+        }
+
+        @net.neoforged.bus.api.SubscribeEvent
+        public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+            eruptionActive = false;
+        }
+    }
+
     /** 進行中の1件の地割れ演出。フィールドは可変(進捗を書き込むため)。 */
     static final class ActiveQuake {
         long id;
@@ -88,9 +101,74 @@ public final class EarthquakeData extends SavedData {
         /** 土砂崩れの音を鳴らしたゲーム内時刻。-1 = まだ鳴らしていない。演出開始(画面の揺れ始め)と同時に1回だけ鳴らす。 */
         long lastFissureSoundTime = -1L;
         long[] forcedChunks = new long[0];
+        /**
+         * 裂け目の足跡の列の表({@link EarthquakeFissure#forEachColumn} 用、2026-09-24 軽量化 報告 1075)。
+         * 形は上のフィールドだけで決まるので、最初に要った tick に 1 回作って使い回す。<b>保存しない</b>
+         * (読み込み直したら最初に要ったときに作り直す)。
+         */
+        EarthquakeFissure.ColumnIndex columnIndex;
+        /** 強制ロードしたチャンクの読み込みを待ち始めたゲーム内時刻(-1 = 待っていない)。保存しない。 */
+        long forceWaitStart = -1L;
+    }
+
+    /**
+     * 演出を始める前に、強制ロードした足跡のチャンクが裏で読み込み終わるのを待つ上限(tick)。
+     * 過ぎたら残りをその場で読み込んで始める(以前と同じ)。仮決め 2026-09-25(報告 1450。それまでは 2026-09-24 の
+     * 「印の反映だけを 20 tick 待つ」で、読み込み途中のチャンクは予兆の輪郭・掘削が読んだときに同期で待っていた)。
+     */
+    private static final int FORCE_LOAD_WAIT_TICKS = 200;
+
+    /**
+     * 裂け目が中心から両端へ走る tick 数(= 掘る波の数)。{@code quakeFormTicks - quakePreShakeTicks}(最低 1)。
+     * {@link EarthquakeEvent} が足跡の列の表を先に作るときも同じ値を使う(表は波の数ごとに作るので、揃えれば使い回せる)。
+     */
+    static int carveSpan() {
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        return Math.max(1, cfg.quakeFormTicks.get() - cfg.quakePreShakeTicks.get());
     }
 
     private final List<ActiveQuake> active = new ArrayList<>();
+    /**
+     * 噴出した地割れの中心(噴出点 BlockPos.asLong)。噴出の後も周りの濃度を下支えする(2026-10-24 追記 19【決定】)。
+     * 写しは濃度の読み(毎 tick 多数)から引くので配列で持つ。
+     */
+    private final it.unimi.dsi.fastutil.longs.LongArrayList rifts = new it.unimi.dsi.fastutil.longs.LongArrayList();
+    private static volatile long[] RIFTS = new long[0];
+
+    /** サーバーを止めたら写しを捨てる(次に開くワールドへ持ち越さない)。 */
+    public static void clearCache() {
+        RIFTS = new long[0];
+    }
+
+    /** 噴出した地割れの中心(BlockPos.asLong)。オーバーワールドの値。読み込む前は空。 */
+    public static long[] riftCenters() {
+        return RIFTS;
+    }
+
+    /** 噴出中の地割れの噴出点のチャンク(場の入力。噴出の長さは quakeEruptDurationTicks)。 */
+    public long[] eruptingChunks(long now) {
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        long eruptStart = cfg.quakePreShakeTicks.get() + Math.min(carveSpan(), cfg.quakeEruptStartTicks.get());
+        long eruptEnd = eruptStart + cfg.quakeEruptDurationTicks.get();
+        it.unimi.dsi.fastutil.longs.LongArrayList out = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (ActiveQuake q : active) {
+            if (!q.eruptionStarted || q.eruptY == Integer.MIN_VALUE) continue;
+            long e = now - q.startGameTime;
+            if (e < eruptEnd) out.add(ChunkPos.asLong(q.eruptX >> 4, q.eruptZ >> 4));
+        }
+        return out.toLongArray();
+    }
+
+    /** テスト用: 地割れの中心を足す・消す。 */
+    public void addRiftForTests(BlockPos center) {
+        rifts.add(center.asLong());
+        RIFTS = rifts.toLongArray();
+    }
+
+    public void removeRiftForTests(BlockPos center) {
+        rifts.rem(center.asLong());
+        RIFTS = rifts.toLongArray();
+    }
 
     private EarthquakeData() {
     }
@@ -129,6 +207,8 @@ public final class EarthquakeData extends SavedData {
             q.forcedChunks = e.contains("forcedChunks") ? e.getLongArray("forcedChunks") : new long[0];
             data.active.add(q);
         }
+        for (long r : tag.getLongArray("rifts")) data.rifts.add(r);
+        RIFTS = data.rifts.toLongArray();
         return data;
     }
 
@@ -163,6 +243,7 @@ public final class EarthquakeData extends SavedData {
             list.add(e);
         }
         tag.put("active", list);
+        tag.putLongArray("rifts", rifts.toLongArray());
         return tag;
     }
 
@@ -222,6 +303,24 @@ public final class EarthquakeData extends SavedData {
 
         // 震央 Y を確定させる(必要ならチャンクを同期ロード)。
         if (q.startGameTime < 0L) {
+            // 2026-09-24 軽量化(報告 1064): EarthquakeEvent は強制ロードの印だけを付け、読み込みは待たない。
+            // 2026-09-25(報告 1450): 印の反映だけでなく、足跡のチャンクが「読み込み終わる」まで演出を始めない
+            // (最長 FORCE_LOAD_WAIT_TICKS)。読み込み途中のチャンクを輪郭・掘削が読むと、その場で読み込みを待つ
+            // (= 同期ロード)ため。読み込み終わっていれば、最初に全部を同期で読み込んでいた頃と同じ地形を読む。
+            if (!forcedChunksLoaded(level, q)) {
+                if (q.forceWaitStart < 0L) {
+                    q.forceWaitStart = now;
+                }
+                if (now - q.forceWaitStart < FORCE_LOAD_WAIT_TICKS) {
+                    return false;
+                }
+                // 保険: 待ちすぎた。以前と同じく、残りをこの場で同期ロードしてから始める。
+                for (long key : q.forcedChunks) {
+                    if (level.getChunkSource().getChunkNow(ChunkPos.getX(key), ChunkPos.getZ(key)) == null) {
+                        level.getChunk(ChunkPos.getX(key), ChunkPos.getZ(key));
+                    }
+                }
+            }
             int bx = Mth.floor(q.ex);
             int bz = Mth.floor(q.ez);
             level.getChunk(bx >> 4, bz >> 4);
@@ -240,7 +339,7 @@ public final class EarthquakeData extends SavedData {
         int total = cfg.quakeFormTicks.get();
         int fade = cfg.quakeFadeOutTicks.get();
         // 予兆(pre)のあと、実際に裂け目が中心から両端へ走る tick 数(= 掘る波の数)。完成は e == total。
-        int carveSpan = Math.max(1, total - pre);
+        int carveSpan = carveSpan();
         int formEnd = total;
         int shakeEnd = formEnd + fade;
         // 胞子噴出は形成の途中(quakeEruptStartTicks)から始まる。
@@ -280,7 +379,7 @@ public final class EarthquakeData extends SavedData {
             EarthquakeFissure f = new EarthquakeFissure(level, q, carveSpan);
             int want = (int) (e - pre);
             while (q.carvedWaves <= want && q.carvedWaves < carveSpan) {
-                f.carveWave(q.carvedWaves);
+                if (terrainDamage(level)) f.carveWave(q.carvedWaves); // 11-19 MOD の設定「地形を壊す要素」
                 q.carvedWaves++;
             }
         }
@@ -292,6 +391,10 @@ public final class EarthquakeData extends SavedData {
             q.eruptY = p[1];
             q.eruptZ = p[2];
             q.eruptionStarted = true;
+            // 胞子の場: 圧の前線を出し、地割れの中心を下支えに記録する(2026-10-24 追記 19)
+            rifts.add(BlockPos.asLong(q.eruptX, q.eruptY, q.eruptZ));
+            RIFTS = rifts.toLongArray();
+            com.yayuy.overgrownvegetation.spore.field.SporeFieldServer.onRiftErupt(q.eruptX >> 4, q.eruptZ >> 4);
             for (ServerPlayer sp : level.players()) {
                 level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.WARDEN_SONIC_BOOM,
                         SoundSource.AMBIENT, 0.9F, 0.55F);
@@ -307,9 +410,6 @@ public final class EarthquakeData extends SavedData {
             if (er % Math.max(1, cfg.quakeEruptIntervalTicks.get()) == 0L) {
                 f.eruptSpores();
             }
-            if (er % Math.max(1, cfg.quakeEruptInfectionIntervalTicks.get()) == 0L) {
-                f.infectNearbyMobs();
-            }
             if (er % Math.max(1, cfg.quakeEruptFernIntervalTicks.get()) == 0L) {
                 f.spawnRandomFerns();
             }
@@ -319,20 +419,29 @@ public final class EarthquakeData extends SavedData {
         if (e >= formEnd && !q.finalizedFissure) {
             EarthquakeFissure f = new EarthquakeFissure(level, q, carveSpan);
             while (q.carvedWaves < carveSpan) {
-                f.carveWave(q.carvedWaves);
+                if (terrainDamage(level)) f.carveWave(q.carvedWaves); // 11-19 MOD の設定「地形を壊す要素」
                 q.carvedWaves++;
             }
-            f.dryFissure();
-            f.settleWater();
-            f.lineWithCorruption();
-            f.spawnPeripheralCracks();
+            if (terrainDamage(level)) {
+                f.dryFissure();
+                f.settleWater();
+                f.lineWithCorruption();
+                f.spawnPeripheralCracks();
+            }
             if (cfg.quakeConvertBiome.get()) {
                 f.convertBiome();
             }
             q.finalizedFissure = true;
+            q.columnIndex = null; // 足跡の列の表はもう使わない(噴出中は要らない)。
             RaidChunkLoader.release(level, q.forcedChunks);
-            q.forcedChunks = RaidChunkLoader.force(level,
-                    new BlockPos(Mth.floor(q.ex), q.ey, Mth.floor(q.ez)), 3);
+            // 噴出中に固定するのは、ハザード(感染・汚染シダ)が働く quakeEruptHazardRadiusChunks の正方形だけ
+            // (既定 3 = 以前の固定値と同じ 7x7)。0 ならハザードが無いので何も固定しない(粒子は読み込みと無関係)。
+            // 2026-09-25(報告 1450): 印だけ付ける。直前まで足跡の固定で読み込まれているので、同期で読む必要は無い。
+            int hazardChunks = cfg.quakeEruptHazardRadiusChunks.get();
+            q.forcedChunks = hazardChunks > 0
+                    ? RaidChunkLoader.forceWithoutLoading(level,
+                            new BlockPos(Mth.floor(q.ex), q.ey, Mth.floor(q.ez)), hazardChunks)
+                    : new long[0];
         }
 
         if (q.finalizedFissure && e >= eruptEnd) {
@@ -342,11 +451,30 @@ public final class EarthquakeData extends SavedData {
         return false;
     }
 
+    /**
+     * この地割れが固定したチャンクがすべて読み込み終わったか({@code getChunkNow} は読み込み途中なら null で、
+     * 読み込みを待たない。{@code hasChunk} は読み込み途中でも true なので、ここでは使わない)。
+     */
+    private static boolean forcedChunksLoaded(ServerLevel level, ActiveQuake q) {
+        for (long key : q.forcedChunks) {
+            if (level.getChunkSource().getChunkNow(ChunkPos.getX(key), ChunkPos.getZ(key)) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static int resolveSurface(ServerLevel level, int x, int z) {
         BlockPos g = TreeCanopyGroundFinder.findSpawnSurface(level, x, z);
         if (g != null) {
             return g.getY();
         }
         return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+    }
+
+    /** MOD の設定「地形を壊す要素」(11-19): オフなら地割れは揺れと胞子の噴き出しだけで、地面を裂かない(掘る・水を払う・縁の汚染・まわりのひび)。 */
+    private static boolean terrainDamage(ServerLevel level) {
+        return com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(),
+                com.yayuy.overgrownvegetation.difficulty.DifficultySetting.TERRAIN_DAMAGE);
     }
 }

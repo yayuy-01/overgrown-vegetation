@@ -23,8 +23,6 @@ public final class ModCapabilities {
                 (be, side) -> new InvWrapper(be));
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.OVERGROWN_BARREL.get(),
                 (be, side) -> new InvWrapper(be));
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.SPORE_DEVICE.get(),
-                (be, side) -> side == null ? new InvWrapper(be) : new net.neoforged.neoforge.items.wrapper.SidedInvWrapper(be, side));
     }
 
     private ModCapabilities() {

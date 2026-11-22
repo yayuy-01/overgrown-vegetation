@@ -2,93 +2,97 @@ package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.CorruptedCorpseBlockEntity;
-import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import com.yayuy.overgrownvegetation.client.corpse.CorpseBursts;
+import com.yayuy.overgrownvegetation.corpse.G1Species;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import software.bernie.geckolib.model.GeoModel;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 種族専用の GeckoLib モデルを持つ汚染死体({@link com.yayuy.overgrownvegetation.block.GeoCorruptedCorpseBlock})の
- * モデル定義。ブロックの種類に応じて、対応する geo と「同名の過繁茂した Mob」のテクスチャを返す。
+ * G1 の死体ブロックのモデル(2026-11-08 に G1 段階 0 の組み込みで書き直した)。種ごとに
+ * {@code geo/<種>_corpse.geo.json}・{@code animations/<種>_corpse.animation.json}(corpse_burst・corpse_idle)と、
+ * 感染体と同じ絵 {@code textures/entity/<種>.png}。
  *
- * <ul>
- *     <li>羊: {@code geo/overgrown_sheep_corpse.geo.json} + {@code textures/entity/overgrown_sheep.png}</li>
- *     <li>豚: {@code geo/overgrown_pig_corpse.geo.json} + {@code textures/entity/overgrown_pig.png}</li>
- *     <li>クリーパー: {@code geo/overgrown_creeper_corpse.geo.json} + {@code textures/entity/overgrown_creeper.png}</li>
- * </ul>
- *
- * <p>アニメーションはしないが、GeckoLib はアニメーションリソースの存在を前提にしているため
- * 中身が空の {@code animations/overgrown_corpse.animation.json} を共通で指す。
+ * <p>絵の切り替え(11-05 ユーザー「突き破る前は体の欠損や血の跡が無いテクスチャを用意して、最初はそれを表示する」): 突き破り
+ * (corpse_burst)を流し始めてから swapTick({@link CorpseBursts})までは無傷の絵 {@code <種>_intact.png}、それから傷のある絵。
+ * 突き破りを流さなかった死体(遅れて読み込んだ)は初めから傷のある絵。
  */
 public class CorruptedCorpseModel extends GeoModel<CorruptedCorpseBlockEntity> {
 
-    private record Assets(ResourceLocation geo, ResourceLocation texture) {
+    private record Assets(String species, ResourceLocation geo, ResourceLocation animation, ResourceLocation texture,
+                          ResourceLocation intact) {
     }
 
-    /** geo モデルを持つ死体ブロック → geo/テクスチャ。ここに無いブロックは通常のブロックモデル描画。 */
-    private static final Map<Block, Assets> ASSETS = Map.of(
-            ModBlocks.OVERGROWN_SHEEP_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_sheep_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_sheep.png")),
-            ModBlocks.OVERGROWN_PIG_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_pig_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_pig.png")),
-            ModBlocks.OVERGROWN_CREEPER_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_creeper_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_creeper.png")),
-            ModBlocks.OVERGROWN_SPIDER_CORPSE.get(), new Assets(
-                    OvergrownVegetation.id("geo/overgrown_spider_corpse.geo.json"),
-                    OvergrownVegetation.id("textures/entity/overgrown_spider.png"))
-    );
+    private static final Map<G1Species, Assets> ASSETS = new EnumMap<>(G1Species.class);
 
-    private static final ResourceLocation ANIMATION = OvergrownVegetation.id("animations/overgrown_corpse.animation.json");
-
-    /** この死体ブロックに専用 geo モデルがあるか(= GeoBlockRenderer で描画すべきか)。 */
-    public static boolean hasGeoModel(Block block) {
-        return ASSETS.containsKey(block);
+    private static Assets assets(G1Species s) {
+        return ASSETS.computeIfAbsent(s, k -> {
+            String id = k.assetName();
+            return new Assets(id, OvergrownVegetation.id("geo/" + id + "_corpse.geo.json"),
+                    OvergrownVegetation.id("animations/" + id + "_corpse.animation.json"),
+                    OvergrownVegetation.id("textures/entity/" + id + ".png"),
+                    OvergrownVegetation.id("textures/entity/" + id + "_intact.png"));
+        });
     }
 
-    /** {@code block} の geo モデル。専用モデルが無い場合は羊の geo(フォールバック)。 */
-    public static ResourceLocation geoFor(Block block) {
-        Assets assets = ASSETS.get(block);
-        return assets != null ? assets.geo() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
-    }
-
-    /** {@code block} のテクスチャ(= 同名の過繁茂した Mob のもの)。無い場合は羊のもの。 */
-    public static ResourceLocation textureFor(Block block) {
-        Assets assets = ASSETS.get(block);
-        return assets != null ? assets.texture() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
-    }
-
-    /** 死体アイテムのモデルも同じ空アニメーションを共用する。 */
-    public static ResourceLocation animation() {
-        return ANIMATION;
+    /** 死体の絵を全部(傷のある絵と無傷の絵。描画の溜め場所の登録に使う)。 */
+    static List<ResourceLocation> textures() {
+        List<ResourceLocation> out = new ArrayList<>();
+        for (G1Species s : G1Species.values()) {
+            out.add(assets(s).texture());
+            out.add(assets(s).intact());
+        }
+        return out;
     }
 
     @Nullable
-    private static Assets assetsFor(CorruptedCorpseBlockEntity animatable) {
-        BlockState state = animatable.getBlockState();
-        return ASSETS.get(state.getBlock());
+    private static Assets assetsFor(CorruptedCorpseBlockEntity be) {
+        G1Species s = G1Species.ofCorpse(be.getBlockState().getBlock());
+        return s == null ? null : assets(s);
+    }
+
+    /** この死体ブロックに geo モデルがあるか。 */
+    public static boolean hasGeoModel(Block block) {
+        return G1Species.ofCorpse(block) != null;
+    }
+
+    private static Assets fallback() {
+        return assets(G1Species.values()[0]);
     }
 
     @Override
-    public ResourceLocation getModelResource(CorruptedCorpseBlockEntity animatable) {
-        Assets assets = assetsFor(animatable);
-        return assets != null ? assets.geo() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).geo();
+    public ResourceLocation getModelResource(CorruptedCorpseBlockEntity be) {
+        Assets a = assetsFor(be);
+        return (a != null ? a : fallback()).geo();
     }
 
     @Override
-    public ResourceLocation getTextureResource(CorruptedCorpseBlockEntity animatable) {
-        Assets assets = assetsFor(animatable);
-        return assets != null ? assets.texture() : ASSETS.get(ModBlocks.OVERGROWN_SHEEP_CORPSE.get()).texture();
+    public ResourceLocation getAnimationResource(CorruptedCorpseBlockEntity be) {
+        Assets a = assetsFor(be);
+        return (a != null ? a : fallback()).animation();
     }
 
     @Override
-    public ResourceLocation getAnimationResource(CorruptedCorpseBlockEntity animatable) {
-        return ANIMATION;
+    public ResourceLocation getTextureResource(CorruptedCorpseBlockEntity be) {
+        Assets a = assetsFor(be);
+        if (a == null) {
+            return fallback().texture();
+        }
+        return isIntact(be, a.species()) ? a.intact() : a.texture();
+    }
+
+    /** まだ突き破る前(無傷の絵を出す)か。 */
+    public static boolean isIntact(CorruptedCorpseBlockEntity be, String species) {
+        long start = be.burstStartClientTick();
+        if (start == Long.MIN_VALUE || be.getLevel() == null) {
+            return false;
+        }
+        return be.getLevel().getGameTime() - start < CorpseBursts.swapTick(species);
     }
 }

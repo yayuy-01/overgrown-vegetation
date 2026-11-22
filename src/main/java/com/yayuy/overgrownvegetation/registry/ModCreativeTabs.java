@@ -6,143 +6,190 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.List;
+
+/**
+ * クリエイティブタブ(2026-10-05 に 1 つから 3 つへ分けた。ユーザー指定)。
+ *
+ * <ul>
+ *     <li><b>植物</b>({@link #PLANTS}) —— 汚染された土地に生える植物・構造物のブロック、植物側の Mob のスポーンエッグ、
+ *     植物由来の素材(ドロップ・結晶)、寄生植物装備。</li>
+ *     <li><b>人類</b>({@link #HUMANITY}) —— 機械・防衛設備・基地のブロック・同盟軍、加工した素材、装備とツール
+ *     (寄生植物装備だけは植物)。</li>
+ * </ul>
+ *
+ * <p>素材の分け方はユーザー指定の外の仮決め: <b>倒した Mob・掘った結晶そのもの = 植物、人が加工したもの(合金など) = 人類</b>。
+ * 2026-10-30 に「覆われたブロック」のタブを消した(建築タブの覆われた版 covered_ 366 個を parked へ退避。汚染された建築タブのブロックは
+ * 元のまま記録で覆う)。バニラのブロックが汚染されたときの対応ブロック({@link #CORRUPTED_ORDER})は植物のタブの先頭へ移した。
+ * {@link ModBlocks#displayOrder()} のブロックは、{@link #CORRUPTED_ORDER} に挙げた対応ブロックの後ろに植物へ入れる
+ * (新しい植物のブロックは displayOrder に足せば植物のタブに出る)。
+ *
+ * <p><b>植物・人類のタブの最終的な並びは {@link CreativeTabOrder} が決める</b>(2026-10-10 ユーザー指定: ブロック → 機械 → 植物 →
+ * ドロップアイテムと中間素材 → スポーンエッグ → 武器防具 → その他)。ここでの並びは区分の中の順になるだけ。
+ * 機械・その他など種類で見分けられないアイテムを足したら、{@link CreativeTabOrder} の一覧にも足す。
+ */
 public final class ModCreativeTabs {
 
     public static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, OvergrownVegetation.MODID);
 
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN = TABS.register("main",
+    // ---- 覆われたブロックのタブの並び(2026-10-05 にユーザー要望で整理。バニラのタブに近い順: 土 → 石 → 鉱石 → 木 → ネザー・エンド) ----
+
+    /** 土(砂・砂利・泥は 2026-10-31 に外した)。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_SOIL = List.of(
+            ModBlocks.OVERGROWN_GRASS_BLOCK,
+            ModBlocks.OVERGROWN_DIRT);
+
+    /** 石とその加工品(汎用の汚染ブロックもここ)。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_STONE = List.of(
+            ModBlocks.OVERGROWN_STONE,
+            ModBlocks.OVERGROWN_STONE_STAIRS,
+            ModBlocks.OVERGROWN_WALL,
+            ModBlocks.OVERGROWN_DEEPSLATE,
+            ModBlocks.OVERGROWN_COBBLED_DEEPSLATE,
+            ModBlocks.OVERGROWN_BRICKS,
+            ModBlocks.OVERGROWN_BLOCK,
+            ModBlocks.OVERGROWN_BLOCK_SLAB);
+
+    /** 鉱石(バニラと同じ並び: 石炭・鉄・銅・金・レッドストーン・エメラルド・ラピスラズリ・ダイヤモンド、深層岩の版と組)。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_ORES = List.of(
+            ModBlocks.OVERGROWN_COAL_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_COAL_ORE,
+            ModBlocks.OVERGROWN_IRON_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_IRON_ORE,
+            ModBlocks.OVERGROWN_COPPER_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_COPPER_ORE,
+            ModBlocks.OVERGROWN_GOLD_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_GOLD_ORE,
+            ModBlocks.OVERGROWN_REDSTONE_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_REDSTONE_ORE,
+            ModBlocks.OVERGROWN_EMERALD_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_EMERALD_ORE,
+            ModBlocks.OVERGROWN_LAPIS_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_LAPIS_ORE,
+            ModBlocks.OVERGROWN_DIAMOND_ORE,
+            ModBlocks.OVERGROWN_DEEPSLATE_DIAMOND_ORE);
+
+    /** 木(このあとに扉・チェスト・樽のアイテムが続く)。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_WOOD = List.of(
+            ModBlocks.OVERGROWN_LOG,
+            ModBlocks.OVERGROWN_WOOD,
+            ModBlocks.OVERGROWN_BRANCH,
+            ModBlocks.CORDAITES_BUTTRESS,
+            ModBlocks.OVERGROWN_LEAVES,
+            ModBlocks.OVERGROWN_LEAVES_TUFT,
+            ModBlocks.CORDAITES_PLANKS,
+            ModBlocks.SIGILLARIA_LOG,
+            ModBlocks.SIGILLARIA_BRANCH,
+            ModBlocks.STIGMARIA,
+            ModBlocks.SIGILLARIA_LEAVES,
+            ModBlocks.SIGILLARIA_LEAVES_FRINGE,
+            ModBlocks.SIGILLARIA_CONE,
+            ModBlocks.SIGILLARIA_PLANKS,
+            ModBlocks.TREE_FERN_TRUNK,
+            ModBlocks.TREE_FERN_LEAVES,
+            ModBlocks.TREE_FERN_FROND,
+            ModBlocks.OVERGROWN_PLANKS,
+            ModBlocks.OVERGROWN_STAIRS,
+            ModBlocks.OVERGROWN_SLAB,
+            ModBlocks.OVERGROWN_FENCE);
+
+    /** ネザー・エンド。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_NETHER_END = List.of(
+            ModBlocks.OVERGROWN_NETHERRACK,
+            ModBlocks.OVERGROWN_NYLIUM,
+            ModBlocks.NETHER_OVERGROWN_BLOCK,
+            ModBlocks.OVERGROWN_SOUL_SAND,
+            ModBlocks.OVERGROWN_SOUL_SOIL,
+            ModBlocks.OVERGROWN_END_STONE);
+
+    /** {@link ModBlocks#displayOrder()} のうち植物のタブの先頭に並べるもの(上の 5 つを合わせたもの)。 */
+    private static final List<DeferredBlock<Block>> CORRUPTED_ORDER = java.util.stream.Stream.of(
+                    CORRUPTED_SOIL, CORRUPTED_STONE, CORRUPTED_ORES, CORRUPTED_WOOD, CORRUPTED_NETHER_END)
+            .flatMap(List::stream).toList();
+
+    /** 植物: 汚染された土地に生えるもの・植物側の Mob・植物由来の素材・寄生植物装備。 */
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> PLANTS = TABS.register("plants",
             () -> CreativeModeTab.builder()
-                    .title(Component.translatable("itemGroup." + OvergrownVegetation.MODID + ".main"))
-                    .icon(() -> new ItemStack(ModBlocks.OVERGROWN_BLOCK.get()))
+                    .title(Component.translatable("itemGroup." + OvergrownVegetation.MODID + ".plants"))
+                    .icon(() -> new ItemStack(ModBlocks.OVERGROWN_SAPLING.get()))
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
                     .displayItems((params, output) -> {
-                        ModBlocks.displayOrder().forEach(block -> output.accept(block.get()));
-                        output.accept(ModItems.RESEARCH_TABLE_ITEM.get());
-                        output.accept(ModItems.GIANT_OVERGROWN_SAPLING_ITEM.get());
-                        output.accept(ModItems.HIVE_NODE_SPAWN_EGG.get());
-                        output.accept(ModItems.BLIGHT_FERN_SPAWN_EGG.get());
-                        output.accept(ModItems.BLIGHT_WATER_GRASS_SPAWN_EGG.get());
-                        output.accept(ModItems.OVERGROWN_SHIELDER_SPAWN_EGG.get());
-                        output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
-                        output.accept(ModItems.PHALANGIOTARBUS_SPAWN_EGG.get());
-                        output.accept(ModItems.PROTOPHASMA_SPAWN_EGG.get());
-                        output.accept(ModItems.ARTHROPLEURA_SPAWN_EGG.get());
-                        output.accept(ModItems.SPELAEOPLEURA_SPAWN_EGG.get());
-                        output.accept(ModItems.COELUROSAURAVUS_SPAWN_EGG.get());
-                        output.accept(ModItems.LITHOPLEURA_SPAWN_EGG.get());
-                        output.accept(ModItems.STENODICTYA_LOBATA_SPAWN_EGG.get());
-                        output.accept(ModItems.MEGANEURA_SPAWN_EGG.get());
-                        output.accept(ModItems.ARBORA_SPAWN_EGG.get());
-                        output.accept(ModItems.PHYLLOSENS_SPAWN_EGG.get());
-                        output.accept(ModItems.VELOPHYLL_SPAWN_EGG.get());
-                        output.accept(ModItems.SPOROPHYLL_SPAWN_EGG.get());
-                        output.accept(ModItems.PETROLACOSAURUS_SPAWN_EGG.get());
-                        output.accept(ModItems.IANTHASAURUS_SPAWN_EGG.get());
-                        output.accept(ModItems.HYLONOMUS_SPAWN_EGG.get());
-                        output.accept(ModItems.RHIZODUS_SPAWN_EGG.get());
-                        output.accept(ModItems.XENACANTHUS_SPAWN_EGG.get());
-                        output.accept(ModItems.ORTHACANTHUS_SPAWN_EGG.get());
-                        output.accept(ModItems.MEGARACHNE_SPAWN_EGG.get());
-                        output.accept(ModItems.OVERGROWN_NEXUS_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_COW_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_SHEEP_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_PIG_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_ZOMBIE_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_CREEPER_SPAWN_EGG.get());
-                        output.accept(ModItems.PARASITIZED_SPIDER_SPAWN_EGG.get());
-                        output.accept(ModItems.SPORE_INFECTION_SYRINGE_1.get());
-                        output.accept(ModItems.SPORE_INFECTION_SYRINGE_2.get());
-                        output.accept(ModItems.SPORE_INFECTION_SYRINGE_3.get());
-                        output.accept(ModItems.SPORE_METER.get());
-                        output.accept(ModItems.PHASE_METER.get());
-                        output.accept(ModItems.PACK_SCANNER.get());
-                        output.accept(ModItems.SPORE.get());
-                        output.accept(ModItems.SPORE_FILTER.get());
-                        output.accept(ModItems.PROTECTIVE_MASK.get());
-                        output.accept(ModItems.SPORE_PURIFIER_ITEM.get());
-                        output.accept(ModItems.SPORE_DIFFUSER_ITEM.get());
-                        output.accept(ModItems.DECONTAMINATOR_ITEM.get());
-                        output.accept(ModItems.REPELLENT_LAMP_ITEM.get());
-                        output.accept(ModItems.BARBED_WIRE_ITEM.get());
-                        output.accept(ModItems.PHASE_RECORDER_ITEM.get());
-                        output.accept(ModItems.SPORE_ALARM_ITEM.get());
-                        output.accept(ModItems.GUN_TURRET_ITEM.get());
-                        output.accept(ModItems.AUTOCANNON_ROUND.get());
-                        output.accept(ModItems.ARBORA_EGG_ITEM.get());
-                        output.accept(ModItems.ARBORA_STORAGE_POD_ITEM.get());
-                        output.accept(ModItems.SPORE_NODE_ITEM.get());
-                        output.accept(ModItems.SPORE_VENT_ITEM.get());
-                        output.accept(ModItems.SIEGE_CANNON_ITEM.get());
-                        output.accept(ModItems.BEAM_SHIELD_ITEM.get());
-                        output.accept(ModItems.SIEGE_SHELL.get());
+                        // バニラのブロックが汚染されたときの対応ブロック(2026-10-30 まで「覆われたブロック」のタブ)
+                        CORRUPTED_SOIL.forEach(block -> output.accept(block.get()));
+                        CORRUPTED_STONE.forEach(block -> output.accept(block.get()));
+                        CORRUPTED_ORES.forEach(block -> output.accept(block.get()));
+                        CORRUPTED_WOOD.forEach(block -> output.accept(block.get()));
+                        // 汚染で専用の姿になる扉・チェスト・樽(木の続き)
                         output.accept(ModItems.OVERGROWN_DOOR_ITEM.get());
                         output.accept(ModItems.OVERGROWN_CHEST_ITEM.get());
                         output.accept(ModItems.OVERGROWN_BARREL_ITEM.get());
+                        CORRUPTED_NETHER_END.forEach(block -> output.accept(block.get()));
+                        ModBlocks.displayOrder().stream()
+                                .filter(block -> !CORRUPTED_ORDER.contains(block))
+                                .forEach(block -> output.accept(block.get()));
+                        output.accept(ModItems.GIANT_OVERGROWN_SAPLING_ITEM.get());
+
+                        // 植物側の Mob
+                        output.accept(ModItems.HIVE_NODE_SPAWN_EGG.get());
+                        output.accept(ModItems.BLIGHT_FERN_SPAWN_EGG.get());
+                        output.accept(ModItems.BLIGHT_FERN_ROOTED_ITEM.get()); // 根付いた萌芽体(11-19 夜 タブの載せ漏れ)
+                        output.accept(ModItems.FALCIMNES_SPAWN_EGG.get());
+                        output.accept(ModItems.ARBORA_SPAWN_EGG.get());
+                        ModG1.acceptEggs(output); // G1 段階 0(2026-11-08)
+                        output.accept(ModG1.ROOTSILK_WEB_ITEM.get()); // 根糸の巣(11-19 夜 タブの載せ漏れ)
+                        com.yayuy.overgrownvegetation.registry.ModPhyllosens.acceptEggs(output); // 監視塔フィロセンス(11-14。竹馬型は卵無し)
+                        com.yayuy.overgrownvegetation.registry.ModRunners.acceptEggs(output); // ② 大型の地上を走る型(2026-11-14)
+                        com.yayuy.overgrownvegetation.registry.ModLeapers.acceptEggs(output); // 跳ぶ型(2026-11-14)
+                        com.yayuy.overgrownvegetation.registry.ModCrawlers.acceptEggs(output); // 小さな地這いの虫の型(2026-11-15)
+                        com.yayuy.overgrownvegetation.registry.ModFlyers.acceptEggs(output); // 飛ぶ型(2026-11-15)
+                        com.yayuy.overgrownvegetation.registry.ModDrift.acceptEggs(output); // 漂流する擬態 Mob(2026-11-20)
+                        com.yayuy.overgrownvegetation.registry.ModCritterFlyers.acceptEggs(output); // 環境生物の飛ぶ種(2026-11-16)
+                        com.yayuy.overgrownvegetation.registry.ModLizards.acceptEggs(output); // トカゲ型(2026-11-15)
+
+                        // 植物から採れるもの
+                        output.accept(ModItems.SPORE.get());
                         output.accept(ModItems.OVERGROWN_GLOWBERRY.get());
                         output.accept(ModItems.VINE_FRUIT.get());
                         output.accept(ModItems.UNDEVELOPED_SEED.get());
                         output.accept(ModItems.LARGE_UNDEVELOPED_FRUIT_ITEM.get());
                         output.accept(ModItems.PLANT_FIBER.get());
-                        output.accept(ModItems.HARDENED_BARK.get());
-                        output.accept(ModItems.ARTHROPOD_LIMB.get());
-                        output.accept(ModItems.OVERGROWN_EXOSKELETON.get());
-                        output.accept(ModItems.SCATURIUM_EXOSKELETON.get());
-                        output.accept(ModItems.PHALANGIOTARBUS_FANG.get());
-                        output.accept(ModItems.MEGANEURA_COMPOUND_EYE.get());
-                        output.accept(ModItems.MEGANEURA_WING.get());
-                        output.accept(ModItems.PROTOPHASMA_ANTENNA.get());
-                        output.accept(ModItems.REPTILE_SCUTE.get());
-                        output.accept(ModItems.SAIL_MEMBRANE.get());
-                        output.accept(ModItems.FISH_SCALE.get());
-                        output.accept(ModItems.MEGARACHNE_PINCER.get());
-                        output.accept(ModItems.RAW_CHLOROPHYLLITE.get());
-                        output.accept(ModItems.RAW_HARDENED_SAP_CRYSTAL.get());
-                        output.accept(ModItems.CHLOROPHYLLITE.get());
-                        output.accept(ModItems.SAP_CRYSTAL.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_BLOCK_ITEM.get());
-                        output.accept(ModItems.SAP_CRYSTAL_BLOCK_ITEM.get());
 
-                        // 加工素材
-                        output.accept(ModItems.REPTILE_LEATHER.get());
-                        output.accept(ModItems.COMPOSITE_FIBER.get());
-                        output.accept(ModItems.SAP_CRYSTAL_SOFTENER.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_BLOCK_ITEM.get());
+                        output.accept(ModItems.SPORE_GLAND_TISSUE.get());
+                        output.accept(ModItems.SPORE_SAC.get());
 
-                        // 防具一式
-                        output.accept(ModItems.EXOSKELETON_HELMET.get());
-                        output.accept(ModItems.EXOSKELETON_CHESTPLATE.get());
-                        output.accept(ModItems.EXOSKELETON_LEGGINGS.get());
-                        output.accept(ModItems.PLANT_ARMOR.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_HELMET.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_CHESTPLATE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_LEGGINGS.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_BOOTS.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_HELMET.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_CHESTPLATE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_LEGGINGS.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_BOOTS.get());
-                        output.accept(ModItems.REINFORCED_CHLOROPHYLLITE_ALLOY_HELMET.get());
-                        output.accept(ModItems.REINFORCED_CHLOROPHYLLITE_ALLOY_CHESTPLATE.get());
-                        output.accept(ModItems.REINFORCED_CHLOROPHYLLITE_ALLOY_LEGGINGS.get());
-                        output.accept(ModItems.REINFORCED_CHLOROPHYLLITE_ALLOY_BOOTS.get());
+                        // G1 段階 0 のドロップ「覆われた〜」(2026-11-08)
+                        output.accept(ModItems.OVERGROWN_ROTTEN_FLESH.get());
+                        output.accept(ModItems.OVERGROWN_BEEF.get());
+                        output.accept(ModItems.OVERGROWN_LEATHER.get());
+                        output.accept(ModItems.OVERGROWN_PORKCHOP.get());
+                        output.accept(ModItems.OVERGROWN_MUTTON.get());
+                        output.accept(ModItems.OVERGROWN_WOOL.get());
+                        output.accept(ModItems.OVERGROWN_CHICKEN.get());
+                        output.accept(ModItems.OVERGROWN_FEATHER.get());
+                        output.accept(ModItems.OVERGROWN_BONE.get());
+                        output.accept(ModItems.OVERGROWN_SPIDER_EYE.get());
+                        output.accept(ModItems.OVERGROWN_ENDER_PEARL.get());
 
-                        // ツール一式
-                        output.accept(ModItems.CHLOROPHYLLITE_AXE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_PICKAXE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_SHOVEL.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_HOE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_SWORD.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_AXE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_PICKAXE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_SHOVEL.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_HOE.get());
-                        output.accept(ModItems.CHLOROPHYLLITE_ALLOY_SWORD.get());
+                        output.accept(ModItems.SPORE_METER.get());
+                        output.accept(ModItems.PROTECTIVE_MASK.get());
+                        com.yayuy.overgrownvegetation.registry.ModLey.acceptItems(output); // 地脈(2026-11-13 段 2b)
+                        com.yayuy.overgrownvegetation.registry.ModVent.acceptItems(output); // 換気機・フィルター(2026-11-14 段 2c)
+                        com.yayuy.overgrownvegetation.registry.ModPushBack.acceptItems(output); // 帯・杭・石灰(2026-11-18 押し返し)
+                        com.yayuy.overgrownvegetation.registry.ModDecon.acceptItems(output); // 地脈の洗い場(2026-11-14 段 3a)
+                        com.yayuy.overgrownvegetation.registry.ModExpedition.acceptItems(output); // 遠征の見返りと手当て(2026-11-16 段 4)
+                        com.yayuy.overgrownvegetation.gear.ModGear.acceptItems(output); // 強くなる道 段 1・段 2(2026-11-17)
+                        com.yayuy.overgrownvegetation.registry.ModResearch.acceptItems(output); // 研究台・器具(2026-11-17)
+                        com.yayuy.overgrownvegetation.registry.ModArmorAttach.acceptItems(output); // 付け物の台・付け物(2026-11-21 夜)
+                        com.yayuy.overgrownvegetation.organ.OrganBlocks.acceptItems(output); // 森の器官のブロック・根晶(11-19 夜 タブの載せ漏れ)
+                        output.accept(ModItems.INFECTION_PROBE.get()); // 感染の試し棒(2026-11-19 確かめ用)
+
                     })
                     .build());
 

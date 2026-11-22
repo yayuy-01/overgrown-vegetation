@@ -98,9 +98,7 @@ public class UndevelopedBushBlock extends BushBlock {
         if (!state.getValue(BERRIES)) {
             return InteractionResult.PASS;
         }
-        // 寄生植物装備の 2 段階目以降は実が倍。
-        Block.popResource(level, pos, new ItemStack(ModItems.UNDEVELOPED_SEED.get(),
-                com.yayuy.overgrownvegetation.item.PlantArmor.fruitCount(player, 1)));
+        Block.popResource(level, pos, new ItemStack(ModItems.UNDEVELOPED_SEED.get(), 1));
         float pitch = Mth.randomBetween(level.random, 0.8F, 1.2F);
         level.playSound(null, pos, SoundEvents.SWEET_BERRY_BUSH_PICK_BERRIES, SoundSource.BLOCKS, 1.0F, pitch);
         BlockState picked = state.setValue(BERRIES, Boolean.FALSE);

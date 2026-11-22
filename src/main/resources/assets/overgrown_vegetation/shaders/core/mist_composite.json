@@ -1,0 +1,11 @@
+{
+    "vertex": "overgrown_vegetation:mist_composite",
+    "fragment": "overgrown_vegetation:mist_composite",
+    "samplers": [
+        { "name": "MarchTex" },
+        { "name": "DepthTex" }
+    ],
+    "uniforms": [
+        { "name": "Size", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.05, 1000.0 ] }
+    ]
+}

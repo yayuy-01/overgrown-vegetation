@@ -1,558 +1,487 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.data.MobStats;
+import com.yayuy.overgrownvegetation.entity.parts.HitPart;
+import com.yayuy.overgrownvegetation.entity.parts.HitPartSet;
+import com.yayuy.overgrownvegetation.entity.tower.TowerNeck;
+import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
-
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * 「フィロセンス」({@code phyllosens}) — グループ4(拡大種)の索敵役。
+ * 「フィロセンス」(G4・森の目)— <b>監視塔</b>(2026-11-14 に竹馬型から作り直し。仕様の正本は Vault「Mob の能力/フィロセンス」の
+ * 「作り直し: 竹馬型をやめて『監視塔』にする」以降)。竹馬の体は {@link StiltPhyllosensEntity}(内部用の id {@code phyllosens_stilt})。
  *
- * <p>長い首の先に花を持つ多脚の植物型。戦うためではなく<b>見つけるため</b>にいる Mob で、
- * プレイヤーの居場所を周りの味方へ配るのが本業。
+ * <p>蔦で編まれた太い塔(閉じて約 13 ブロック)が森に立ち、<b>動かない・押されない・重力で落ちない</b>。てっぺんがほどけて 10 節・15 ブロックの
+ * 首になり、先に花の頭が付く。エンティティの位置は塔の根元の地面(モデルの root)、当たり判定は塔の幹(2.6 × 13)。叩ける部位は頭と板根 4 枚
+ * ({@link HitPartSet})。行動は {@link PhyllosensWatch}(閉じた待機 ⇄ 見張り ⇄ 覗き・叩かれる・崩れる)。
  *
- * <h2>2 つの印(この Mob の本体)</h2>
- * <p>仕組みはすべて {@link PhyllosensInfluence} の 2 つの効果に集約されている。
- * ワールド側にメモ帳を持たず、<b>効果そのものが共有状態</b>になっているのが肝
- * (ユーザー要望 2026-09-14、索敵システム作り直し)。
- * <ul>
- *     <li><b>視線</b>({@code phyllosens_watch}、「Philosense is watching you」)を
- *     <b>プレイヤー</b>に付ける。</li>
- *     <li><b>誘導</b>({@code phyllosens_guidance}、「フィロセンスの誘導」)を
- *     <b>味方(グループ1〜10)</b>に付ける。</li>
- * </ul>
- * <p>誘導を受けた Mob は {@link GuidedHuntGoal} で、<b>距離も視界も壁も問わず</b>
- * 視線持ちのプレイヤーへ向かう —— ただし<b>一体ずつ突っ込まず、近くの味方と合流してから</b>。
- * どちらの印も {@code phyllosensWatchTicks} / {@code phyllosensGuidanceTicks}
- * (既定 1200 = 1 分)で切れるので、離れて 1 分しのげば追跡は解ける。
+ * <h2>体力【仮・Claude 11-14】</h2>
+ * 塔の本体 40(幹・頭を叩くとここへ)。板根は 1 枚 {@link #PLATE_HP} を別に持ち(防御 {@link #PLATE_ARMOR})、本体へは入らない。2 枚折れると腰から崩れる。
+ * 起き上がるときに編み直して板根も戻る。
  *
- * <h2>ふだん(半径 {@code phyllosensAuraRange}、既定 32)</h2>
- * <p>ただ立っているだけで、{@code phyllosensAuraIntervalTicks} ごとに周囲 32 ブロックの
- * プレイヤーに視線を、味方に誘導を配り続ける。<b>近くに居るだけで狩り出される</b>。
- *
- * <h2>索敵(半径が跳ね上がる)</h2>
- * <ul>
- *     <li><b>32 ブロック以内にプレイヤーが {@code phyllosensQuietTicks}(既定 1200 = 1 分)
- *     居なかったら</b>索敵に入る({@link PhyllosensScoutGoal})。
- *     <b>「プレイヤーが居ない」だけを見る</b> — 牛やコウモリは関係ない。</li>
- *     <li>入ったら {@code phyllosensScoutDurationTicks}(既定 600 = 30 秒)その場で撒き続け、
- *     首を上げ花を開き、胞子を撒きながら足元を汚染する({@link InvaderSporeField})。</li>
- *     <li>そのあいだ配る範囲が跳ね上がる —— 視線は
- *     <b>{@code phyllosensScoutWatchRange}(既定 512)</b>のプレイヤーへ、誘導は
- *     <b>{@code phyllosensScoutGuidanceRange}(既定 256)</b>の味方へ。</li>
- * </ul>
- *
- * <p><b>距離の現実</b>: Mob はシミュレーション距離の外では動かないので、実際に歩いてくるのは
- * 視線持ちのプレイヤーの周囲(既定 128 ブロック)に居る Mob だけ。それより遠い個体は印を持ったまま
- * 凍って待ち、プレイヤーが近づいた瞬間に動き出す。誘導を 256 ブロックへ配るのはこの予備軍のため。
- *
- * <h2>ビーム</h2>
- * <p><b>索敵中以外に</b>相手を見つけたときは、ティタニカの精密ビームと同じ形の光線で撃つ
- * ({@link PhyllosensBeamGoal})。ティタニカのものより細く・当たり判定も狭い。
- * 頭を相手へ向けて {@code phyllosensBeamChargeTicks}(既定 60 = 3 秒)溜め<b>花を大きく開き</b>、
- * そこで<b>狙点を固定</b>して {@code phyllosensBeamLockTicks}(既定 6 = 0.3 秒)後に発射。
- * 撃った瞬間は反動で首がのけぞる({@code beam_fire})。
- * ダメージ {@code phyllosensBeamDamage}(既定 20)、射程 {@code phyllosensBeamRange}
- * (<b>既定 80</b> — 2026-09-14 に 40 から倍。{@code mobs.json} の {@code followRange} も 80 に揃えてある)。
- * <b>溜めに入ったらその場から一歩も動かない</b>({@link #isRooted()}、ユーザー要望 2026-09-14) —
- * 射程の外にいる間だけ歩いて近づく。
- *
- * <h2>アニメーション名(GeckoLib、差し替え用)</h2>
- * {@code idle} / {@code walk} / {@code run} / {@code scout} / {@code beam_charge} / {@code beam_fire}。
- * {@code assets/overgrown_vegetation/animations/phyllosens.animation.json}。
- * 動きの確認は {@code tools/anim-preview}(モーションビューア)で。
+ * <h2>古いワールドの竹馬</h2>
+ * 11-14 より前のワールドに残った竹馬の個体({@code phyllosens} で保存。胴の位置 = 地面から 2.5〜6.5 の空中)は、この監視塔として読み込まれる。
+ * 監視塔の印 {@link #TAG_TOWER} が無い個体は、最初の tick に真下の地面まで下ろす({@link #settle})。
  */
-public class PhyllosensEntity extends AbstractOvergrownInvaderEntity {
+public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedMob {
 
-    /** 索敵中(首を上げ、花を開いている)。 */
-    public static final int STATE_SCOUT = 4;
-    /** ビームの溜め〜発射中。 */
-    public static final int STATE_BEAM = 5;
+    public static final String ID = "phyllosens";
+    /** 保存の印(これが無い = 竹馬の時代の個体)。 */
+    static final String TAG_TOWER = "OvTower";
 
-    private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation RUN_ANIM = RawAnimation.begin().thenLoop("run");
-    // 索敵・ビームは「姿勢を作って、そこで止まる」動き。ループさせると 5 秒ごとに首を下ろして
-    // 上げ直してしまうので、最後のコマで固まる再生にする(json 側も hold_on_last_frame)。
-    private static final RawAnimation SCOUT_ANIM = RawAnimation.begin().thenPlayAndHold("scout");
-    private static final RawAnimation BEAM_CHARGE_ANIM = RawAnimation.begin().thenPlayAndHold("beam_charge");
-    private static final RawAnimation BEAM_FIRE_ANIM = RawAnimation.begin().thenPlayAndHold("beam_fire");
+    /** 板根 1 枚の体力・防御【仮・Vault の竹馬の脚 16 / 防御 8 を読み替え】。 */
+    public static final float PLATE_HP = 16.0F, PLATE_ARMOR = 8.0F;
+    /** 板根の無敵時間(tick)。 */
+    static final int PLATE_INVUL = 10;
+    /** 倒れるアニメ death(2.0 秒)の間は消さない。 */
+    static final int DEATH_TICKS = 40;
 
+    /** 部位の並び: 0 = 頭、1〜4 = 板根(geo の stump_f1〜f4)。 */
+    static final String[] PART_NAMES = {"head", "root_1", "root_2", "root_3", "root_4"};
     /**
-     * 動作を切り替えるときの補間(tick)。GeckoLib はこの間に今の姿勢から新しいアニメの 0 秒目の姿勢へ寄せ、
-     * <b>それが終わってからアニメを 0 秒目から流す</b>(4.7.6 の {@code AnimationController#process})。
-     * 溜め → 発射だけは補間 0: {@code beam_fire} の 0 秒目は {@code beam_charge} の最後のコマと全部の骨で同じ姿勢なので
-     * 寄せる必要がない。補間を挟んでいたころ(2026-09-23 まで)は、のけぞりが撃ってから 6 tick 遅れて始まり、
-     * 光線が消えかけてから首が跳ねていた。
+     * 板根の中心(前・左・上、ブロック)。geo の stump_f の軸(根元の輪の上、半径 約 20 単位)から外へ同じ向きに 2 倍(箱は半径 22〜58 単位)。
+     * ファイルの空間の +X は Mob の左。
      */
-    static final int TRANSITION_TICKS = 6;
+    static final double[][] PLATE_AT = {
+            {33.9 / 16.0, 21.2 / 16.0, 0.5},
+            {-18.8 / 16.0, 35.3 / 16.0, 0.5},
+            {-36.5 / 16.0, -16.3 / 16.0, 0.5},
+            {15.0 / 16.0, -37.1 / 16.0, 0.5}};
 
-    // --- ビームの同期データ(クライアントの描画用) ---
+    private static final EntityDataAccessor<Integer> DATA_STATE = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
+    /** 覗きの首の狙い: 面の中の (前 r, 上 y)(単位)と面の向き(度)。 */
+    private static final EntityDataAccessor<Vector3f> DATA_NECK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    /** 見る点(エンティティからの差、ブロック)。 */
+    private static final EntityDataAccessor<Vector3f> DATA_LOOK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.VECTOR3);
+    /** 覗きの種類(2 bit)・覗きの効き(7 bit)・見つめの効き(7 bit)・折れた板根(4 bit)・見つめの向き(度 + 180、9 bit)。 */
+    private static final EntityDataAccessor<Integer> DATA_PACK = SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.INT);
 
-    /** 0 = 撃っていない / 1 = 溜め / 2 = 狙点固定 / 3 = 照射。 */
-    public static final byte BEAM_NONE = 0;
-    public static final byte BEAM_CHARGE = 1;
-    public static final byte BEAM_LOCKED = 2;
-    public static final byte BEAM_FIRE = 3;
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    private final HitPartSet hitParts;
+    private final PhyllosensWatch watch;
+    final float[] plateHp = {PLATE_HP, PLATE_HP, PLATE_HP, PLATE_HP};
+    private final int[] plateInvul = new int[4];
+    /** 部位の口から本体の hurt へ渡す間だけ持つ(-1 = 本体)。 */
+    private int hurtPart = -1;
+    private boolean settled;
 
-    private static final EntityDataAccessor<Byte> DATA_BEAM_PHASE =
-            SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Float> DATA_BEAM_X =
-            SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.FLOAT);
-    private static final EntityDataAccessor<Float> DATA_BEAM_Y =
-            SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.FLOAT);
-    private static final EntityDataAccessor<Float> DATA_BEAM_Z =
-            SynchedEntityData.defineId(PhyllosensEntity.class, EntityDataSerializers.FLOAT);
+    // ---- クライアント(描画の補間)
+    private float peekW0, peekW1, lockW0, lockW1, lockYaw0, lockYaw1;
+    private int lastSerial = -1;
+    private PhyllosensWatch.State lastState;
+    /** 確かめ用(テストクライアント -Dov.devbridge): アニメが変わったらログへ。 */
+    private static final boolean DEV_LOG = Boolean.getBoolean("ov.devbridge");
+    private String lastAnimName = "";
 
-    /** 半径 {@code phyllosensAuraRange} にプレイヤーが居ない状態が続いている tick 数。 */
-    private int playerFreeTicks;
-    /**
-     * ビーム中でも<b>射程へ近づいている最中</b>だけは動いてよい。{@link PhyllosensBeamGoal} が立てる。
-     * サーバー側だけの印で、クライアントは {@code STATE_BEAM} を常に「根を張っている」と見る
-     * (見た目の押し合いにしか使わないので、そのずれは問題にならない)。
-     */
-    private boolean beamApproaching;
-    /**
-     * <b>頭の先端が実際にあるワールド座標</b>。<b>クライアント専用</b>で、
-     * {@code client/PhyllosensRenderer} が描画のたびに焼かれた骨の行列から読んで入れる。
-     * ビームはここから出る({@link #beamOrigin()})。
-     */
-    @Nullable
-    private Vec3 headTipPosition;
-    /** 次に印を配り直すまでの残り tick(毎 tick 走査すると重いので間引く)。 */
-    private int auraTimer;
-    /** 次に獲物の居場所を配り直すまでの残り tick({@link InvaderPreyIntel})。 */
-    private int preyIntelTimer;
-
-    // --- 向きの変え方(2026-09-14: 「大きいモデルなので、その場でぐるぐるしないように」) ---
-
-    /** 立ち止まっているとき、体が 1 tick に回れる角度(度)。バニラは 10 tick で全部回る。 */
-    private static final float BODY_TURN_STEP = 3.0F;
-
-    /** 群れの中で許す「重心からの距離」の倍率。1 超 = ほかの種より後ろに構える。 */
-    private static final double PACK_REAR_FACTOR = 1.3D;
-    /** 歩いているとき、進行方向を 1 tick に変えられる角度(度)。バニラは 90。 */
-    private static final float MOVE_TURN_STEP = 12.0F;
-    /** 首が 1 tick に回れる角度(度)。バニラは 10。 */
-    private static final int HEAD_ROT_SPEED = 4;
-    /** 首を体からどこまでひねれるか(度)。バニラは 75。 */
-    private static final int MAX_HEAD_YAW = 50;
-
-    // --- ビームの出どころ(サーバー用の概算。クライアントは焼かれた骨を使う) ---
-
-    /**
-     * 撃つときの姿勢での<b>頭の先端の高さ</b>(素のモデルでの足元からのブロック数)。
-     * {@code beam_charge} の最後のコマ(首が合計 36 度持ち上がった形)で骨の鎖をたどった値。
-     * {@code scale} は掛かっていないので、使うときに {@code getScale()} を掛けること。
-     */
-    private static final double BEAM_HEAD_HEIGHT = 4.41D;
-    /** 同じく<b>前方向への出っ張り</b>(素のモデルでのブロック数)。 */
-    private static final double BEAM_HEAD_FORWARD = 2.62D;
-
-    public PhyllosensEntity(EntityType<? extends PhyllosensEntity> type, Level level) {
+    public PhyllosensEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
-        // 歩きながらの方向転換も、この体の大きさだと 1 tick 90 度では速すぎる。
-        this.moveControl = new SlowTurnMoveControl(this, MOVE_TURN_STEP);
-        this.xpReward = MobStats.xpReward("phyllosens", 12);
-    }
-
-    /**
-     * <b>その場でぐるぐる回らない</b>(ユーザー指摘 2026-09-14)。
-     *
-     * <p>バニラは立ち止まっている Mob の体を 10 tick で頭の向きへ揃えるので、
-     * 見回すゴールが別方向を選ぶたびに体ごと独楽のように回ってしまう。この体の大きさでは
-     * 目に余るので、{@link SlowBodyRotationControl} で <b>1 tick {@value #BODY_TURN_STEP} 度</b>
-     * まで(＝一回転に約 6 秒)に抑える。
-     */
-    @Override
-    protected BodyRotationControl createBodyControl() {
-        return new SlowBodyRotationControl(this, BODY_TURN_STEP);
-    }
-
-    /** 首もゆっくり。バニラの 10 度/tick は、この長さの首だと鞭のように見える。 */
-    @Override
-    public int getHeadRotSpeed() {
-        return HEAD_ROT_SPEED;
-    }
-
-    /** 首のひねりの上限。ここを越えたぶんは体が(ゆっくり)追う。 */
-    @Override
-    public int getMaxHeadYRot() {
-        return MAX_HEAD_YAW;
-    }
-
-    /**
-     * <b>きょろきょろ見回さない</b>。回転を遅くしてもこのゴールが生きていると、
-     * 1〜2 秒おきに選ばれる別方向へ延々とゆっくり回り続けることになる。見張り役の植物なので、
-     * 見るものがあるとき(近くのプレイヤー・索敵・ビーム)だけ首を動かす。
-     */
-    @Override
-    protected boolean useRandomLookAroundGoal() {
-        return false;
+        this.setNoGravity(true);
+        this.xpReward = 12;
+        float[] w = {1.5F, 1.4F, 1.4F, 1.4F, 1.4F}, h = {1.3F, 1.0F, 1.0F, 1.0F, 1.0F};
+        this.hitParts = new HitPartSet(this, PART_NAMES, w, h);
+        this.hitParts.onHurt(this::onPartHurt);
+        this.setId(ENTITY_COUNTER.getAndAdd(this.hitParts.count() + 1) + 1);
+        this.watch = new PhyllosensWatch(this);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Mob.createMobAttributes(), "phyllosens");
+        return MobStats.apply(Monster.createMonsterAttributes(), ID);
     }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_BEAM_PHASE, BEAM_NONE);
-        builder.define(DATA_BEAM_X, 0.0F);
-        builder.define(DATA_BEAM_Y, 0.0F);
-        builder.define(DATA_BEAM_Z, 0.0F);
+        builder.define(DATA_STATE, 0);
+        builder.define(DATA_NECK, new Vector3f());
+        builder.define(DATA_LOOK, new Vector3f(0, 21, 4));
+        builder.define(DATA_PACK, 180 << 20);
+    }
+
+    public PhyllosensWatch watch() {
+        return this.watch;
+    }
+
+    public HitPartSet hitParts() {
+        return this.hitParts;
+    }
+
+    // ------------------------------------------------------------------ 部位
+
+    @Override
+    public void setId(int id) {
+        super.setId(id);
+        if (this.hitParts != null) this.hitParts.assignIds(id + 1);
     }
 
     @Override
-    protected void registerSpeciesGoals() {
-        // ビームは索敵より先。索敵中(STATE_SCOUT)は canUse() が false を返すので撃たない。
-        this.goalSelector.addGoal(2, new PhyllosensBeamGoal(this));
-        this.goalSelector.addGoal(3, new PhyllosensScoutGoal(this));
+    public boolean isMultipartEntity() {
+        return true;
     }
 
-    /** 索敵行動が「その場に留まって汚染する」役目を兼ねているので、アルボラのうずくまりは使わない。 */
     @Override
-    protected boolean useSporeCrouchGoal() {
-        return false;
+    public net.neoforged.neoforge.entity.PartEntity<?>[] getParts() {
+        return this.hitParts.parts();
     }
 
-    /** 遠距離で戦う。殴りに行くと撃つ間合いが保てない。 */
+    private void onPartHurt(HitPart part, DamageSource src) {
+        this.hurtPart = this.hitParts.indexOf(part.name);
+    }
+
     @Override
-    protected boolean useMeleeAttackGoal() {
-        return false;
-    }
-
-    /**
-     * 群れの中では<b>後ろ寄りに構える</b>(既定の {@value #PACK_REAR_FACTOR} 倍)。
-     * ビームで撃ち合う種なので、仲間と同じ位置まで詰めてしまうと間合いが無くなる。
-     */
-    @Override
-    public double packCohesionDistance() {
-        return super.packCohesionDistance() * PACK_REAR_FACTOR;
-    }
-
-    /** 陣形では<b>いちばん後ろ</b>({ invaderPackFormationRear})。撃ち合う間合いを確保するため。 */
-    @Override
-    public double packFormationOffset() {
-        return -OvergrownVegetationConfig.COMMON.invaderPackFormationRear.get();
-    }
-
-    /** 索敵中に広げる汚染の半径。アルボラより広い(ユーザー要望 2026-09-14)。 */
-    @Override
-    public int sporeCorruptionRadius() {
-        return OvergrownVegetationConfig.COMMON.phyllosensCorruptionRadius.get();
-    }
-
-    /**
-     * <b>索敵中は微動だにしない</b>(ユーザー指示 2026-09-14)。
-     *
-     * <p>{@link PhyllosensScoutGoal} は毎 tick 経路と入力と水平速度を潰しているが、それだけでは
-     * 足りない —— 周りを味方(アルボラの群れなど)が通ると
-     * {@code Mob#pushEntities} の押し合いでじりじり横へずらされてしまう。押される側にならないよう、
-     * 索敵中だけ当たり判定の押し合いから外す。
-     *
-     * <p>攻撃は普通に当たる({@code isPushable} は押し合いだけの判定で、被弾には関係しない)。
-     */
-    @Override
-    public boolean isPushable() {
-        return !isRooted() && super.isPushable();
-    }
-
-    /**
-     * <b>一歩も動かない状態か</b>。索敵中と、<b>ビームの溜め〜発射中</b>
-     * (ユーザー要望 2026-09-14:「チャージ中は動かないように」)。
-     *
-     * <p>ビームでも射程の外から歩いて近づいている間({@link #beamApproaching})は普通に動く。
-     */
-    public boolean isRooted() {
-        int state = getActionState();
-        return state == STATE_SCOUT || (state == STATE_BEAM && !this.beamApproaching);
-    }
-
-    /** {@link PhyllosensBeamGoal} から。射程の外にいて歩いて近づいている間だけ true。 */
-    public void setBeamApproaching(boolean approaching) {
-        this.beamApproaching = approaching;
-    }
-
-    /**
-     * <b>遠くても描く</b>(ユーザー要望 2026-09-14:「遠くから見て索敵をしているのが分かるように」)。
-     *
-     * <p>バニラの既定は当たり判定の大きさから上限を決めていて({@code 辺の平均 × 64})、
-     * この Mob だと 230 ブロックほどで消える。索敵中の「首を上げ花を開いた姿」は遠景の合図なので、
-     * クライアントが持っているうちは描かせる。実際の上限は
-     * {@code clientTrackingRange} とプレイヤーの描画距離のほうで頭打ちになる。
-     *
-     * <p>アニメーションを止める側({@code MobRenderLod})でもこの Mob は対象外にしてある —
-     * 描けても姿勢がレストポーズに戻ってしまっては意味がないため。
-     */
-    @Override
-    public boolean shouldRenderAtSqrDistance(double distanceSq) {
-        return distanceSq < 512.0D * 512.0D;
-    }
-
-    /**
-     * <b>根を張っている間の移動を最後の関門で断つ</b>(ユーザー指示 2026-09-14)。
-     * 対象は{@link #isRooted() 索敵中とビームの溜め〜発射中}。
-     *
-     * <p>{@link PhyllosensScoutGoal} / {@link PhyllosensBeamGoal} 側でも
-     * 経路・入力・水平速度を毎 tick 潰しているが、そこは
-     * {@code serverAiStep} の中 —— そのあとに動く経路(ノックバックの残り、押し合いの跳ね返り、
-     * 他所から差し込まれた速度)は素通りしてしまう。<b>自力移動も外力も必ずここを通る</b>ので、
-     * 根を張っている間は入力を捨て、{@code super.travel} の前後で水平速度を 0 に潰す。
-     *
-     * <p>縦(重力・落下)はそのまま残す — 足場が崩れたら普通に落ちてほしいため。
-     */
-    @Override
-    public void travel(Vec3 travelVector) {
-        if (!isRooted()) {
-            super.travel(travelVector);
-            return;
+    public boolean hurt(DamageSource source, float amount) {
+        int part = this.hurtPart;
+        this.hurtPart = -1;
+        if (this.level().isClientSide() || this.isDeadOrDying()) return super.hurt(source, amount);
+        if (this.isInvulnerableTo(source)) return false;
+        if (part >= 1 && part <= 4) {
+            return hurtPlate(part - 1, source, amount);
         }
-        setZza(0.0F);
-        setXxa(0.0F);
-        setSpeed(0.0F);
-        Vec3 before = getDeltaMovement();
-        setDeltaMovement(0.0D, before.y, 0.0D);
-        super.travel(Vec3.ZERO);
-        Vec3 after = getDeltaMovement();
-        setDeltaMovement(0.0D, after.y, 0.0D);
+        boolean hit = super.hurt(source, amount);
+        if (hit && part == 0) this.watch.onHeadHit(source);
+        return hit;
     }
 
-    /**
-     * 索敵中は押し合いに参加しない。{@link #isPushable()} で「押される側」からは外れるが、
-     * <b>自分から押しに行く側</b>({@code LivingEntity#pushEntities})は別勘定で、
-     * 押した反動で自分も動いてしまう。根を張っている間はどちらもしない。
-     */
-    @Override
-    protected void pushEntities() {
-        if (isRooted()) {
-            return;
+    /** 板根を叩かれた: 板根の体力だけ減らす(本体へは入れない)。根元から胞子を吹く。 */
+    private boolean hurtPlate(int i, DamageSource source, float amount) {
+        if (this.plateHp[i] <= 0.0F || this.plateInvul[i] > 0) return false;
+        float dmg = CombatRules.getDamageAfterAbsorb(this, amount, source, PLATE_ARMOR, 0.0F);
+        this.plateHp[i] = Math.max(0.0F, this.plateHp[i] - dmg);
+        this.plateInvul[i] = PLATE_INVUL;
+        if (this.level() instanceof ServerLevel sl) {
+            Vec3 c = platePos(i);
+            sl.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.SPRUCE_WOOD.defaultBlockState()), c.x, c.y, c.z, 10, 0.4, 0.3, 0.4, 0.1);
         }
-        super.pushEntities();
+        this.watch.onPlateHit(i, this.plateHp[i] <= 0.0F, source);
+        return true;
     }
 
-    // --- ふだんの印配り と 索敵に入る条件 ---
-
-    /**
-     * いま索敵を始めてよいか。条件は<b>ユーザー指定のひとつだけ</b>(2026-09-14) —
-     * <b>半径 {@code phyllosensAuraRange}(既定 32)にプレイヤーが
-     * {@code phyllosensQuietTicks}(既定 1200 = 1 分)居なかった</b>こと。
-     *
-     * <p>見るのは<b>プレイヤーだけ</b>。以前は「グループ1〜10 以外の生き物すべて」を数えていて、
-     * 牛 1 頭・洞窟のコウモリ 1 匹で永久に索敵に入れなかった(2026-09-14 に判明)。
-     */
-    public boolean canBeginScout() {
-        return this.playerFreeTicks >= OvergrownVegetationConfig.COMMON.phyllosensQuietTicks.get();
+    /** 板根 i の真ん中(ワールド)。 */
+    public Vec3 platePos(int i) {
+        double[] a = PLATE_AT[i];
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw), fz = Mth.cos(yaw), lx = Mth.cos(yaw), lz = Mth.sin(yaw);
+        return new Vec3(this.getX() + fx * a[0] + lx * a[1], this.getY() + a[2], this.getZ() + fz * a[0] + lz * a[1]);
     }
 
-    /**
-     * 索敵が終わった。数え直しからやり直す(＝また 1 分プレイヤーが来なければ次の索敵に入る)。
-     * <b>途中で中断された場合も同じ</b> — そうしないと、殴られて中断 → すぐ再開、を繰り返して
-     * 立ち止まり続けることになる。
-     */
-    public void onScoutFinished() {
-        this.playerFreeTicks = 0;
+    public int brokenPlates() {
+        int n = 0;
+        for (float h : this.plateHp) if (h <= 0.0F) n++;
+        return n;
+    }
+
+    int brokenMask() {
+        int m = 0;
+        for (int i = 0; i < 4; i++) if (this.plateHp[i] <= 0.0F) m |= 1 << i;
+        return m;
+    }
+
+    /** 起き上がり: 編み直して板根も戻る【仮】。 */
+    void restorePlates() {
+        for (int i = 0; i < 4; i++) this.plateHp[i] = PLATE_HP;
+    }
+
+    private void placeParts() {
+        double[] c = new double[PART_NAMES.length * 3];
+        Vec3 head = this.watch.headPartCenter();
+        float yaw = this.getYRot() * Mth.DEG_TO_RAD;
+        double dx = head.x - this.getX(), dz = head.z - this.getZ();
+        c[0] = dx * -Mth.sin(yaw) + dz * Mth.cos(yaw);
+        c[1] = dx * Mth.cos(yaw) + dz * Mth.sin(yaw);
+        c[2] = head.y - this.getY();
+        int broken = this.level().isClientSide() ? (this.entityData.get(DATA_PACK) >> 16) & 0xF : brokenMask();
+        for (int i = 0; i < 4; i++) {
+            double[] a = PLATE_AT[i];
+            boolean off = (broken & (1 << i)) != 0;
+            c[(i + 1) * 3] = a[0];
+            c[(i + 1) * 3 + 1] = a[1];
+            c[(i + 1) * 3 + 2] = off ? -50.0D : a[2];   // 折れた板根は地面の下へ逃がす(叩けない)
+        }
+        this.hitParts.place(this, this.getYRot(), c);
+    }
+
+    // ------------------------------------------------------------------ tick
+
+    @Override
+    public void tick() {
+        // 動かない: 押し流し・ノックバックで動いた分を消す
+        this.setDeltaMovement(Vec3.ZERO);
+        super.tick();
+        this.yBodyRot = this.getYRot();
+        this.yHeadRot = this.getYRot();
+        if (this.level().isClientSide()) {
+            clientTick();
+        } else {
+            if (!this.settled) settle();
+            for (int i = 0; i < 4; i++) if (this.plateInvul[i] > 0) this.plateInvul[i]--;
+            sync();
+        }
+        placeParts();
     }
 
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
-        tickAura();
+        if (this.isAlive()) this.watch.tick();
     }
 
-    /**
-     * ふだんの印配りと、プレイヤー不在の計測。{@code phyllosensAuraIntervalTicks} ごとに
-     * まとめてやる(毎 tick 走査すると重いため)。
-     *
-     * <p>やることは 2 つ:
-     * <ul>
-     *     <li>半径 {@code phyllosensAuraRange} のプレイヤーへ<b>視線</b>、味方へ<b>誘導</b>を配る。</li>
-     *     <li>その半径にプレイヤーが 1 人も居なければ {@link #playerFreeTicks} を進める。
-     *     1 人でも居れば 0 に戻す。</li>
-     * </ul>
-     * 索敵中はここでは配らない —— {@link PhyllosensScoutGoal} 側がずっと広い範囲へ配るので、
-     * 二重に走らせる意味がない。
-     */
-    private void tickAura() {
-        int interval = Math.max(1, OvergrownVegetationConfig.COMMON.phyllosensAuraIntervalTicks.get());
-        if (--this.auraTimer > 0) {
-            return;
-        }
-        this.auraTimer = interval;
-        if (!(this.level() instanceof ServerLevel level)) {
-            return;
-        }
-        // 獲物(グループ1〜3)を探して群れの狩り手へ渡す(ユーザー要望 2026-09-15)。
-        // プレイヤー向けの「視線」とは別枠 —— あちらは群れ全体を遠くのプレイヤーへ差し向ける
-        // 戦略の仕掛け、こちらはアルボラとスカトゥリウムへ目の前の獲物を渡す戦術の仕掛け。
-        if (--this.preyIntelTimer <= 0) {
-            this.preyIntelTimer = Math.max(1, InvaderPreyIntel.interval());
-            InvaderPreyIntel.report(level, this, InvaderPreyIntel.searchRange());
-        }
-
-        double range = OvergrownVegetationConfig.COMMON.phyllosensAuraRange.get();
-        int marked = PhyllosensInfluence.markPlayers(level, this, range);
-        if (getActionState() != STATE_SCOUT) {
-            PhyllosensInfluence.guideAllies(level, this, range);
-        }
-        if (marked > 0) {
-            this.playerFreeTicks = 0;
-        } else {
-            this.playerFreeTicks += interval;
+    /** 真下の地面まで下ろす(古い竹馬の個体・空中に置かれた卵)。足場が 24 ブロック以内に無ければそのまま。 */
+    void settle() {
+        this.settled = true;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int x = Mth.floor(this.getX()), z = Mth.floor(this.getZ()), y0 = Mth.floor(this.getY() + 0.01D);
+        for (int y = y0; y > y0 - 24 && y > this.level().getMinBuildHeight(); y--) {
+            p.set(x, y - 1, z);
+            BlockState s = this.level().getBlockState(p);
+            if (!s.getCollisionShape(this.level(), p).isEmpty()) {
+                double top = p.getY() + s.getCollisionShape(this.level(), p).max(net.minecraft.core.Direction.Axis.Y);
+                if (Math.abs(top - this.getY()) > 1.0E-3D) this.moveTo(this.getX(), top, this.getZ(), this.getYRot(), 0.0F);
+                return;
+            }
         }
     }
 
-    /** 半径 {@code phyllosensAuraRange} にプレイヤーが居ない状態が続いている tick 数。 */
-    public int getPlayerFreeTicks() {
-        return this.playerFreeTicks;
+    private void sync() {
+        PhyllosensWatch w = this.watch;
+        this.entityData.set(DATA_STATE, w.state().ordinal() | ((w.serial() & 0xFFFF) << 8));
+        this.entityData.set(DATA_NECK, new Vector3f((float) w.peekR(), (float) w.peekY(), (float) w.peekYaw()));
+        Vec3 look = w.lookAt().subtract(this.position());
+        this.entityData.set(DATA_LOOK, new Vector3f((float) look.x, (float) look.y, (float) look.z));
+        int lockYaw = Mth.clamp((int) Math.round(Mth.wrapDegrees(w.lockYaw())) + 180, 0, 360);
+        this.entityData.set(DATA_PACK, (w.peekKind().ordinal() & 3) | (Math.round(w.peekWeight() * 100) << 2)
+                | (Math.round(w.lockWeight() * 100) << 9) | (brokenMask() << 16) | (lockYaw << 20));
     }
 
-    // --- ビームの状態(サーバーが書き、クライアントが読む) ---
-
-    public byte getBeamPhase() {
-        return this.entityData.get(DATA_BEAM_PHASE);
-    }
-
-    public void setBeamPhase(byte phase) {
-        this.entityData.set(DATA_BEAM_PHASE, phase);
-    }
-
-    /** ビームの終点(ワールド座標)。 */
-    public Vec3 getBeamTarget() {
-        return new Vec3(this.entityData.get(DATA_BEAM_X), this.entityData.get(DATA_BEAM_Y),
-                this.entityData.get(DATA_BEAM_Z));
-    }
-
-    public void setBeamTarget(Vec3 target) {
-        this.entityData.set(DATA_BEAM_X, (float) target.x);
-        this.entityData.set(DATA_BEAM_Y, (float) target.y);
-        this.entityData.set(DATA_BEAM_Z, (float) target.z);
-    }
-
-    /**
-     * <b>ビームの出どころ = 頭の先端</b>(ユーザー要望 2026-09-14:
-     * 「ビームが出る場所が首の少し後ろになっているので、しっかり頭の先端から出るように」)。
-     *
-     * <p>クライアントでは {@code client/PhyllosensRenderer} が焼かれた骨の行列から読んだ
-     * <b>実際の頭の先端</b>を使う({@link #setHeadTipPosition})。首は
-     * {@code neck → bone3 → bone4 → bone5 → head} と長いうえ、溜めの 3 秒間ずっと
-     * 持ち上がり続けるので、計算では追いつかない。
-     *
-     * <p><b>サーバー側には焼かれた骨が無い</b>ので、{@code beam_charge} の<b>撃つときの姿勢</b>
-     * (首が合計 36 度持ち上がった形)で骨の鎖をたどって求めた定数を使う。撃つのはその姿勢に
-     * なってからなので、判定の線と見た目はほぼ重なる。
-     */
-    public Vec3 beamOrigin() {
-        Vec3 tip = this.headTipPosition;
-        if (tip != null) {
-            return tip;
+    private void clientTick() {
+        int pk = this.entityData.get(DATA_PACK);
+        this.peekW0 = this.peekW1;
+        this.lockW0 = this.lockW1;
+        this.lockYaw0 = this.lockYaw1;
+        this.peekW1 = ((pk >> 2) & 0x7F) / 100.0F;
+        this.lockW1 = ((pk >> 9) & 0x7F) / 100.0F;
+        this.lockYaw1 = ((pk >> 20) & 0x1FF) - 180.0F;
+        if (this.tickCount <= 1) {
+            this.peekW0 = this.peekW1;
+            this.lockW0 = this.lockW1;
+            this.lockYaw0 = this.lockYaw1;
         }
-        // Minecraft の yaw は 0 で +Z 向きなので、前方向は (-sin, 0, cos)。
-        double scale = this.getScale();
-        float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
-        return new Vec3(
-                this.getX() - Mth.sin(yaw) * BEAM_HEAD_FORWARD * scale,
-                this.getY() + BEAM_HEAD_HEIGHT * scale,
-                this.getZ() + Mth.cos(yaw) * BEAM_HEAD_FORWARD * scale);
+        this.watch.clientTick(state(), this.peekW1, this.lockW1, this.lockYaw1, peekKind(), neckTarget(), this.position().add(lookOffset()));
     }
 
-    /** {@code client/PhyllosensRenderer} が描画のたびに、焼かれた頭の先端の位置を入れてくる。 */
-    public void setHeadTipPosition(Vec3 pos) {
-        this.headTipPosition = pos;
+    // ------------------------------------------------------------------ 描画が読む
+
+    public PhyllosensWatch.State state() {
+        int s = this.entityData.get(DATA_STATE) & 0xFF;
+        PhyllosensWatch.State[] v = PhyllosensWatch.State.values();
+        return v[Mth.clamp(s, 0, v.length - 1)];
     }
 
-    /**
-     * 自力で相手を掴んだときは、そのプレイヤーにも視線を付ける
-     * (32 ブロックの輪の外から矢で撃たれた、など「見られていないのに絡んできた」相手用)。
-     */
+    public int stateSerial() {
+        return (this.entityData.get(DATA_STATE) >> 8) & 0xFFFF;
+    }
+
+    public PhyllosensWatch.PeekKind peekKind() {
+        return PhyllosensWatch.PeekKind.values()[Math.min(this.entityData.get(DATA_PACK) & 3, 2)];
+    }
+
+    public Vector3f neckTarget() {
+        return this.entityData.get(DATA_NECK);
+    }
+
+    public Vec3 lookOffset() {
+        Vector3f v = this.entityData.get(DATA_LOOK);
+        return new Vec3(v.x(), v.y(), v.z());
+    }
+
+    public float peekWeight(float pt) {
+        return Mth.lerp(pt, this.peekW0, this.peekW1);
+    }
+
+    public float lockWeight(float pt) {
+        return Mth.lerp(pt, this.lockW0, this.lockW1);
+    }
+
+    public float lockYaw(float pt) {
+        return Mth.lerp(pt, this.lockYaw0, this.lockYaw1);
+    }
+
+    public int clientBrokenMask() {
+        return (this.entityData.get(DATA_PACK) >> 16) & 0xF;
+    }
+
+    // ------------------------------------------------------------------ 動かない立ち物
+
     @Override
-    public void setTarget(LivingEntity target) {
-        super.setTarget(target);
-        if (target instanceof net.minecraft.world.entity.player.Player player
-                && this.level() instanceof ServerLevel level
-                && PhyllosensInfluence.isWatchable(player)) {
-            PhyllosensInfluence.markPlayers(level, this, this.distanceTo(player) + 1.0D);
-            this.playerFreeTicks = 0;
-        }
+    public void travel(Vec3 input) {
     }
 
-    // --- アニメーション ---
+    @Override
+    public boolean isPushable() {
+        return false;
+    }
+
+    @Override
+    public void push(Entity entity) {
+    }
+
+    @Override
+    public void push(double x, double y, double z) {
+    }
+
+    @Override
+    public void knockback(double strength, double x, double z) {
+    }
+
+    @Override
+    public boolean isPushedByFluid() {
+        return false;
+    }
+
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        return false;
+    }
+
+    @Override
+    protected void checkFallDamage(double y, boolean onGround, BlockState state, BlockPos pos) {
+    }
+
+    /** 塔は地面に根付いている(足元の葉・草で窒息しない)。 */
+    @Override
+    public boolean isInWall() {
+        return false;
+    }
+
+    /** 立ち続ける(遠くても消えない)。ピースフルではバニラの決まりどおり消える(ほかの植物側と同じ)。 */
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    protected BodyRotationControl createBodyControl() {
+        return new BodyRotationControl(this) {
+            @Override
+            public void clientTick() {
+                PhyllosensEntity.this.yBodyRot = PhyllosensEntity.this.getYRot();
+                PhyllosensEntity.this.yHeadRot = PhyllosensEntity.this.getYRot();
+            }
+        };
+    }
+
+    /** 首と花は根元から 15 ブロック先まで・見張りで 23 ブロックの高さまで届く。 */
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        return this.getBoundingBox().expandTowards(0.0D, 11.0D, 0.0D).inflate(11.0D, 0.0D, 11.0D);
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean(TAG_TOWER, true);
+        for (int i = 0; i < 4; i++) tag.putFloat("Plate" + i, this.plateHp[i]);
+        this.watch.save(tag);   // 崩れ・倒れ・起き上がりの途中(読み込み直しで板根が折れたまま残らないよう。①10)
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        // 竹馬の時代の個体(印なし)は最初の tick に地面へ下ろす。監視塔は置かれた所に根付いているので下ろさない
+        this.settled = tag.getBoolean(TAG_TOWER);
+        for (int i = 0; i < 4; i++) {
+            if (tag.contains("Plate" + i)) this.plateHp[i] = tag.getFloat("Plate" + i);
+        }
+        this.watch.load(tag);
+        this.setNoGravity(true);
+    }
+
+    // ------------------------------------------------------------------ 倒れる
+
+    /** 倒れるアニメ(2 秒)の後に膨らんで破裂する(11-15 ユーザー決定。消すのは {@code corpse/PlantSideBurst}、ここは外されたときの控え)。 */
+    @Override
+    protected void tickDeath() {
+        BurstDeath.tick(this, DEATH_TICKS);
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        this.watch.onDeath();
+    }
+
+    // ------------------------------------------------------------------ アニメ
+
+    static final String PUFF = "puff";
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
-            boolean fire = getActionState() == STATE_BEAM && getBeamPhase() == BEAM_FIRE;
-            // 発射の反動は撃った瞬間に始める(溜めの最後のコマと発射の 0 秒目は同じ姿勢)。
-            state.getController().transitionLength(fire ? 0 : TRANSITION_TICKS);
-            switch (getActionState()) {
-                case STATE_SCOUT -> {
-                    return state.setAndContinue(SCOUT_ANIM);
-                }
-                case STATE_BEAM -> {
-                    return state.setAndContinue(getBeamPhase() == BEAM_FIRE ? BEAM_FIRE_ANIM : BEAM_CHARGE_ANIM);
-                }
-                default -> {
-                }
-            }
-            if (MobAnimation.isWalking(state)) {
-                return state.setAndContinue(
-                        MobAnimation.isFasterThan(state, 0.10D) ? RUN_ANIM : WALK_ANIM);
-            }
-            return state.setAndContinue(IDLE_ANIM);
-        }));
+        controllers.add(new AnimationController<>(this, "main", PhyllosensWatch.LEAD, this::mainState));
+        // 胞子を吹く(倍率のキーだけの重ねる用)。サーバーから triggerAnim で
+        controllers.add(new AnimationController<>(this, PUFF, 0, s -> PlayState.STOP)
+                .triggerableAnim("head", RawAnimation.begin().thenPlay("spore_puff_head"))
+                .triggerableAnim("base", RawAnimation.begin().thenPlay("spore_puff_base")));
     }
 
-    // --- 音 ---
-
-    @Override
-    protected SoundEvent getAmbientSound() {
-        return SoundEvents.SCULK_CLICKING;
-    }
-
-    @Override
-    protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.SCULK_BLOCK_HIT;
-    }
-
-    @Override
-    protected SoundEvent getDeathSound() {
-        return SoundEvents.SCULK_SHRIEKER_BREAK;
+    private PlayState mainState(AnimationState<PhyllosensEntity> state) {
+        AnimationController<PhyllosensEntity> c = state.getController();
+        PhyllosensWatch.State st = this.isDeadOrDying() ? PhyllosensWatch.State.DEAD : state();
+        RawAnimation want = PhyllosensWatch.animation(st, peekKind(), lockWeight(1.0F) > 0.5F);
+        int serial = stateSerial();
+        if (serial != this.lastSerial) {
+            boolean reentry = this.lastSerial >= 0 && st == this.lastState;
+            this.lastSerial = serial;
+            this.lastState = st;
+            // 同じ状態へ入り直した(叩かれて引っ込む が続いた など)ときだけ頭から流し直す。状態が変わっただけ(崩れる → 倒れている、
+            // 覗きの前触れ → 覗く)は同じアニメの続きなので流し直さない(流し直すと前触れから再生し直して形が飛ぶ)
+            if (reentry && !PhyllosensWatch.keepsLoop(st)) c.forceAnimationReset();
+        }
+        if (DEV_LOG && c.getCurrentAnimation() != null && !c.getCurrentAnimation().animation().name().equals(this.lastAnimName)) {
+            this.lastAnimName = c.getCurrentAnimation().animation().name();
+            System.out.println("[phyllosens-anim] t=" + this.tickCount + " " + st + " → " + this.lastAnimName);
+        }
+        // 繰り返しだけのアニメ(見回し・閉じた待機)へ戻るときは、今そのアニメが流れていれば続ける(位相が飛ばないように)。見つめ(watch_lock)は除く
+        if ((want == PhyllosensWatch.A_WATCH || want == PhyllosensWatch.A_CLOSED) && c.getCurrentAnimation() != null
+                && PhyllosensWatch.loopName(st, peekKind()).equals(c.getCurrentAnimation().animation().name())) {
+            return PlayState.CONTINUE;
+        }
+        return state.setAndContinue(want);
     }
 
     @Override
-    protected float getSoundVolume() {
-        return 0.7F;
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
     }
 
-    @Override
-    protected void playStepSound(BlockPos pos, BlockState state) {
-        this.playSound(SoundEvents.SCULK_BLOCK_STEP, 0.2F, 0.7F);
-    }
-
-    /** 索敵役なので目が良い。{@code FOLLOW_RANGE} は {@code mobs.json} 側で 56 に揃えてある。 */
-    public double sightRange() {
-        return this.getAttributeValue(Attributes.FOLLOW_RANGE);
+    /** 首の付け根(ワールド)。 */
+    public Vec3 neckBase() {
+        return TowerNeck.baseWorld(TowerNeck.PHYLLOSENS, this.position(), this.getYRot());
     }
 }

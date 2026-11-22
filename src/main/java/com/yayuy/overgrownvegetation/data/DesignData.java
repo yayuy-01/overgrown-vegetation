@@ -42,17 +42,124 @@ public final class DesignData {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static volatile MobStats mobs = MobStats.defaultsOnly();
-    private static volatile PredationTable predation = PredationTable.DEFAULT;
     private static volatile PhaseTable phases = PhaseTable.DEFAULT;
+    private static volatile SpreadTable spread = SpreadTable.DEFAULT;
+    private static volatile PortalTable portal = PortalTable.DEFAULT;
+    private static volatile CoverTable cover = CoverTable.DEFAULT;
+    private static volatile SporeFieldTable sporeField = SporeFieldTable.DEFAULT;
+    private static volatile AtmosphereTable atmosphere = AtmosphereTable.DEFAULT;
     private static volatile EffectTable effects = EffectTable.DEFAULT;
-    private static volatile GearTable gear = GearTable.DEFAULT;
-    private static volatile ResearchTable research = ResearchTable.DEFAULT;
-    private static volatile VariantTable variants = VariantTable.DEFAULT;
-    private static volatile DefenseTable defense = DefenseTable.DEFAULT;
-    private static volatile NestTable nest = NestTable.DEFAULT;
-    private static volatile ClimaxTable climax = ClimaxTable.DEFAULT;
-    private static volatile OrganTable organs = OrganTable.DEFAULT;
     private static volatile AdaptationTable adaptation = AdaptationTable.DEFAULT;
+    private static volatile ActionTable actions = ActionTable.DEFAULT;
+    private static volatile SkyTable sky = SkyTable.DEFAULT;
+    private static volatile PerfTable perf = PerfTable.DEFAULT;
+    private static volatile NetherSpreadTable netherSpread = NetherSpreadTable.DEFAULT;
+    /** 前線と部隊(2026-11-21)。 */
+    private static volatile FrontTable front = FrontTable.DEFAULT;
+
+    private static volatile DirectorTable director = DirectorTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.spawn.SpawnTable spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.organ.OrganTable organs = com.yayuy.overgrownvegetation.organ.OrganTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers = com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+    private static volatile com.yayuy.overgrownvegetation.gear.attach.AttachTable armorAttachments = com.yayuy.overgrownvegetation.gear.attach.AttachTable.DEFAULT; // 防具の付け物(2026-11-21 夜)
+
+    private static volatile com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack = com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.phase.MobClassTable mobClass = com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff = com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.corruption.cave.CaveTable cave = com.yayuy.overgrownvegetation.corruption.cave.CaveTable.DEFAULT;
+
+    /** 汚染された洞窟の飾り(柱・水ぶくれ・縄。{@code cave.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.corruption.cave.CaveTable cave() {
+        return cave;
+    }
+
+    private static volatile com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fissure = com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.DEFAULT;
+
+    private static volatile com.yayuy.overgrownvegetation.drift.DriftTable drift = com.yayuy.overgrownvegetation.drift.DriftTable.DEFAULT;
+
+    /** 漂流する擬態 Mob と腫れた島({@code drift.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.drift.DriftTable drift() {
+        return drift;
+    }
+
+    /** 地下の小さな亀裂と亀裂の巣({@code fissure.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fissure() {
+        return fissure;
+    }
+
+    /** 崖・急斜面の汚染(根の縄・嚢の房・登り・嚢の霧。{@code cliff.json}、2026-11-20)。 */
+    public static com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cliff() {
+        return cliff;
+    }
+
+    /** Mob の分類(系統・型・危険度・出るフェーズ。{@code mob_class.json}、2026-11-18 夜)。 */
+    public static com.yayuy.overgrownvegetation.phase.MobClassTable mobClass() {
+        return mobClass;
+    }
+
+    /** 押し返す用の道具と方法の設計値({@code push_back.json}、2026-11-18 夜)。 */
+    public static com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pushBack() {
+        return pushBack;
+    }
+
+    /** 強くなる道 段 1・段 2 の物の設計値({@code gear_tiers.json}、2026-11-17)。 */
+    public static com.yayuy.overgrownvegetation.gear.GearTierTable gearTiers() {
+        return gearTiers;
+    }
+
+    /** 防具の付け物の設計値({@code armor_attachments.json}、2026-11-21 夜)。 */
+    public static com.yayuy.overgrownvegetation.gear.attach.AttachTable armorAttachments() {
+        return armorAttachments;
+    }
+
+    /** ワールドイベント 7 つの設計値({@code world_events.json}、2026-11-16 world-events)。サーバー(日程・地脈の大潮)とクライアント(長さ)が読む。 */
+    public static com.yayuy.overgrownvegetation.worldevent.WorldEventTable worldEvents() {
+        return worldEvents;
+    }
+
+    /** 生態系の台帳(升ごとの個体群・多様性・内側の湧き)の設計値({@code ecosystem.json}、2026-11-16)。 */
+    public static com.yayuy.overgrownvegetation.ecosystem.EcoTable ecosystem() {
+        return ecosystem;
+    }
+
+    /** 森の器官(大きい版)の設計値({@code organs.json}、2026-11-17)。 */
+    public static com.yayuy.overgrownvegetation.organ.OrganTable organs() {
+        return organs;
+    }
+
+    /** 敵の湧き方(縁・地下・司令塔が出す G2・G3)の設計値({@code spawns.json}、2026-11-15)。 */
+    public static com.yayuy.overgrownvegetation.spawn.SpawnTable spawns() {
+        return spawns;
+    }
+
+    /** 森の知性(司令塔)の設計値({@code director.json}、2026-11-13)。 */
+    public static DirectorTable director() {
+        return director;
+    }
+
+    /** ネザーの汚染の骨組みの設計値({@code nether_spread.json}、2026-11-11)。 */
+    /** 前線と部隊の設計値({@code front.json}、2026-11-21)。 */
+    public static FrontTable front() {
+        return front;
+    }
+
+    public static NetherSpreadTable netherSpread() {
+        return netherSpread;
+    }
+
+    /** テスト用: ネザーの汚染の骨組みの設計値を差し替える。 */
+    public static void setNetherSpreadForTests(NetherSpreadTable table) {
+        netherSpread = table;
+    }
 
     private static volatile boolean loaded;
 
@@ -60,52 +167,61 @@ public final class DesignData {
         return mobs;
     }
 
-    public static PredationTable predation() {
-        return predation;
-    }
-
     public static PhaseTable phases() {
         return phases;
     }
 
+    /** 台帳の広がりの設計値({@code spread.json}、2026-09-26)。 */
+    public static SpreadTable spread() {
+        return spread;
+    }
+
+    /** ポータルからネザー・エンドへの侵食の設計値({@code portal.json}、2026-10-02)。 */
+    /** 胞子の場と風の設計値({@code spore_field.json}、2026-10-23)。 */
+    public static SporeFieldTable sporeField() {
+        return sporeField;
+    }
+
+    /** テスト用: 胞子の場の設計値を差し替える。 */
+    public static void setSporeFieldForTests(SporeFieldTable table) {
+        sporeField = table;
+    }
+
+    /** 効果の設計値({@code effects.json}、2026-11-04 にプレイヤーの胞子感染 10 段階だけで戻した)。 */
     public static EffectTable effects() {
         return effects;
     }
 
-    public static GearTable gear() {
-        return gear;
+    /** 過繁茂の密林の雰囲気の設計値({@code atmosphere.json}、2026-10-30)。クライアントの描画だけが読む。 */
+    public static AtmosphereTable atmosphere() {
+        return atmosphere;
     }
 
-    public static ResearchTable research() {
-        return research;
+    public static PortalTable portal() {
+        return portal;
     }
 
-    /** 亜種(硬化/毒性/耐火)の設計値({@code variants.json}、2026-09-19)。 */
-    public static VariantTable variants() {
-        return variants;
+    /** 覆いの設計値({@code cover.json}、2026-10-30)。 */
+    public static CoverTable cover() {
+        return cover;
     }
 
-    /** 防衛設備(忌避灯/有刺鉄線/胞子警報器)の設計値({@code defense.json}、2026-09-19)。 */
-    public static DefenseTable defense() {
-        return defense;
+    /** Mob の技の調整値({@code actions.json}、11-05。層 2 の共通部品)。 */
+    /** 空と雲の設計値({@code sky.json}、2026-11-08 雲の段階 1)。サーバー(雲の風)とクライアント(描画)が読む。 */
+    public static SkyTable sky() {
+        return sky;
     }
 
-    /** アルボラの巣の設計値({@code nest.json}、2026-09-19)。 */
-    public static NestTable nest() {
-        return nest;
+    /** 重さを軽くする仕組みの設計値({@code perf.json}、2026-11-18 大群のための軽量化 B)。 */
+    public static PerfTable perf() {
+        return perf;
     }
 
-    /** 極相バイオームと浸食度の設計値({@code climax.json}、2026-09-22)。 */
-    public static ClimaxTable climax() {
-        return climax;
+    public static ActionTable actions() {
+        return actions;
     }
 
-    /** 器官の設計値({@code organs.json}、2026-09-23)。 */
-    public static OrganTable organs() {
-        return organs;
-    }
-
-    /** グループ5(適応種)の武器への適応({@code adaptation.json}、2026-09-23)。 */
+    /** グループ3(適応種)の武器への適応({@code adaptation.json}。11-05 にファルキムネスと一緒に戻した)。 */
     public static AdaptationTable adaptation() {
         return adaptation;
     }
@@ -129,17 +245,40 @@ public final class DesignData {
         }
 
         mobs = new MobStats(readMobs(dir));
-        predation = PredationTable.fromJson(read(dir, "predation.json", PredationTable.Json.class));
         phases = PhaseTable.fromJson(read(dir, "phases.json", PhaseTable.Json.class));
+        spread = SpreadTable.fromJson(read(dir, "spread.json", SpreadTable.Json.class));
+        portal = PortalTable.fromJson(read(dir, "portal.json", PortalTable.Json.class));
+        cover = CoverTable.fromJson(read(dir, "cover.json", CoverTable.Json.class));
+        sporeField = SporeFieldTable.fromJson(read(dir, "spore_field.json", SporeFieldTable.Json.class));
+        atmosphere = AtmosphereTable.fromJson(read(dir, "atmosphere.json", AtmosphereTable.Json.class));
         effects = EffectTable.fromJson(read(dir, "effects.json", EffectTable.Json.class));
-        gear = GearTable.fromJson(read(dir, "gear.json", GearTable.Json.class));
-        research = ResearchTable.fromJson(read(dir, "research.json", ResearchTable.Json.class));
-        variants = VariantTable.fromJson(read(dir, "variants.json", VariantTable.Json.class));
-        defense = DefenseTable.fromJson(read(dir, "defense.json", DefenseTable.Json.class));
-        nest = NestTable.fromJson(read(dir, "nest.json", NestTable.Json.class));
-        climax = ClimaxTable.fromJson(read(dir, "climax.json", ClimaxTable.Json.class));
-        organs = OrganTable.fromJson(read(dir, "organs.json", OrganTable.Json.class));
         adaptation = AdaptationTable.fromJson(read(dir, "adaptation.json", AdaptationTable.Json.class));
+        actions = ActionTable.fromJson(read(dir, "actions.json", ActionTable.Json.class));
+        sky = SkyTable.fromJson(read(dir, "sky.json", SkyTable.Json.class));
+        perf = PerfTable.fromJson(read(dir, "perf.json", PerfTable.Json.class));
+        netherSpread = NetherSpreadTable.fromJson(read(dir, "nether_spread.json", NetherSpreadTable.Json.class));
+        front = FrontTable.fromJson(read(dir, "front.json", FrontTable.Json.class));
+        director = DirectorTable.fromJson(read(dir, "director.json", DirectorTable.Json.class));
+        spawns = com.yayuy.overgrownvegetation.spawn.SpawnTable.fromJson(read(dir, "spawns.json", com.yayuy.overgrownvegetation.spawn.SpawnTable.Json.class));
+        ecosystem = com.yayuy.overgrownvegetation.ecosystem.EcoTable.fromJson(read(dir, "ecosystem.json", com.yayuy.overgrownvegetation.ecosystem.EcoTable.Json.class));
+        organs = com.yayuy.overgrownvegetation.organ.OrganTable.fromJson(read(dir, "organs.json", com.yayuy.overgrownvegetation.organ.OrganTable.Json.class));
+        worldEvents = com.yayuy.overgrownvegetation.worldevent.WorldEventTable.fromJson(read(dir, "world_events.json", com.yayuy.overgrownvegetation.worldevent.WorldEventTable.Json.class));
+        com.yayuy.overgrownvegetation.gear.GearTierTable gt = read(dir, "gear_tiers.json", com.yayuy.overgrownvegetation.gear.GearTierTable.class);
+        gearTiers = gt != null ? gt : com.yayuy.overgrownvegetation.gear.GearTierTable.DEFAULT;
+        com.yayuy.overgrownvegetation.gear.attach.AttachTable aa = read(dir, "armor_attachments.json", com.yayuy.overgrownvegetation.gear.attach.AttachTable.class);
+        armorAttachments = aa != null ? aa : com.yayuy.overgrownvegetation.gear.attach.AttachTable.DEFAULT; // 防具の付け物(2026-11-21 夜)
+        com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable pb = read(dir, "push_back.json", com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.class);
+        pushBack = pb != null ? pb : com.yayuy.overgrownvegetation.corruption.pushback.PushBackTable.DEFAULT;
+        com.yayuy.overgrownvegetation.phase.MobClassTable mc = read(dir, "mob_class.json", com.yayuy.overgrownvegetation.phase.MobClassTable.class);
+        mobClass = mc != null ? mc : com.yayuy.overgrownvegetation.phase.MobClassTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.cliff.CliffTable cl = read(dir, "cliff.json", com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.class);
+        cliff = cl != null ? cl : com.yayuy.overgrownvegetation.corruption.cliff.CliffTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.fissure.FissureTable fi = read(dir, "fissure.json", com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.class);
+        fissure = fi != null ? fi : com.yayuy.overgrownvegetation.corruption.fissure.FissureTable.DEFAULT;
+        com.yayuy.overgrownvegetation.drift.DriftTable dr = read(dir, "drift.json", com.yayuy.overgrownvegetation.drift.DriftTable.class);
+        drift = dr != null ? dr : com.yayuy.overgrownvegetation.drift.DriftTable.DEFAULT;
+        com.yayuy.overgrownvegetation.corruption.cave.CaveTable cv = read(dir, "cave.json", com.yayuy.overgrownvegetation.corruption.cave.CaveTable.class);
+        cave = cv != null ? cv : com.yayuy.overgrownvegetation.corruption.cave.CaveTable.DEFAULT;
 
         OvergrownVegetation.LOGGER.info("設計データを読み込みました({})", dir);
     }
@@ -190,6 +329,12 @@ public final class DesignData {
      * リソースも無ければ null(呼び出し側は Java 既定値へフォールバック)。
      */
     private static Reader openOrSeed(Path dir, String name) throws IOException {
+        if (Boolean.getBoolean("ov.designFromClasspath")) {
+            // GameTest のサーバー(build.gradle の gameTestServer だけが立てる印): config の写しを使わず、いつも classpath の design を直に読む
+            // (写しは「無いときだけ写す」ので古いまま残り、テストが落ちていた。見直し ④、2026-11-16)。ふつうのクライアントと利用者の config は変えない
+            InputStream in = DesignData.class.getResourceAsStream(RESOURCE_BASE + name);
+            return in == null ? null : new java.io.InputStreamReader(in, StandardCharsets.UTF_8);
+        }
         Path file = dir.resolve(name);
         if (!Files.exists(file)) {
             try (InputStream in = DesignData.class.getResourceAsStream(RESOURCE_BASE + name)) {

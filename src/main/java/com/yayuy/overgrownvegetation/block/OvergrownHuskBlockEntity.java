@@ -54,6 +54,8 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
 
     /** 模型へ「何に化けるか」を渡す口。 */
     public static final ModelProperty<BlockState> MIMIC = new ModelProperty<>();
+    /** 模型へ自分の位置を渡す口(覆いの絵と回転を座標で選ぶため。2026-10-30、client/CoverQuads)。 */
+    public static final ModelProperty<net.minecraft.core.BlockPos> POS = new ModelProperty<>();
 
     /** 中身として覚えておくスタックの上限。桁外れの内部インベントリを持つ MOD よけ。 */
     private static final int MAX_CONTENTS = 256;
@@ -68,6 +70,17 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
     /** 化けている元のブロック状態。読み込めなかった(MOD を外した)ときは空気。 */
     public BlockState mimic() {
         return mimic;
+    }
+
+    /**
+     * 焼けて元のブロックへ戻すとき(浄化の炎、2026-10-08 夜): 元のブロック状態を返し、自分では忘れる —— 続く置き換えで
+     * {@link #dropSalvage} が元のブロックをアイテムでも落として、機械が 2 つにならないように(中身は残すので置き換えで落ちる)。
+     */
+    public BlockState releaseMimic() {
+        BlockState out = mimic;
+        mimic = Blocks.AIR.defaultBlockState();
+        setChanged();
+        return out;
     }
 
     /** 覆った瞬間に、元のブロック状態と取り出した中身を預ける。 */
@@ -194,7 +207,7 @@ public class OvergrownHuskBlockEntity extends BlockEntity {
 
     @Override
     public ModelData getModelData() {
-        return ModelData.builder().with(MIMIC, mimic).build();
+        return ModelData.builder().with(MIMIC, mimic).with(POS, worldPosition).build();
     }
 
     /**

@@ -3,7 +3,7 @@ package com.yayuy.overgrownvegetation.entity;
 /**
  * 「この勢いで跳んだらどこまで届くか」を、<b>バニラの空中の物理をそのまま 1 tick ずつ回して</b>求める。
  *
- * <p>{@link InvaderLeapGoal}(標的への飛びつき)と {@link InvaderWaterLeapGoal}(川などの跳び越え)で
+ * <p>飛びつき(前は parked の {@code InvaderLeapGoal}・{@code InvaderWaterLeapGoal}、2026-11-05 からアルボラの {@code leap})で
  * 同じ式を使うため切り出したもの。定数を変えたときに「索敵範囲だけ広がって実際には届かない」
  * といったズレが起きないようにする狙い(2026-09-14)。
  */

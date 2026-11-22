@@ -1,758 +1,272 @@
 package com.yayuy.overgrownvegetation.entity;
 
-import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.data.MobStats;
-import com.yayuy.overgrownvegetation.effect.FoliageConcealment;
-import com.yayuy.overgrownvegetation.phase.MobGroup;
-import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
-import com.yayuy.overgrownvegetation.registry.ModBiomes;
-import com.yayuy.overgrownvegetation.registry.ModSounds;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import com.yayuy.overgrownvegetation.entity.crawler.CrawlerCritter;
+import com.yayuy.overgrownvegetation.entity.leap.LeapMotion;
+import com.yayuy.overgrownvegetation.entity.leap.LeapPlan;
+import com.yayuy.overgrownvegetation.entity.leap.LeapPlanner;
+import com.yayuy.overgrownvegetation.entity.leap.LeapSpec;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.entity.ai.navigation.PathNavigation;
-import net.minecraft.world.entity.ai.navigation.WallClimberNavigation;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathFinder;
-import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
-import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animation.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
+import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animation.RawAnimation;
-import software.bernie.geckolib.util.GeckoLibUtil;
+
+import java.util.EnumSet;
 
 /**
- * 「ファランギオターブス」— 8 本脚の大型寄生節足動物。背中の樹皮模様を活かして
- * 巨大樹の原木・過繁茂した木/原木に張り付き、擬態しながら獲物を待ち伏せる。
+ * ファランギオタルブス {@code phalangiotarbus}(狩る側の環境生物・原生消費種。石炭紀の大きなクモ型。張り付いて飛びかかる狩り)。
+ * 2026-11-16 環境生物の作り直しの段 1: 地上は「小さな地這いの虫」の型({@link CrawlerCritter})で歩く・急ぐ、跳びは「跳ぶ型」({@code entity/leap/})。
+ * 行動(巣だけで暮らす・食べる・休む・巣の近くだけ襲う・幹に張り付く)は後の段。自然には湧かない。
  *
- * <h2>擬態(待ち伏せ)モード</h2>
- * 以下を<b>同時に</b>満たすときだけ擬態する({@link #isMimicryEnvironment}):
  * <ul>
- *     <li>足元のバイオームが過繁茂バイオーム({@link ModBiomes#OVERGROWN})である</li>
- *     <li>半径 {@link PhalangiotarbusAmbushGoal#PERCH_SEARCH_RADIUS} 以内に
- *     {@link ModTags#PHALANGIOTARBUS_PERCH}(巨大樹の原木・過繁茂した木/原木・
- *     {@code #minecraft:logs})のブロックがある</li>
+ *   <li>形は 11-16 夜に直した正本(デスクトップ\blockbench\mobs\phalangiotarbus.bbmodel、背板の段 B)。描画倍率 1(geo に焼き込み)。全長 2.28・幅 1.55・高さ 0.80。</li>
+ *   <li>walk・run は 11-16 に g2g3-bug-walk が足を地面に止めて焼いた(基準 walk 0.07・run 0.25 = 確定値。滑り walk 0.01 px・run 0.06 px 以下)。</li>
+ *   <li><b>跳び(段 1 は移動の跳びだけ・攻撃しない)</b>: 這って行く先の経路が届かない・{@link #STUCK_TICKS} tick 進まないときは、その先へ跳ぶ。
+ *       溜め {@code leap_windup} → 宙 {@code pounce} → 着地 {@code leap_land}({@link #specialAnimation})。確かめ用: 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに前寄りへ跳ぶ。</li>
  * </ul>
- * このとき {@link PhalangiotarbusAmbushGoal} が原木のそばへ移動してじっと張り付き
- * ({@code cling})、獲物が近くを通ると飛びかかって({@code pounce})取り付く。
- * 取り付いている間は {@link PhalangiotarbusLatchGoal} が対象へ継続ダメージを与え続け、
- * 対象が死ぬまで離れない({@code latch})。
- *
- * <h2>通常(狩り)モード</h2>
- * 擬態条件を満たさないとき、または一度攻撃を受けたあとは、他の敵対 Mob と同様に
- * {@link MeleeAttackGoal} で対象を追いかけて殴る。移動速度({@code MOVEMENT_SPEED} 0.39)は
- * プレイヤーのダッシュ(0.13)より明確に速く、逃げると追いつかれる。
- *
- * <h2>個体差</h2>
- * 湧いた時に体格({@code SCALE} 基礎値)を {@code mobs.json} の {@code scaleMin}〜{@code scaleMax}
- * (既定 0.6〜1.0)の範囲でランダムに決める。見た目と当たり判定の両方に効き、個体ごとに保存される
- * (全 Mob 共通の {@link com.yayuy.overgrownvegetation.entity.MobSizeVariance})。
- *
- * <h2>索敵</h2>
- * グループ2の Mob と「過繁茂した Mob」(いずれかの {@link MobGroup} に属する種)・
- * {@link ParasitizedMob}・{@link BlightFernEntity}・{@link OvergrownNexusEntity}、および
- * {@link Predation#isLandTarget 水中・水面にいる相手}は狙わない({@link #isHuntable})。
- * それ以外の生物(プレイヤー含む)はすべて獲物。
- *
- * <h2>アニメーション名(GeckoLib、差し替え用)</h2>
- * {@code idle} / {@code walk} / {@code run} / {@code cling} / {@code pounce} / {@code latch}。
- * この6つの名前を維持すれば {@code geo/phalangiotarbus.geo.json} /
- * {@code animations/phalangiotarbus.animation.json} / {@code textures/entity/phalangiotarbus.png}
- * の上書きだけで見た目を差し替えられる(Java 変更不要)。
  */
-public class PhalangiotarbusEntity extends Monster implements GeoEntity, ParasitizedMob, PredatorMob {
+public class PhalangiotarbusEntity extends CrawlerCritter {
 
-    /** 通常(idle / walk / run を移動状態で切替)。 */
-    public static final int STATE_NONE = 0;
-    /** 原木に張り付いて擬態中。 */
-    public static final int STATE_CLING = 1;
-    /** 獲物へ飛びかかっている最中。 */
-    public static final int STATE_POUNCE = 2;
-    /** 獲物に取り付いて継続ダメージを与えている最中。 */
-    public static final int STATE_LATCH = 3;
-    /** 木の側面をよじ登っている最中。 */
-    public static final int STATE_CLIMB = 4;
+    public static final String ID = "phalangiotarbus";
 
-    private static final EntityDataAccessor<Integer> DATA_ACTION_STATE =
-            SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.INT);
-    /** 木の側面に張り付いている(登り/静止どちらも)。クライアントは体を90度傾ける描画に使う。 */
-    private static final EntityDataAccessor<Boolean> DATA_CLIMBING =
-            SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.BOOLEAN);
-    /** 張り付いている壁の方向(水平)。{@link Direction#get3DDataValue()}。 */
-    private static final EntityDataAccessor<Byte> DATA_CLIMB_FACING =
-            SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.BYTE);
-    /** 天井に張り付いて逆さまに這っている。クライアントは体を180度回す描画に使う。 */
-    private static final EntityDataAccessor<Boolean> DATA_ON_CEILING =
-            SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.BOOLEAN);
-
-    private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("walk");
-    private static final RawAnimation RUN_ANIM = RawAnimation.begin().thenLoop("run");
-    private static final RawAnimation CLING_ANIM = RawAnimation.begin().thenLoop("cling");
-    private static final RawAnimation CLIMB_ANIM = RawAnimation.begin().thenLoop("climb");
-    // 1 回だけ流して最後のコマで止める。ループだと補間込み 13 tick で空中で踏み切りの姿勢へ戻り、
-    // それより長く飛ぶ飛びかかり(木からは 15〜19 tick)では着地の前に構え直して見えた。
-    private static final RawAnimation POUNCE_ANIM = RawAnimation.begin().thenPlayAndHold("pounce");
-    private static final RawAnimation LATCH_ANIM = RawAnimation.begin().thenLoop("latch");
+    /** walk(0.8 秒・脚 2 巡)・run(0.4 秒・脚 2 巡)を 1 倍で流したとき足が滑らない地面の速さ(11-16 g2g3-bug-walk の確定値)。 */
+    public static final double WALK_REF = 0.07D, RUN_REF = 0.25D;
+    /** 回る速さ(度/tick)・うろつきの速さ(移動の速さに掛ける)【仮】。 */
+    static final float TURN_PER_TICK = 14.0F;
+    static final double STROLL_SPEED = 0.55D;
 
     /**
-     * 動作を切り替えるときの補間(tick)。GeckoLib はこの間に今の姿勢から新しいアニメの 0 秒目の姿勢へ寄せ、
-     * <b>それが終わってからアニメを 0 秒目から流す</b>(4.7.6 の {@code AnimationController#process})。
-     * だから画面の上では、どのアニメも状態を切り替えた tick より 3 tick 遅れて始まる。
-     * アニメに合わせる tick は「これ + アニメの秒 × 20」で数える。
+     * 跳びの値【仮・Claude 11-16】: 水平 2〜6 ブロック・上へ 2・下へ 6。クモとして低く速い弧(頂点の上げ 0.8〜3)。
+     * 体は芯の中心から鼻先まで 0.75・腹の先まで 1.55 ブロック(geo の前後の外接 −11.3〜24.7 px)、半幅 0.4。身を沈める 9 tick = 補間 3 + leap_windup 6・着地 6 tick = leap_land。
      */
-    static final int TRANSITION_TICKS = 3;
-    /**
-     * 飛びかかりで跳び出す tick(状態を {@link #STATE_POUNCE} にしてから)。アニメ {@code pounce} の 0 秒目は
-     * 体を起こして脚を後ろへ蹴った<b>踏み切り</b>の姿勢なので、それが画面に出る tick に跳ぶ。それまでは足を止めて構える。
-     * 2026-09-23 までは状態を切り替えた tick に跳んでいて、補間の 3 tick は前の姿勢のまま宙を飛んでいた。
-     */
-    static final int POUNCE_LAUNCH_TICK = TRANSITION_TICKS;
+    public static final LeapSpec LEAP = new LeapSpec(2.0D, 6.0D, 2.0D, 6.0D, 0.8D, 3.0D, 0.75D, 1.55D, 0.4D, 0.08D, 9, 6);
+    /** 這って進まないとみなす間(tick)と距離(ブロック)・跳んだ後の待ち(tick)【仮】。 */
+    static final int STUCK_TICKS = 40, LEAP_COOLDOWN = 40;
+    static final double STUCK_MOVE = 0.3D;
+    /** 確かめ用 hop の間隔(tick)と距離(ブロック)。 */
+    public static final int HOP_EVERY = 200;
+    static final double HOP_MIN = 3.0D, HOP_MAX = 5.5D;
 
-    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+    private static final EntityDataAccessor<Integer> DATA_LEAP = SynchedEntityData.defineId(PhalangiotarbusEntity.class, EntityDataSerializers.INT);
+    private static final RawAnimation LEAP_WINDUP = RawAnimation.begin().thenPlayAndHold("leap_windup");
+    private static final RawAnimation POUNCE = RawAnimation.begin().thenPlayAndHold("pounce");
+    private static final RawAnimation LEAP_LAND = RawAnimation.begin().thenPlayAndHold("leap_land");
 
-    /**
-     * true の間は {@code climbing} フラグをゴール側が強制する(位置固定や登り駆動を自前で行うため、
-     * 壁との接触が一瞬切れても擬態/登りを維持する)。{@link PhalangiotarbusAmbushGoal} が管理。
-     */
-    private boolean wallLocked;
-
-    /** 体の傾き(0=水平／地上、1=垂直／壁)の補間値。描画専用。 */
-    private float climbAmount;
-    private float climbAmountO;
-    /** 天井への逆さ張り付き(0=通常、1=完全に逆さ)の補間値。描画専用。 */
-    private float ceilingAmount;
-    private float ceilingAmountO;
-    /** 天井が途切れて張り付きを解除するまでの猶予。 */
-    private int ceilingGraceTicks;
-
-    /** 取り付いている対象。{@link PhalangiotarbusLatchGoal} が管理する(サーバー専用、NBT保存しない)。 */
-    private LivingEntity latchTarget;
-
-    /**
-     * 生物から攻撃を受けた最後の tick。直後 {@link #COMBAT_MIMICRY_COOLDOWN} tick は擬態を
-     * 開始しない(殴られている最中に原木へ走り出さないため)。獲物を狩り終えたあとは
-     * また原木に登って隠れ直す。
-     */
-    private int lastCombatTick = -10000;
-    /** 直近で攻撃を受けてから擬態を再開できるようになるまでの猶予。 */
-    private static final int COMBAT_MIMICRY_COOLDOWN = 100;
-
-    /** {@link #isMimicryEnvironment} の結果を数tickキャッシュする(重いバイオーム/ブロック走査の間引き)。 */
-    private int mimicryCheckStamp = Integer.MIN_VALUE;
-    private boolean mimicryCached;
-
-    /** 捕食したグループ2 Mob(プロトファスマ・アースロプレウラ)の累計({@link PredatorMob})。 */
-    private int preyKillCount;
+    private final LeapMotion leap = new LeapMotion(LEAP);
 
     public PhalangiotarbusEntity(EntityType<? extends PhalangiotarbusEntity> type, Level level) {
         super(type, level);
-        // 岸で止まる(自分から入水しない)。葉は当たり判定が 1 ブロックまるごとあるので、
-        // 「通れる」扱いにすると葉へ突っ込む経路が引かれて詰まる(2026-09-14)。
-        this.setPathfindingMalus(PathType.WATER, -1.0F);
-        this.setPathfindingMalus(PathType.LEAVES, -1.0F);
-        this.xpReward = MobStats.xpReward("phalangiotarbus", 8);
-    }
-
-    /**
-     * クモと同じく壁をよじ登れる経路探索。段差の判定だけは {@link OvergrownNodeEvaluator} に差し替える
-     * (幅 1.0 ちょうどなのでバニラだと「体が入るか」の確認が省略される)。
-     */
-    @Override
-    protected PathNavigation createNavigation(Level level) {
-        return new WallClimberNavigation(this, level) {
-            @Override
-            protected PathFinder createPathFinder(int maxVisitedNodes) {
-                this.nodeEvaluator = new OvergrownNodeEvaluator();
-                this.nodeEvaluator.setCanPassDoors(true);
-                return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
-            }
-        };
+        this.xpReward = MobStats.xpReward(ID, 8);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        // MOVEMENT_SPEED はプレイヤーのダッシュ(0.13)より明確に速く設定してある(mobs.json)。
-        return MobStats.apply(Monster.createMonsterAttributes(), "phalangiotarbus");
+        return MobStats.apply(Monster.createMonsterAttributes(), ID);
     }
 
-    // 体格の個体差(旧 MIN_SIZE_SCALE / MAX_SIZE_SCALE)は全 Mob 共通の
-    // {@link com.yayuy.overgrownvegetation.entity.MobSizeVariance} へ移行し、
-    // mobs.json の scaleMin / scaleMax(既定 0.6 / 1.0)で調整できる。
+    @Override
+    protected double walkRef() {
+        return WALK_REF;
+    }
+
+    @Override
+    protected double runRef() {
+        return RUN_REF;
+    }
+
+    @Override
+    protected double[] runRange() {
+        return new double[]{0.6D, 1.3D, 0.17D, 0.15D};
+    }
+
+    @Override
+    protected float turnPerTick() {
+        return TURN_PER_TICK;
+    }
+
+    @Override
+    protected double strollSpeed() {
+        return STROLL_SPEED;
+    }
+
+    @Override
+    protected double bodyHalfLength() {
+        return 1.0D;
+    }
+
+    // ------------------------------------------------------------------ 跳び
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_ACTION_STATE, STATE_NONE);
-        builder.define(DATA_CLIMBING, false);
-        builder.define(DATA_CLIMB_FACING, (byte) Direction.NORTH.get3DDataValue());
-        builder.define(DATA_ON_CEILING, false);
+        builder.define(DATA_LEAP, 0);
     }
 
     @Override
     protected void registerGoals() {
-        this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new PhalangiotarbusLatchGoal(this));
-        this.goalSelector.addGoal(2, new PhalangiotarbusAmbushGoal(this));
-        // 大きく前方へ跳んで追跡中の相手に飛びつく(近接より優先。射程外/クールダウン中は近接へ)。
-        this.goalSelector.addGoal(3, new PhalangiotarbusLeapGoal(this));
-        // 追跡は基礎移動速度そのまま(倍率1.0)。MOVEMENT_SPEED でプレイヤーより速い設定にしてある。
-        this.goalSelector.addGoal(4, new MeleeAttackGoal(this, 1.0D, true));
-        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.7D));
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 8.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
-
-        this.targetSelector.addGoal(1, new OvergrownHurtByTargetGoal(this));
-        // 視線を無視する索敵（茂った過繁茂バイオームでも見失わない。OvergrownHunterTargetGoal 参照）。
-        // 水中・水面にいる相手は狙わない（OvergrownLandTargetGoal / Predation#isLandTarget）。
-        this.targetSelector.addGoal(2, new OvergrownLandTargetGoal(this, this::isHuntable));
-    }
-
-    // --- 状態 ---
-
-    public int getActionState() {
-        return this.entityData.get(DATA_ACTION_STATE);
-    }
-
-    public void setActionState(int state) {
-        this.entityData.set(DATA_ACTION_STATE, state);
-    }
-
-    public boolean isBusy() {
-        return getActionState() != STATE_NONE;
-    }
-
-    LivingEntity getLatchTarget() {
-        return latchTarget;
-    }
-
-    void setLatchTarget(LivingEntity target) {
-        this.latchTarget = target;
-    }
-
-    /** 直近で攻撃を受けていて、まだ擬態を再開しない状態か。 */
-    boolean isInCombatCooldown() {
-        return this.tickCount - this.lastCombatTick < COMBAT_MIMICRY_COOLDOWN;
-    }
-
-    private void markCombat() {
-        this.lastCombatTick = this.tickCount;
-    }
-
-    // --- 擬態の成立条件 ---
-
-    /** 足元が過繁茂バイオームで、かつ近くに原木があるか(数tickキャッシュ)。 */
-    public boolean isMimicryEnvironment() {
-        if (this.tickCount - mimicryCheckStamp < 20 && mimicryCheckStamp != Integer.MIN_VALUE) {
-            return mimicryCached;
-        }
-        mimicryCheckStamp = this.tickCount;
-        mimicryCached = computeMimicryEnvironment();
-        return mimicryCached;
-    }
-
-    private boolean computeMimicryEnvironment() {
-        if (!ModBiomes.isOvergrownLike(this.level().getBiome(this.blockPosition()))) {
-            return false;
-        }
-        return findPerchLog() != null;
-    }
-
-    /**
-     * 半径 {@link PhalangiotarbusAmbushGoal#PERCH_SEARCH_RADIUS} 以内で最も近い
-     * {@link ModTags#PHALANGIOTARBUS_PERCH} ブロック(原木類)。無ければ {@code null}。
-     */
-    BlockPos findPerchLog() {
-        int r = PhalangiotarbusAmbushGoal.PERCH_SEARCH_RADIUS;
-        BlockPos origin = this.blockPosition();
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        BlockPos best = null;
-        double bestSq = Double.MAX_VALUE;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                for (int dy = -2; dy <= r; dy++) {
-                    cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
-                    if (!this.level().getBlockState(cursor).is(ModTags.PHALANGIOTARBUS_PERCH)) {
-                        continue;
-                    }
-                    double distSq = cursor.distSqr(origin);
-                    if (distSq < bestSq) {
-                        bestSq = distSq;
-                        best = cursor.immutable();
-                    }
-                }
-            }
-        }
-        return best;
-    }
-
-    /**
-     * グループ2・過繁茂した Mob は基本的に狙わないが、<b>捕食対象</b>(プロトファスマ・アースロプレウラ、
-     * {@link Predation})だけは例外的に獲物にする。
-     *
-     * <p>{@link Predation#isLandTarget 水中・水面にいる相手}も狙わない(自分が水に落ちている間も同じ) —
-     * 索敵({@link OvergrownLandTargetGoal})だけでなく待ち伏せ({@link PhalangiotarbusAmbushGoal})の
-     * 獲物選びもこのメソッドを通るので、ここで一括して弾く。
-     */
-    boolean isHuntable(LivingEntity candidate) {
-        if (candidate == this || !candidate.isAlive()) {
-            return false;
-        }
-        if (candidate instanceof Player player && (player.isCreative() || player.isSpectator())) {
-            return false;
-        }
-        if (!Predation.isLandTarget(this, candidate)) {
-            return false;
-        }
-        boolean prey = Predation.isPredatorOf(this, candidate);
-        if (!prey) {
-            if (candidate instanceof ParasitizedMob
-                    || candidate instanceof BlightFernEntity
-                    || candidate instanceof OvergrownNexusEntity) {
-                return false;
-            }
-            // いずれかのグループに属する種(グループ2含む「過繁茂した Mob」全般)は狙わない。
-            if (MobGroup.of(candidate) != null) { // Entity 版: 寄生植物装備のプレイヤーも狙わない
-                return false;
-            }
-        }
-        return !FoliageConcealment.isConcealed(candidate);
-    }
-
-    // --- 捕食数(PredatorMob) ---
-
-    @Override
-    public int getPreyKillCount() {
-        return this.preyKillCount;
-    }
-
-    @Override
-    public void setPreyKillCount(int count) {
-        this.preyKillCount = count;
-    }
-
-    @Override
-    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.putInt("PreyKills", this.preyKillCount);
-    }
-
-    @Override
-    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.preyKillCount = tag.getInt("PreyKills");
-        PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
-    }
-
-    // --- 移動・当たり判定 ---
-
-    @Override
-    public void travel(Vec3 travelVector) {
-        int state = getActionState();
-        // 張り付き・取り付き・天井這い中は自力移動しない(位置/速度は tick/aiStep 側が決める)。
-        if (state == STATE_CLING || state == STATE_LATCH || isOnCeiling()) {
-            super.travel(Vec3.ZERO);
-        } else {
-            super.travel(travelVector);
-        }
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-
-        if (!this.level().isClientSide()) {
-            boolean ceiling = detectCeiling();
-            boolean climb = !ceiling && detectWallClimb();
-
-            if (isOnCeiling() != ceiling) {
-                setOnCeiling(ceiling);
-            }
-            if (isClimbing() != climb) {
-                setClimbing(climb);
-            }
-            // 壁登り/天井這い中は重力を切って張り付きを安定させる。
-            boolean wantNoGravity = this.wallLocked || ceiling || climb;
-            if (this.isNoGravity() != wantNoGravity) {
-                this.setNoGravity(wantNoGravity);
-            }
-        }
-
-        // 体勢の補間(サーバー/クライアント両方 — 同期フラグに追従)。
-        this.climbAmountO = this.climbAmount;
-        this.climbAmount = Mth.approach(this.climbAmount, isClimbing() ? 1.0F : 0.0F, 0.2F);
-        this.ceilingAmountO = this.ceilingAmount;
-        this.ceilingAmount = Mth.approach(this.ceilingAmount, isOnCeiling() ? 1.0F : 0.0F, 0.2F);
-    }
-
-    /** 追跡中に「ぶつかった壁は何でもよじ登る」判定。壁方向を {@link #setClimbFacing} に記録する。 */
-    private boolean detectWallClimb() {
-        if (this.wallLocked) {
-            // 擬態ゴールが駆動している間は原木の側面判定を維持する。
-            return isAgainstAnyPerchWall(true);
-        }
-        // 跳躍・取り付きなど専用行動の最中は壁登りへ移らない。
-        if (getActionState() == STATE_NONE && this.horizontalCollision && this.getTarget() != null) {
-            Direction wall = collidingWallDirection();
-            if (wall != null) {
-                setClimbFacing(wall);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 天井這い(逆さ張り付き)の判定。追跡中に、頭上に固い天井があり、
-     * かつ「既に天井にいる/壁を登っている/頭を天井にぶつけた」ときに成立する。
-     * 天井が1マス途切れる程度なら {@link #ceilingGraceTicks} の猶予で渡る。
-     */
-    private boolean detectCeiling() {
-        if (this.wallLocked || this.getTarget() == null) {
-            this.ceilingGraceTicks = 0;
-            return false;
-        }
-        // 天井這いは「壁を登っていて頭上に天井がある」ときに移行し、その後は天井が続く限り継続。
-        boolean solidAbove = ceilingWithin(isOnCeiling() ? 0.6D : 0.45D);
-        if (solidAbove && (isOnCeiling() || isClimbing())) {
-            this.ceilingGraceTicks = 6;
-            return true;
-        }
-        if (isOnCeiling() && this.ceilingGraceTicks > 0) {
-            this.ceilingGraceTicks--;
-            return true;
-        }
-        return false;
-    }
-
-    /** 頭上 {@code gap} ブロック以内に固いブロック(天井)があるか。 */
-    private boolean ceilingWithin(double gap) {
-        double headY = this.getY() + this.getBbHeight();
-        return this.level().getBlockState(
-                BlockPos.containing(this.getX(), headY + gap, this.getZ())).blocksMotion();
+        super.registerGoals();
+        this.goalSelector.addGoal(2, new HopGoal());
+        this.goalSelector.addGoal(4, new LeapOverGoal());
     }
 
     @Override
     public void aiStep() {
-        super.aiStep();
-        if (this.level().isClientSide()) {
-            return;
-        }
-        if (getActionState() == STATE_POUNCE) {
-            this.fallDistance = 0.0F;
-        }
-
-        if (isOnCeiling()) {
-            tickCeilingCrawl();
-        } else if (isClimbing()) {
-            tickWallClimbPose();
-        }
-    }
-
-    /** 天井を逆さで這って対象へ向かう。真下に来たら落下して奇襲する。 */
-    private void tickCeilingCrawl() {
-        this.fallDistance = 0.0F;
-        LivingEntity tgt = this.getTarget();
-        double hx = 0.0D;
-        double hz = 0.0D;
-        double hDistSq = Double.MAX_VALUE;
-        if (tgt != null) {
-            hx = tgt.getX() - this.getX();
-            hz = tgt.getZ() - this.getZ();
-            hDistSq = hx * hx + hz * hz;
-            double len = Math.sqrt(hDistSq);
-            if (len > 1.0E-3D) {
-                hx /= len;
-                hz /= len;
-            } else {
-                hx = 0.0D;
-                hz = 0.0D;
+        boolean server = !this.level().isClientSide();
+        if (server) {
+            this.leap.preMove(this, this.getYRot());
+            if (this.leap.phase() == LeapMotion.CROUCH) {
+                float yaw = Mth.approachDegrees(this.getYRot(), this.leap.yaw(), TURN_PER_TICK);
+                this.setYRot(yaw);
+                this.yBodyRot = yaw;
+                this.yHeadRot = yaw;
             }
+            if (this.leap.active()) this.getNavigation().stop();
         }
-
-        // 対象がほぼ真下にいて自分より低ければ、天井から落ちて飛びかかる。
-        if (tgt != null && hDistSq < 2.25D && tgt.getY() < this.getY()) {
-            setOnCeiling(false);
-            this.setNoGravity(false);
-            this.setDeltaMovement(hx * 0.18D, -0.4D, hz * 0.18D);
-            this.hasImpulse = true;
-            this.playSound(ModSounds.PHALANGIOTARBUS_POUNCE.get(), 0.5F, 1.1F);
-            return;
-        }
-
-        double spd = 0.14D;
-        // +Y で天井へ押し付ける(当たり判定が受け止めるので浮かない)。
-        this.setDeltaMovement(hx * spd, 0.1D, hz * spd);
-        this.hasImpulse = true;
-        if (hx * hx + hz * hz > 1.0E-4D) {
-            float yaw = (float) (Mth.atan2(hz, hx) * (180.0D / Math.PI)) - 90.0F;
-            this.setYRot(yaw);
-            this.yRotO = yaw;
-            this.yBodyRot = yaw;
-            this.yBodyRotO = yaw;
+        super.aiStep();
+        if (server) {
+            this.leap.postMove(this);
+            this.entityData.set(DATA_LEAP, this.leap.encode());
         }
     }
 
-    /** 壁登り中の姿勢固定＋登り駆動。 */
-    private void tickWallClimbPose() {
-        float wallYaw = getClimbFacing().toYRot();
-        this.setYRot(wallYaw);
-        this.yRotO = wallYaw;
-        this.yBodyRot = wallYaw;
-        this.yBodyRotO = wallYaw;
-        this.fallDistance = 0.0F;
-        // 追跡中(擬態ゴール外)は、対象が上方にいるなら壁へ押し付けて確実に登る。
-        if (!this.wallLocked && this.getTarget() != null
-                && this.getTarget().getY() > this.getY() + 0.3D) {
-            Direction f = getClimbFacing();
-            net.minecraft.world.phys.Vec3 dm = this.getDeltaMovement();
-            this.setDeltaMovement(f.getStepX() * 0.12D, Math.max(dm.y, 0.08D), f.getStepZ() * 0.12D);
-        }
+    /** 跳んでいる間は歩く入力を足さない(弧の速度だけで動く)。 */
+    @Override
+    public void travel(Vec3 input) {
+        super.travel(this.leap.active() ? Vec3.ZERO : input);
     }
 
     @Override
-    public boolean onClimbable() {
-        return isClimbing() || isOnCeiling();
+    public boolean causeFallDamage(float fallDistance, float multiplier, net.minecraft.world.damagesource.DamageSource source) {
+        if (this.leap.active()) return false;   // 自分の跳びでは落下ダメージを受けない
+        return super.causeFallDamage(fallDistance, multiplier, source);
     }
 
-    @Override
-    public boolean isPushable() {
-        return getActionState() == STATE_NONE && !isClimbing() && !isOnCeiling() && super.isPushable();
+    public LeapMotion leapMotion() {
+        return this.leap;
     }
 
-    @Override
-    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
-        if (getActionState() == STATE_POUNCE || getActionState() == STATE_LATCH
-                || isClimbing() || isOnCeiling()) {
-            return false;
-        }
-        return super.causeFallDamage(distance, multiplier, source);
-    }
-
-    // --- 壁のぼり / 天井這い / 姿勢 ---
-
-    public boolean isOnCeiling() {
-        return this.entityData.get(DATA_ON_CEILING);
-    }
-
-    public void setOnCeiling(boolean onCeiling) {
-        this.entityData.set(DATA_ON_CEILING, onCeiling);
-    }
-
-    /** 描画用: 天井への逆さ度合い(0=通常, 1=完全に逆さ)。 */
-    public float getCeilingAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.ceilingAmountO, this.ceilingAmount);
-    }
-
-    public boolean isClimbing() {
-        return this.entityData.get(DATA_CLIMBING);
-    }
-
-    public void setClimbing(boolean climbing) {
-        this.entityData.set(DATA_CLIMBING, climbing);
-    }
-
-    public Direction getClimbFacing() {
-        return Direction.from3DDataValue(this.entityData.get(DATA_CLIMB_FACING));
-    }
-
-    private void setClimbFacing(Direction dir) {
-        this.entityData.set(DATA_CLIMB_FACING, (byte) dir.get3DDataValue());
-    }
-
-    boolean isWallLocked() {
-        return wallLocked;
-    }
-
-    void setWallLocked(boolean locked) {
-        this.wallLocked = locked;
-        if (!locked) {
-            this.setNoGravity(false);
-        }
-    }
-
-    /** 描画用: 体の傾き(0=水平, 1=垂直)。 */
-    public float getClimbAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.climbAmountO, this.climbAmount);
+    /** {@code aim} の近くへ跳ぶ(跳べる弧が見つかれば true)。 */
+    public boolean leapToward(Vec3 aim) {
+        if (this.leap.active() || !this.onGround()) return false;
+        LeapPlan p = LeapPlanner.plan(this, aim, LEAP);
+        if (p == null) return false;
+        this.leap.start(this, p);
+        return true;
     }
 
     /**
-     * 水平4方向の隣に原木({@link ModTags#PHALANGIOTARBUS_PERCH})があるか。
-     * あれば {@link #setClimbFacing} でその方向を記録する。
+     * 跳びのアニメ(11-16 g2g3-bug-walk が作った 3 本。クライアント): 身を沈める間 {@code leap_windup}(補間 3 + 6 tick、最後で止まる)→
+     * 蹴った tick から {@code pounce}(補間 0。溜めの終わりの姿から始まり、宙の姿で止まる)→ 着いた tick から {@code leap_land}(補間 0・6 tick・待機の姿で終わる)。
      */
-    boolean isAgainstAnyPerchWall(boolean updateFacing) {
-        BlockPos base = this.blockPosition();
-        Direction current = getClimbFacing();
-        // 既に張り付いている方向を優先的に確認(ちらつき防止)。
-        if (isPerchWall(base, current)) {
+    @Nullable
+    @Override
+    protected RawAnimation specialAnimation() {
+        return switch (LeapMotion.decodePhase(this.entityData.get(DATA_LEAP))) {
+            case LeapMotion.CROUCH -> LEAP_WINDUP;
+            case LeapMotion.AIR, LeapMotion.FALL -> POUNCE;
+            case LeapMotion.LAND -> LEAP_LAND;
+            default -> null;
+        };
+    }
+
+    @Override
+    protected int specialTransition() {
+        int ph = LeapMotion.decodePhase(this.entityData.get(DATA_LEAP));
+        return ph == LeapMotion.CROUCH ? 3 : 0;
+    }
+
+    private String devName() {
+        return this.hasCustomName() ? this.getCustomName().getString() : "";
+    }
+
+    /** 確かめ用: 名前が {@code hop} の個体は {@link #HOP_EVERY} tick ごとに前寄り(左右 90 度まで)の 3〜5.5 ブロック先へ跳ぶ。 */
+    final class HopGoal extends Goal {
+        private int wait = 40;
+
+        HopGoal() {
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return devName().equals("hop");
+        }
+
+        @Override
+        public boolean requiresUpdateEveryTick() {
             return true;
         }
-        for (Direction d : Direction.Plane.HORIZONTAL) {
-            if (d == current) {
-                continue;
-            }
-            if (isPerchWall(base, d)) {
-                if (updateFacing) {
-                    setClimbFacing(d);
-                }
-                return true;
-            }
-        }
-        return false;
-    }
 
-    private boolean isPerchWall(BlockPos base, Direction d) {
-        for (int dy = 0; dy <= 1; dy++) {
-            if (this.level().getBlockState(base.above(dy).relative(d)).is(ModTags.PHALANGIOTARBUS_PERCH)) {
-                return true;
+        @Override
+        public void tick() {
+            PhalangiotarbusEntity m = PhalangiotarbusEntity.this;
+            if (m.leap.active() || --this.wait > 0) return;
+            this.wait = HOP_EVERY;
+            for (int i = 0; i < 8; i++) {
+                float r = (m.getYRot() + (m.getRandom().nextFloat() * 2.0F - 1.0F) * 90.0F) * Mth.DEG_TO_RAD;
+                double d = HOP_MIN + m.getRandom().nextDouble() * (HOP_MAX - HOP_MIN);
+                if (m.leapToward(m.position().add(-Mth.sin(r) * d, 0.0D, Mth.cos(r) * d))) return;
             }
+            this.wait = 20;
         }
-        return false;
     }
 
     /**
-     * 今ぶつかっている壁(何のブロックでも可)の水平方向。進行方向に最も沿った面を返す。
-     * 隣に固い面が無ければ {@code null}(＝登れない)。
+     * 跳び越え(移動の跳び): 這って行く先へ経路が届かない、または {@link #STUCK_TICKS} tick 進まないときは、行き先の方へ跳ぶ
+     * (遠ければ 5.5・4・2.5 ブロック先を順に試す)。フラグを持たない(うろつきの Goal と並んで動く)。
      */
-    private Direction collidingWallDirection() {
-        net.minecraft.world.phys.Vec3 v = this.getDeltaMovement();
-        double dirX;
-        double dirZ;
-        if (v.x * v.x + v.z * v.z > 1.0E-4D) {
-            dirX = v.x;
-            dirZ = v.z;
-        } else {
-            net.minecraft.world.phys.Vec3 look = this.getLookAngle();
-            dirX = look.x;
-            dirZ = look.z;
+    final class LeapOverGoal extends Goal {
+        private int cooldown, check;
+        private Vec3 last = Vec3.ZERO;
+
+        @Override
+        public boolean canUse() {
+            return !PhalangiotarbusEntity.this.getNavigation().isDone() && !devName().startsWith("nostroll");
         }
-        BlockPos base = this.blockPosition();
-        Direction best = null;
-        double bestDot = -2.0D;
-        for (Direction d : Direction.Plane.HORIZONTAL) {
-            if (!hasSolidNeighbor(base, d)) {
-                continue;
+
+        @Override
+        public boolean requiresUpdateEveryTick() {
+            return true;
+        }
+
+        @Override
+        public void start() {
+            this.last = PhalangiotarbusEntity.this.position();
+            this.check = 0;
+        }
+
+        @Override
+        public void tick() {
+            PhalangiotarbusEntity m = PhalangiotarbusEntity.this;
+            if (this.cooldown > 0) this.cooldown--;
+            if (m.leap.active() || this.cooldown > 0 || !m.onGround()) return;
+            Path path = m.getNavigation().getPath();
+            if (path == null) return;
+            boolean blocked = !path.canReach();
+            if (++this.check >= STUCK_TICKS) {
+                this.check = 0;
+                blocked |= m.position().distanceTo(this.last) < STUCK_MOVE;
+                this.last = m.position();
             }
-            double dot = d.getStepX() * dirX + d.getStepZ() * dirZ;
-            if (dot > bestDot) {
-                bestDot = dot;
-                best = d;
+            if (!blocked) return;
+            Vec3 goal = Vec3.atBottomCenterOf(path.getTarget());
+            Vec3 dir = new Vec3(goal.x - m.getX(), 0.0D, goal.z - m.getZ());
+            double dist = dir.length();
+            if (dist < LEAP.minDist()) return;
+            dir = dir.scale(1.0D / dist);
+            this.cooldown = LEAP_COOLDOWN;
+            for (double d : new double[]{Math.min(dist, LEAP.maxDist() - 0.5D), 4.0D, 2.5D}) {
+                if (d < LEAP.minDist() || d > dist) continue;
+                if (m.leapToward(new Vec3(m.getX() + dir.x * d, goal.y, m.getZ() + dir.z * d))) return;
             }
         }
-        return best;
     }
-
-    private boolean hasSolidNeighbor(BlockPos base, Direction d) {
-        for (int dy = 0; dy <= 1; dy++) {
-            BlockPos p = base.above(dy).relative(d);
-            if (this.level().getBlockState(p).blocksMotion()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public boolean hurt(DamageSource source, float amount) {
-        boolean took = super.hurt(source, amount);
-        if (took && source.getEntity() instanceof LivingEntity) {
-            markCombat();
-        }
-        return took;
-    }
-
-    // --- GeckoLib ---
-
-    @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "action", TRANSITION_TICKS, state -> {
-            state.getController().setAnimationSpeed(1.0D);
-            switch (getActionState()) {
-                case STATE_LATCH:
-                    return state.setAndContinue(LATCH_ANIM);
-                case STATE_POUNCE:
-                    return state.setAndContinue(POUNCE_ANIM);
-                case STATE_CLIMB:
-                    return state.setAndContinue(CLIMB_ANIM);
-                case STATE_CLING:
-                    return state.setAndContinue(CLING_ANIM);
-                default:
-                    // 天井を這っている(逆さ)。脚を動かす climb アニメを流用し、傾きは描画側で180度回す。
-                    if (isOnCeiling()) {
-                        return state.setAndContinue(CLIMB_ANIM);
-                    }
-                    // 通常の狩りで壁をよじ登っている最中(state は NONE のまま)。
-                    if (isClimbing()) {
-                        return state.setAndContinue(MobAnimation.isWalking(state) ? CLIMB_ANIM : CLING_ANIM);
-                    }
-                    if (MobAnimation.isWalking(state)) {
-                        return state.setAndContinue(
-                                MobAnimation.isFasterThan(state, 0.14D) ? RUN_ANIM : WALK_ANIM);
-                    }
-                    return state.setAndContinue(IDLE_ANIM);
-            }
-        }));
-    }
-
-    @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return this.geoCache;
-    }
-
-    // --- サウンド ---
-
-    @Override
-    protected SoundEvent getAmbientSound() {
-        return ModSounds.PHALANGIOTARBUS_IDLE.get();
-    }
-
-    @Override
-    public int getAmbientSoundInterval() {
-        // 虫の鳴き声。少し間隔を空けて、擬態中でも時々鳴くようにする。
-        return 160;
-    }
-
-    @Override
-    protected SoundEvent getHurtSound(DamageSource source) {
-        return ModSounds.PHALANGIOTARBUS_HURT.get();
-    }
-
-    @Override
-    protected SoundEvent getDeathSound() {
-        return ModSounds.PHALANGIOTARBUS_DEATH.get();
-    }
-
-    @Override
-    protected float getSoundVolume() {
-        // 鳴き声(idle / hurt / death)の音量を控えめに。
-        return 0.5F;
-    }
-
-    @Override
-    protected void playStepSound(BlockPos pos, BlockState state) {
-        // 壁・天井に張り付いている間は足音を出さない。
-        if (isClimbing() || isOnCeiling() || getActionState() == STATE_LATCH) {
-            return;
-        }
-        this.playSound(ModSounds.PHALANGIOTARBUS_STEP.get(), 0.08F, 0.9F + this.random.nextFloat() * 0.2F);
-    }
-
 }

@@ -1,6 +1,0 @@
-{
-  "_comment": "向きはブロックエンティティが 0.1 度単位で持つので、blockstate には向きを持たせない。",
-  "variants": {
-    "": { "model": "overgrown_vegetation:block/beam_shield" }
-  }
-}

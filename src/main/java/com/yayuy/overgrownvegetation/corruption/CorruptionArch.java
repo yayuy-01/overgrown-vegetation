@@ -24,7 +24,7 @@ import java.util.List;
  *   <li>触手が水でブロックされたときに架ける<b>対岸へ渡る橋</b>(川で汚染が止まらないように)。</li>
  * </ul>
  *
- * <p>両端は水平で軸並行(南北 or 東西)、高さは違ってもよい(基準の高さを線形補間し、その上に
+ * <p>両端はどの水平の向きに離れていてもよい(2026-10-09 まで南北か東西だけだった)。高さは違ってもよい(基準の高さを線形補間し、その上に
  * 正弦カーブのリフトを足す)。{@link #build} は既存の汚染ブロック・破壊不能ブロックの上には
  * 置かない。
  */
@@ -34,8 +34,8 @@ public final class CorruptionArch {
     }
 
     /**
-     * {@code from} から {@code to} へアーチ状の橋を架ける。両端は水平・軸並行であること
-     * (南北 or 東西のどちらか一方向にだけ離れていること)。
+     * {@code from} から {@code to} へアーチ状の橋を架ける。両端はどの水平の向きに離れていてもよい
+     * (縦横の長い方の軸で 1 マスずつ進む。{@link #centers})。
      *
      * @param peakHeight アーチの中央でどれだけ持ち上げるか(ブロック)。<b>負の値</b>を渡すと上下逆のアーチ
      *                   (中央が垂れ下がる = 溝をまたぐ根)になる。
@@ -51,14 +51,11 @@ public final class CorruptionArch {
     public static boolean build(ServerLevel level, BlockPos from, BlockPos to, int peakHeight,
             int thickness, BlockState block, LongOpenHashSet touchedChunks,
             @Nullable List<BlockPos> crestOut, @Nullable List<BlockPos> shellOut) {
-        int stepX = Integer.signum(to.getX() - from.getX());
-        int stepZ = Integer.signum(to.getZ() - from.getZ());
-        if (stepX != 0 && stepZ != 0) {
+        if (horizontalSteps(from, to) < 2) {
             return false;
         }
-        int span = Math.abs(to.getX() - from.getX()) + Math.abs(to.getZ() - from.getZ());
-        if (span < 2) {
-            return false;
+        if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.crossesBand(level, from, to)) {
+            return false; // 灰と石灰の帯の線を越えては架けない(押し返し 11-18 夜)
         }
         // 両端に「乗れる地面」が無いなら架けない(空中に浮いたアーチを防ぐ)。
         if (!hasGroundSupport(level, from) || !hasGroundSupport(level, to)) {
@@ -66,22 +63,74 @@ public final class CorruptionArch {
         }
 
         int r = Math.max(0, thickness);
-        int peak = peakHeight; // 負なら中央が垂れ下がる上下逆のアーチ。
+        List<int[]> line = centers(from, to, peakHeight, r);
+        // 構造物の部品の箱(地表に出ている物)にかかるアーチは架けない(2026-11-19 構造物と森の融合 段 1「壊さずに取り込む」)
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        for (int[] c : line) {
+            for (int d = -r; d <= r; d++) {
+                if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0] + d, c[1], c[2]))
+                        || com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0], c[1] + d, c[2]))
+                        || com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, probe.set(c[0], c[1], c[2] + d))) {
+                    return false;
+                }
+            }
+        }
         boolean placedAny = false;
-        for (int i = 0; i <= span; i++) {
-            double s = (double) i / span;
-            int baseY = (int) Math.round(Mth.lerp(s, from.getY(), to.getY()));
-            int lift = (int) Math.round(peak * Math.sin(Math.PI * s));
-            int cx = from.getX() + stepX * i;
-            int cz = from.getZ() + stepZ * i;
-            int cy = baseY + lift;
+        for (int[] c : line) {
+            int cx = c[0];
+            int cy = c[1];
+            int cz = c[2];
             placedAny |= blob(level, cx, cy, cz, r, block, touchedChunks, shellOut);
-            if (crestOut != null) {
+            if (crestOut != null && c[3] == 0) {
                 // 中央列(dx=dz=0)の一番上に置かれるのは cy + r(edgeSq が (r+0.35)² なので dy は r まで届く)。
                 crestOut.add(new BlockPos(cx, cy + r, cz));
             }
         }
         return placedAny;
+    }
+
+    /** 水平に進む歩数(縦横の長い方)。2 未満ならアーチにしない。 */
+    static int horizontalSteps(BlockPos from, BlockPos to) {
+        return Math.max(Math.abs(to.getX() - from.getX()), Math.abs(to.getZ() - from.getZ()));
+    }
+
+    /**
+     * アーチの中心線のマス({@code {x, y, z, つなぎか(1/0)}})を根元から順に(2026-10-09 から<b>どの水平の角度でも</b>。ユーザー指定)。
+     * 縦横の長い方の軸で 1 マスずつ進み、もう一方の軸と高さは比例して決める —— 南北・東西なら中心線は今までと同じマス。
+     * 太さ 0(1 マスの根)で斜めに 1 歩進んだとき・高さが変わったときは、角だけで接して隙間に見えるので間にマスを足す
+     * (つなぎ。背の植物の対象にはしない。高さのつなぎは南北・東西の細いアーチにも足すようになった)。
+     * 太さ 1 以上の塊は斜めの隣と重なるので足さない。
+     */
+    public static List<int[]> centers(BlockPos from, BlockPos to, int peakHeight, int thickness) {
+        int dx = to.getX() - from.getX();
+        int dz = to.getZ() - from.getZ();
+        int span = horizontalSteps(from, to);
+        List<int[]> out = new java.util.ArrayList<>(span + 1);
+        int px = Integer.MIN_VALUE;
+        int py = Integer.MIN_VALUE;
+        int pz = Integer.MIN_VALUE;
+        for (int i = 0; i <= span; i++) {
+            double s = (double) i / span;
+            int baseY = (int) Math.round(Mth.lerp(s, from.getY(), to.getY()));
+            int lift = (int) Math.round(peakHeight * Math.sin(Math.PI * s)); // 負なら中央が垂れ下がる上下逆のアーチ。
+            int cx = from.getX() + (int) Math.round(dx * s);
+            int cz = from.getZ() + (int) Math.round(dz * s);
+            int cy = baseY + lift;
+            if (thickness == 0 && i > 0) {
+                if (cx != px && cz != pz) {
+                    out.add(new int[]{cx, py, pz, 1});
+                }
+                // 高さが変わる所も、新しい列に前の高さから 1 マスずつ足して面でつなぐ(2026-10-09 から。それまでは角だけで接して途切れて見えた)。
+                for (int y = py; y != cy; y += Integer.signum(cy - py)) {
+                    out.add(new int[]{cx, y, cz, 1});
+                }
+            }
+            out.add(new int[]{cx, cy, cz, 0});
+            px = cx;
+            py = cy;
+            pz = cz;
+        }
+        return out;
     }
 
     /**
@@ -93,7 +142,7 @@ public final class CorruptionArch {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int dy = 0; dy >= -2; dy--) {
             cursor.set(end.getX(), end.getY() + dy, end.getZ());
-            if (!level.isLoaded(cursor)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                 return false;
             }
             if (level.getBlockState(cursor).blocksMotion()) {
@@ -104,7 +153,7 @@ public final class CorruptionArch {
     }
 
     /** {@code (cx, cy, cz)} を中心に半径 {@code r}(+0.35)の角の落ちた塊を橋ブロックで埋める。 */
-    private static boolean blob(ServerLevel level, int cx, int cy, int cz, int r, BlockState block,
+    static boolean blob(ServerLevel level, int cx, int cy, int cz, int r, BlockState block,
             LongOpenHashSet touchedChunks, @Nullable List<BlockPos> shellOut) {
         boolean any = false;
         double edgeSq = (r + 0.35D) * (r + 0.35D);
@@ -116,17 +165,23 @@ public final class CorruptionArch {
                         continue;
                     }
                     cursor.set(cx + dx, cy + dy, cz + dz);
-                    if (!level.isLoaded(cursor)) {
+                    if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
                         continue;
                     }
                     BlockState current = level.getBlockState(cursor);
-                    if (current.is(ModTags.CORRUPTED)) {
+                    if (OvergrownLayerData.isCorruptedCell(level, cursor, current)) {
                         // 既にある汚染ブロック(自分の他の部分や別の筋)は上書きしない。
                         continue;
                     }
                     if (current.getBlock().defaultDestroyTime() < 0.0F) {
                         // 岩盤・バリアなど破壊不能ブロックは避ける。
                         continue;
+                    }
+                    if (com.yayuy.overgrownvegetation.corruption.pushback.RingWards.blocks(level, cursor)) {
+                        continue; // 帯の線の向こう・杭の範囲へは根のアーチ・橋・根の先を置かない(押し返し 11-18 夜)
+                    }
+                    if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, cursor)) {
+                        continue; // 構造物の部品の箱には置かない(11-19 融合 段 1。根の先 CorruptionRootTip もここを通る)
                     }
                     BlockPos immutable = cursor.immutable();
                     level.setBlock(immutable, block, Block.UPDATE_ALL);

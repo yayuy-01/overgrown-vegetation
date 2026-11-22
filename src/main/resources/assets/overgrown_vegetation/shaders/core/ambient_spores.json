@@ -1,0 +1,33 @@
+{
+    "vertex": "overgrown_vegetation:ambient_spores",
+    "fragment": "overgrown_vegetation:ambient_spores",
+    "samplers": [
+    ],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "FogStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "FogEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+        { "name": "FogColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "FogShape", "type": "int", "count": 1, "values": [ 0 ] },
+        { "name": "OvFogA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 8.0, 64.0 ] },
+        { "name": "OvFogB", "type": "float", "count": 4, "values": [ 0.0, 0.35, 0.0, 0.0 ] },
+        { "name": "OvFogC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvFogD", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 60.0 ] },
+        { "name": "OvFogE", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvFogF", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 24.0 ] },
+        { "name": "OvFogG", "type": "float", "count": 4, "values": [ 1.5, 1.0, 24.0, 1.0 ] },
+        { "name": "OvFogH", "type": "float", "count": 4, "values": [ 0.3, 0.0, 0.0, 0.0 ] },
+        { "name": "OvFogI", "type": "float", "count": 4, "values": [ 0.0, 48.0, 192.0, 0.0 ] },
+        { "name": "CamMod", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "Clock", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.05 ] },
+        { "name": "Box", "type": "float", "count": 4, "values": [ 20.0, 14.0, 3.0, 19.0 ] },
+        { "name": "Look", "type": "float", "count": 4, "values": [ 0.32, 0.5, 0.22, 1.0 ] },
+        { "name": "Sky", "type": "float", "count": 4, "values": [ 1.0, 0.5, 0.0, 0.0 ] },
+        { "name": "SunA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "MapA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 96.0, 0.0 ] },
+        { "name": "Drift", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.05, 0.15 ] },
+        { "name": "Drift2", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.06, 0.15 ] }
+    ]
+}

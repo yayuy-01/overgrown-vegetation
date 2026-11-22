@@ -4,12 +4,11 @@ import com.yayuy.overgrownvegetation.ModTags;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
 import com.yayuy.overgrownvegetation.corruption.CorruptionRegistry;
 import com.yayuy.overgrownvegetation.corruption.OvergrownBiomeConverter;
-import com.yayuy.overgrownvegetation.effect.SporeInfectionEffects;
 import com.yayuy.overgrownvegetation.entity.BlightFernEntity;
 import com.yayuy.overgrownvegetation.entity.BlightFernPlacement;
-import com.yayuy.overgrownvegetation.entity.OvergrownNexusEntity;
 import com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder;
-import com.yayuy.overgrownvegetation.registry.ModParticles;
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -19,8 +18,6 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
@@ -86,9 +83,12 @@ final class EarthquakeFissure {
     private final int qEruptX;
     private final int qEruptY;
     private final int qEruptZ;
+    /** 足跡の列の表({@link EarthquakeData.ActiveQuake#columnIndex})を置いておく先。 */
+    private final EarthquakeData.ActiveQuake quake;
 
     EarthquakeFissure(ServerLevel level, EarthquakeData.ActiveQuake q, int formTicks) {
         this.level = level;
+        this.quake = q;
         this.ex = q.ex;
         this.ez = q.ez;
         this.ey = q.ey;
@@ -113,7 +113,9 @@ final class EarthquakeFissure {
 
     /** 波 {@code w}(0 = 中心, formTicks-1 = 両端)に属する列を掘る。 */
     void carveWave(int w) {
-        forEachColumn((wx, wz, u, v, e) -> {
+        // 波 w の列だけを forEachColumn の表から引く(掘削中は毎 tick 足跡全体を舐めていたので、ここが重かった。
+        // 2026-09-24 に表を 1 回だけ作るようにした)。訪れる列・順番・e の値は全列を回してここで弾いていた頃と同じ。
+        forEachColumn(w, (wx, wz, u, v, e) -> {
             if (e > CARVE_E || waveOf(u) != w) {
                 return;
             }
@@ -134,12 +136,29 @@ final class EarthquakeFissure {
                         2, 0.35D, 0.4D, 0.35D, 0.03D);
             }
         });
-        // 亀裂が走る地響きは土砂崩れの音(EarthquakeData 側で1回再生)が主。ここでは近くのプレイヤー向けに
-        // ときどき岩の砕ける音を薄く重ねるだけにする。
-        if (w % 22 == 0) {
-            level.playSound(null, BlockPos.containing(ex, ey, ez), SoundEvents.DEEPSLATE_BREAK, SoundSource.AMBIENT,
-                    2.0F, 0.30F + level.getRandom().nextFloat() * 0.2F);
-        }
+        // 亀裂が走る地響きは土砂崩れの音(EarthquakeData 側で1回再生)だけ。22 tick ごとに重ねていた岩の砕ける音
+        // (DEEPSLATE_BREAK)は 2026-11-14 にユーザー決定で無くした(地震の音は揺れと噴出の一撃のみ)。
+    }
+
+    /**
+     * 足跡(楕円距離 {@link #SCAN_E} 以内の列 = {@link #forEachColumn} が訪れる全列)が掛かるチャンクのキー
+     * (2026-09-25、ユーザー承認「レイドの見直し」、報告 1450)。地割れの掘削中に強制ロードするのはこれだけにする。
+     *
+     * <p>掘削・予兆の輪郭・床と縁の汚染・水抜きが触る列はすべてこの中にある。隣の列を覗く処理(液体の確認・側壁・
+     * 周囲のひび)は足跡の外へ少しはみ出すが、強制ロードのチケットは固定したチャンクの周囲 2 チャンク(32 ブロック以上)も
+     * 読み込むので、その中に収まる。完成時の水の落ち着け({@link #settleWater}、楕円距離 1.8 まで)だけは長い裂け目の
+     * 先端で数列がさらに外へ出るので、読み込まれていない列を飛ばす(使い捨ての Java で既定の範囲の裂け目を数えた。
+     * 足跡は長さ 112・幅 20 で 13〜18 チャンク、248・33 で 41〜51、384・46 で 83〜95。以前は常に 17×17 = 289)。
+     *
+     * <p>足跡の形は震央の高さ(ey)に依らない({@link #buildColumnIndex} は ex / ez / yaw / 長さ / 幅 / 種と
+     * 波の数しか使わない)ので、{@link EarthquakeEvent} は ey を決める前にこれを呼ぶ。そのとき作ったインスタンスでは、
+     * 高さに依る値(掘る深さ {@code floorTargetY} など)を使わないこと。作った列の表は
+     * {@link EarthquakeData.ActiveQuake#columnIndex} に残り、同じ波の数なら予兆・掘削でそのまま使い回される。
+     */
+    long[] footprintChunks() {
+        LongOpenHashSet chunks = new LongOpenHashSet();
+        forEachColumn((wx, wz, u, v, e) -> chunks.add(ChunkPos.asLong(wx >> 4, wz >> 4)));
+        return chunks.toLongArray();
     }
 
     /** 発生前の予兆: 地表にいびつな裂け目の輪郭を薄く描く。 */
@@ -264,6 +283,13 @@ final class EarthquakeFissure {
                 }
                 double e = ellipticE(u, v);
                 if (e > 1.8D) {
+                    continue;
+                }
+                // 読み込まれていない列は見ない(2026-09-25、報告 1450)。強制ロードを足跡のチャンクだけにしたので、
+                // 長い裂け目の先端のすぐ外(楕円距離 1.3〜1.8)の数列が、足跡から 3 チャンク離れて読み込み範囲の外に出ることがある
+                // (既定の最大の裂け目で 1 万数千列のうち数列)。掘った列からは遠く、水を流し直す必要が無いので、
+                // その場で読み込まずに飛ばす。
+                if (level.getChunkSource().getChunkNow(wx >> 4, wz >> 4) == null) {
                     continue;
                 }
                 // 裂け目の内側は底まで、外側の縁は地表付近だけ見ればよい。
@@ -393,82 +419,12 @@ final class EarthquakeFissure {
     }
 
     /**
-     * 裂け目の中央の底から、専用の緑の胞子({@link com.yayuy.overgrownvegetation.registry.ModParticles#OVERGROWN_SPORE})を
-     * 花火のように噴き上げる。噴出点で一気に加速 → 毎 tick の摩擦で徐々に減速 → 地表を越えて上空まで
-     * 届き、広範囲に散る(動きの設定は {@code quakeSpore*})。
+     * 胞子の噴出の演出(今は空)。前は裂け目の底から緑の胞子の粒を花火のように噴き上げていたが、粒は画面の演出と一緒に
+     * 2026-10-30 に parked/ へ退避した(環境の演出は作り直す)。ときどき鳴らしていた音(SCULK_CATALYST_BLOOM 2.0 / 0.6・1/12)も
+     * 2026-11-14 にユーザー決定で無くした。粒の演出を作り直すときのために、呼び出し(EarthquakeData)と間隔の設定
+     * {@code quakeEruptIntervalTicks} は残してある。
      */
     void eruptSpores() {
-        RandomSource r = level.getRandom();
-        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
-        double speed = cfg.quakeSporeSpeed.get();
-        double coneRad = Math.toRadians(cfg.quakeSporeConeDeg.get());
-        double density = cfg.quakeSporeDensity.get();
-
-        // 噴出は必ず「裂け目のいちばん深く掘れた点」から(完成時に記録済み)。
-        int wx;
-        int wz;
-        int fy;
-        if (qEruptY != Integer.MIN_VALUE) {
-            wx = qEruptX;
-            wz = qEruptZ;
-            fy = qEruptY;
-        } else {
-            wx = Mth.floor(ex);
-            wz = Mth.floor(ez);
-            fy = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz);
-        }
-        double bx = wx + 0.5D;
-        double by = fy + 1.0D;
-        double bz = wz + 0.5D;
-
-        // 連続噴出 + たまに大きなパルス(花火の破裂)。数は quakeSporeDensity 倍。
-        boolean burst = r.nextInt(3) == 0;
-        int base = Math.max(1, Mth.ceil(22.0D * density));
-        int extra = burst ? Math.max(1, Mth.ceil(70.0D * density)) : 0;
-        for (int i = 0; i < base + extra; i++) {
-            double a = (r.nextDouble() * 2.0D - 1.0D) * coneRad;
-            double roll = r.nextDouble() * TAU;
-            double power = (i >= base ? 1.0D : 0.82D) * (0.72D + r.nextDouble() * 0.5D);
-            double sp = speed * power;
-            double horiz = Math.sin(a) * sp;
-            farSpore(bx + (r.nextDouble() - 0.5D) * 3.0D, by, bz + (r.nextDouble() - 0.5D) * 3.0D,
-                    horiz * Math.cos(roll), Math.cos(a) * sp, horiz * Math.sin(roll));
-        }
-
-        // 遠くからのシルエット用: 地表からほぼ真上へ、ゆっくり太く立ちのぼる筋(長持ち)。
-        int pillar = Math.max(1, Mth.ceil(6.0D * density));
-        for (int p = 0; p < pillar; p++) {
-            double a = r.nextDouble() * TAU;
-            double rr = r.nextDouble() * 2.5D;
-            farSpore(bx + Math.cos(a) * rr, ey + 1.0D, bz + Math.sin(a) * rr,
-                    (r.nextDouble() - 0.5D) * 0.3D, 2.2D + r.nextDouble() * 1.8D, (r.nextDouble() - 0.5D) * 0.3D);
-        }
-
-        // 上空に漂う本物の胞子(散ったあとゆっくり降ってくる仕上げ)
-        double topSpread = 4.0D + width * 0.5D;
-        int haze = Math.max(1, Mth.ceil(3.0D * density));
-        for (int p = 0; p < haze; p++) {
-            double a = r.nextDouble() * TAU;
-            double rad = 1.0D + r.nextDouble() * topSpread;
-            double hx = bx + Math.cos(a) * rad;
-            double hy = ey + 6.0D + r.nextDouble() * 28.0D;
-            double hz = bz + Math.sin(a) * rad;
-            for (ServerPlayer pl : level.players()) {
-                level.sendParticles(pl, ParticleTypes.SPORE_BLOSSOM_AIR, true, hx, hy, hz, 1, 0.5D, 0.4D, 0.5D, 0.0D);
-            }
-        }
-
-        if (r.nextInt(12) == 0) {
-            level.playSound(null, BlockPos.containing(ex, ey, ez), SoundEvents.SCULK_CATALYST_BLOOM,
-                    SoundSource.AMBIENT, 2.0F, 0.6F);
-        }
-    }
-
-    /** 過繁茂の胞子パーティクルを、全プレイヤーへ「遠距離」({@code longDistance} = 512 ブロック)で送る。 */
-    private void farSpore(double x, double y, double z, double vx, double vy, double vz) {
-        for (ServerPlayer pl : level.players()) {
-            level.sendParticles(pl, ModParticles.OVERGROWN_SPORE.get(), true, x, y, z, 0, vx, vy, vz, 1.0D);
-        }
     }
 
     // ---- 噴出中のハザード(確定感染 + 汚染シダ) --------------------------
@@ -482,32 +438,6 @@ final class EarthquakeFissure {
 
     private int hazardRadius() {
         return OvergrownVegetationConfig.COMMON.quakeEruptHazardRadiusChunks.get() * 16;
-    }
-
-    /**
-     * 噴出エフェクトの中心から水平半径 {@code quakeEruptHazardRadiusChunks} チャンク以内の Mob を、
-     * すべて確定で「胞子感染1」にする(プレイヤー・{@link BlightFernEntity}・{@link OvergrownNexusEntity}・
-     * 既に感染しきった進化型は除外)。範囲内に居続ける限り再付与で感染状態が保たれる。
-     */
-    void infectNearbyMobs() {
-        int radius = hazardRadius();
-        if (radius <= 0) {
-            return;
-        }
-        double[] c = hazardCenter();
-        double r2 = (double) radius * radius;
-        AABB box = new AABB(c[0] - radius, level.getMinBuildHeight(), c[1] - radius,
-                c[0] + radius, level.getMaxBuildHeight(), c[1] + radius);
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, box, Mob::isAlive)) {
-            if (mob instanceof BlightFernEntity || mob instanceof OvergrownNexusEntity) {
-                continue;
-            }
-            double dx = mob.getX() - c[0];
-            double dz = mob.getZ() - c[1];
-            if (dx * dx + dz * dz <= r2) {
-                SporeInfectionEffects.infect(mob, 0);
-            }
-        }
     }
 
     /**
@@ -541,7 +471,7 @@ final class EarthquakeFissure {
             int dist = r.nextInt(radius + 1);
             int x = baseX + (int) Math.round(Math.cos(ang) * dist);
             int z = baseZ + (int) Math.round(Math.sin(ang) * dist);
-            if (!level.hasChunk(x >> 4, z >> 4)) {
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.hasChunk(level, x >> 4, z >> 4)) {
                 continue;
             }
             int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
@@ -556,7 +486,7 @@ final class EarthquakeFissure {
     /** {@code pos}(植物本体のマス)に汚染シダ / 汚染水草を置けるか。足場は固体・非汚染、本体+頭上が空き。 */
     private boolean fernSpotOk(BlockPos pos) {
         BlockState ground = level.getBlockState(pos.below());
-        if (!ground.blocksMotion() || ground.is(ModTags.CORRUPTED)) {
+        if (!ground.blocksMotion() || com.yayuy.overgrownvegetation.corruption.OvergrownLayerData.isCorruptedCell(level, pos.below(), ground)) {
             return false;
         }
         BlockState at = level.getBlockState(pos);
@@ -674,6 +604,9 @@ final class EarthquakeFissure {
         if (s.isAir()) {
             return;
         }
+        if (com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.blocks(level, p)) {
+            return; // 構造物の部品の箱は掘らない(2026-11-19 構造物と森の融合 段 1。裂け目は構造物の手前で途切れる)
+        }
         if (s.getDestroySpeed(level, p) < 0.0F) {
             return;
         }
@@ -734,11 +667,64 @@ final class EarthquakeFissure {
      * ボックスを走査し、各列を裂け目の軸/垂直座標へ射影して {@link #ellipticE} を求める。
      */
     private void forEachColumn(ColumnConsumer consumer) {
+        forEachColumn(-1, consumer);
+    }
+
+    /**
+     * {@link #forEachColumn(ColumnConsumer)} のうち、波 {@code wave} に属する列だけを訪れる版
+     * ({@code wave} が負なら全列)。弾いた列には consumer を呼ばないだけで、残る列の順番と渡す値は全列版と変わらない。
+     *
+     * <p>2026-09-24 軽量化(報告 1075): 以前は呼ぶたびに外接正方形(最大で約 700×700 列)を回し、足跡の中の
+     * 全列で {@link #ellipticE}(正弦を十数回)を計算していた。掘削中は毎 tick、予兆の終盤は 4 tick ごと、
+     * 完成の tick には 3 回。足跡の形はこの地割れに固有で世界の状態に依存しないので、{@link #columnIndex()} で
+     * 1 回だけ表にして、以降は表を引く。表は同じ式・同じ順番(wx → wz の昇順)で作るので、訪れる列・順番・
+     * 渡す u / v / e はどれも毎回計算していた頃と同じ double になる。
+     */
+    private void forEachColumn(int wave, ColumnConsumer consumer) {
+        ColumnIndex idx = columnIndex();
+        if (wave < 0) {
+            for (int i = 0; i < idx.wx.length; i++) {
+                consumer.accept(idx.wx[i], idx.wz[i], idx.u[i], idx.v[i], idx.e[i]);
+            }
+            return;
+        }
+        // waveOf は [0, formTicks - 1] に丸めるので、その外の波に属する列は無い(以前も何も訪れなかった)。
+        if (wave >= idx.byWave.length) {
+            return;
+        }
+        for (int i : idx.byWave[wave]) {
+            consumer.accept(idx.wx[i], idx.wz[i], idx.u[i], idx.v[i], idx.e[i]);
+        }
+    }
+
+    /** この地割れの列の表。無いか、波の数(設定の quakeFormTicks 由来)が変わっていたら作り直す。 */
+    private ColumnIndex columnIndex() {
+        ColumnIndex idx = quake.columnIndex;
+        if (idx == null || idx.formTicks != formTicks) {
+            idx = buildColumnIndex();
+            quake.columnIndex = idx;
+        }
+        return idx;
+    }
+
+    /**
+     * 足跡に掛かる全ての世界列(楕円距離 {@link #SCAN_E} 以内)を、以前の {@code forEachColumn} と同じ走査・同じ判定で
+     * 集めて表にする。ワールド座標のバウンディングボックスを走査し、各列を裂け目の軸/垂直座標へ射影して
+     * {@link #ellipticE} を求める。
+     */
+    private ColumnIndex buildColumnIndex() {
         int r = Mth.ceil(halfLen * 1.5D + halfWid * 2.7D) + 3;
         int cx = Mth.floor(ex);
         int cz = Mth.floor(ez);
         double roughU = halfLen * 1.45D;
         double roughV = halfWid * 2.6D;
+        IntArrayList xs = new IntArrayList();
+        IntArrayList zs = new IntArrayList();
+        DoubleArrayList us = new DoubleArrayList();
+        DoubleArrayList vs = new DoubleArrayList();
+        DoubleArrayList es = new DoubleArrayList();
+        IntArrayList waves = new IntArrayList();
+        int[] waveCounts = new int[formTicks];
         for (int wx = cx - r; wx <= cx + r; wx++) {
             for (int wz = cz - r; wz <= cz + r; wz++) {
                 double rx = wx + 0.5D - ex;
@@ -753,8 +739,51 @@ final class EarthquakeFissure {
                 if (e > SCAN_E) {
                     continue;
                 }
-                consumer.accept(wx, wz, u, v, e);
+                int w = waveOf(u);
+                xs.add(wx);
+                zs.add(wz);
+                us.add(u);
+                vs.add(v);
+                es.add(e);
+                waves.add(w);
+                waveCounts[w]++;
             }
+        }
+        int[][] byWave = new int[formTicks][];
+        for (int w = 0; w < formTicks; w++) {
+            byWave[w] = new int[waveCounts[w]];
+        }
+        int[] filled = new int[formTicks];
+        for (int i = 0; i < waves.size(); i++) {
+            int w = waves.getInt(i);
+            byWave[w][filled[w]++] = i; // 添字の昇順 = 全列版の訪問順
+        }
+        return new ColumnIndex(formTicks, xs.toIntArray(), zs.toIntArray(),
+                us.toDoubleArray(), vs.toDoubleArray(), es.toDoubleArray(), byWave);
+    }
+
+    /**
+     * 足跡の列の表(2026-09-24 軽量化 報告 1075)。{@code wx[i] … e[i]} が i 番目の列(全列版の訪問順)、
+     * {@code byWave[w]} が波 {@code w} に属する列の添字(昇順)。{@link EarthquakeData.ActiveQuake#columnIndex} に
+     * 保存せずに置く。
+     */
+    static final class ColumnIndex {
+        final int formTicks;
+        final int[] wx;
+        final int[] wz;
+        final double[] u;
+        final double[] v;
+        final double[] e;
+        final int[][] byWave;
+
+        ColumnIndex(int formTicks, int[] wx, int[] wz, double[] u, double[] v, double[] e, int[][] byWave) {
+            this.formTicks = formTicks;
+            this.wx = wx;
+            this.wz = wz;
+            this.u = u;
+            this.v = v;
+            this.e = e;
+            this.byWave = byWave;
         }
     }
 

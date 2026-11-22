@@ -14,8 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 「このマスは植物に覆われたか」を決める場(2026-09-22)。
  *
  * <h2>記録を持たない</h2>
- * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@code climax.json} の
- * {@code overgrownLayer.chance}(既定 70%)の抽選を<b>座標のハッシュ</b>で行うので、
+ * <p>覆ったかどうかは<b>どこにも保存していない</b>。{@link #chance()}(もとは climax.json の
+ * {@code overgrownLayer.chance}、既定 70%)の抽選を<b>座標のハッシュ</b>で行うので、
  * サーバーとクライアントが何も同期せずに同じ答えを出す。セーブデータも増えない。
  *
  * <p>これを乱数にすると、サーバーだけが答えを知ることになり、
@@ -90,9 +90,22 @@ public final class OvergrownLayerField {
     /** {@link #isPlainCube(BlockState)} の答え。毎フレーム他 MOD のコードを呼ばないため。 */
     private static final Map<BlockState, Boolean> PLAIN_CUBE = new ConcurrentHashMap<>();
 
-    /** そのマスが抽選に当たっているか。設定の確率({@code overgrownLayer.chance})で引く。 */
+    /**
+     * 覆う確率({@code cover.json} の {@code chance}、既定 0.7)。もとは climax.json の {@code overgrownLayer.chance} —— 2026-10-30 の整理で
+     * 極相の表を parked/ へ外したときはここに定数で置き、覆いの作り直し(同日)で {@code cover.json} へ移した。
+     */
+    public static double chance() {
+        return com.yayuy.overgrownvegetation.data.DesignData.cover().chance();
+    }
+
+    /** 中身を持つブロックを機能の無いブロック(overgrown_husk)へ差し替えるか({@code cover.json} の {@code encase}。もとは climax.json)。 */
+    public static boolean encase() {
+        return com.yayuy.overgrownvegetation.data.DesignData.cover().encase();
+    }
+
+    /** そのマスが抽選に当たっているか。{@link #chance()} で引く。 */
     public static boolean covered(BlockPos pos) {
-        return covered(pos, DesignData.climax().overgrownLayerChance());
+        return covered(pos, chance());
     }
 
     /** 確率を外から渡す版(描画側が毎ブロック設定を引き直さないため)。 */
@@ -103,9 +116,17 @@ public final class OvergrownLayerField {
         if (chance <= 0.0D) {
             return false;
         }
+        return roll(pos) < chance;
+    }
+
+    /**
+     * そのマスの抽選の値([0, 1)、座標だけで決まる)。{@link #covered(BlockPos, double)} は {@code roll < chance}。
+     * 3 つ以上に分けるとき(木材の「過繁茂した木材・覆われた版・過繁茂ブロック」、2026-10-05 夜)に同じ値をしきい値で切る。
+     */
+    public static double roll(BlockPos pos) {
         long h = hash(pos.getX(), pos.getY(), pos.getZ());
         // 上位 53 ビットを [0, 1) の実数にする(Random#nextDouble と同じ作り)。
-        return (h >>> 11) * 0x1.0p-53 < chance;
+        return (h >>> 11) * 0x1.0p-53;
     }
 
     private static long hash(int x, int y, int z) {

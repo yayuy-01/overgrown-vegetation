@@ -1,0 +1,25 @@
+{
+    "vertex": "overgrown_vegetation:mist_march",
+    "fragment": "overgrown_vegetation:mist_march",
+    "samplers": [
+        { "name": "DepthTex" },
+        { "name": "OvFogMap" },
+        { "name": "SunMap" }
+    ],
+    "uniforms": [
+        { "name": "OvFogA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 8.0, 64.0 ] },
+        { "name": "OvFogB", "type": "float", "count": 4, "values": [ 0.0, 0.35, 0.0, 0.0 ] },
+        { "name": "OvFogC", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 0.0 ] },
+        { "name": "OvFogD", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 60.0 ] },
+        { "name": "OvFogE", "type": "float", "count": 4, "values": [ 0.0, 1.0, 0.0, 0.0 ] },
+        { "name": "OvFogG", "type": "float", "count": 4, "values": [ 1.5, 1.0, 24.0, 1.0 ] },
+        { "name": "OvFogH", "type": "float", "count": 4, "values": [ 0.3, 0.0, 0.0, 0.0 ] },
+        { "name": "InvViewProj", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "MarchA", "type": "float", "count": 4, "values": [ 10.0, 48.0, 40.0, 0.7 ] },
+        { "name": "MarchB", "type": "float", "count": 4, "values": [ 10.0, 0.8, 0.6, 0.0 ] },
+        { "name": "MarchC", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "MarchD", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "SunA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+        { "name": "MapA", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 0.0 ] }
+    ]
+}

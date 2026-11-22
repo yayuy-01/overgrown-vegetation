@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "kind=fine,part=short": { "model": "overgrown_vegetation:block/beard_lichen_fine_short" },
+    "kind=fine,part=top": { "model": "overgrown_vegetation:block/beard_lichen_fine_top" },
+    "kind=fine,part=tip": { "model": "overgrown_vegetation:block/beard_lichen_fine_tip" },
+    "kind=tuft,part=short": { "model": "overgrown_vegetation:block/beard_lichen_tuft_short" },
+    "kind=tuft,part=top": { "model": "overgrown_vegetation:block/beard_lichen_tuft_top" },
+    "kind=tuft,part=tip": { "model": "overgrown_vegetation:block/beard_lichen_tuft_tip" }
+  }
+}

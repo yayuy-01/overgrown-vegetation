@@ -1,8 +1,13 @@
 package com.yayuy.overgrownvegetation.corruption;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
+import com.yayuy.overgrownvegetation.block.CorruptedLianaBlock;
+import com.yayuy.overgrownvegetation.block.CorruptedLianaBlockEntity;
 import com.yayuy.overgrownvegetation.config.OvergrownVegetationConfig;
+import com.yayuy.overgrownvegetation.perf.PerfJob;
+import com.yayuy.overgrownvegetation.perf.TickBudget;
 import com.yayuy.overgrownvegetation.registry.ModBlocks;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -21,10 +26,13 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,10 +49,16 @@ import java.util.Map;
  * </ul>
  * どちらも元の葉はすべて消す(このMODの葉は自然に枯れないため)。ドロップは出ない。
  *
- * <p>木の判定はバニラの {@code #minecraft:logs} と、既にその木の一部が汚染されて
- * {@link ModBlocks#OVERGROWN_LOG} / {@link ModBlocks#OVERGROWN_WOOD} になっている原木を繋がりとして辿る。
- * 湿地地域で苗木から育つ木は湿地の原木({@link ModBlocks#OVERGROWN_SWAMP_LOG})や菌類の柱なので
- * 対象にならない。プレイヤーの建築(原木を使った家)も繋がりとして辿ってしまうので、繋がりが
+ * <p>木の判定は {@code #minecraft:logs} の原木と、汚染された幹({@link ModBlocks#OVERGROWN_TRUNK_BLOCK}。
+ * 覆いの記録が付いた元の原木はそのまま {@code #logs})を繋がりとして辿る。倒木は元の木の原木で並べる —— {@link #fallenLog}。
+ * <b>このMODが生やす木の原木は辿らない</b>({@link #isModTreeLog}。2026-10-31、ユーザー報告「既存の木を消す仕組みが
+ * 汚染地域に生えた mod の木も消している」)。{@link ModBlocks#OVERGROWN_LOG} / {@link ModBlocks#OVERGROWN_WOOD} は
+ * Create 互換のため {@code #logs} に入っているので(10-14)、タグとは別に名指しで外す。昔は元の木の汚染された部分が
+ * {@code OVERGROWN_LOG} に化けたのでそれも辿っていたが、mod の木の枝は幹から 6〜7 ブロック広がるので、元の木に斜めに
+ * 1 か所触れただけで mod の木が丸ごと同じ木として消えていた(2026-11-01 からは元の原木が {@code OVERGROWN_LOG} に化けることも無い)。
+ * 葉は元の木の葉も汚染されると {@link ModBlocks#OVERGROWN_LEAVES} になり mod の木の葉と見分けが付かないので、
+ * 集めた葉のうち mod の原木から葉づたいに同じか近い葉は mod の木のものとして残す({@link #releaseModTreeLeaves})。
+ * プレイヤーの建築(原木を使った家)も繋がりとして辿ってしまうので、繋がりが
  * {@code MAX_LOGS} を超えたら「木ではない」と見なして何もしない。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
@@ -60,8 +74,69 @@ public final class SwampTreeFall {
     private static final int GROUND_SEARCH = 3;
     /** ドロップを出さずに置き換える(UPDATE_SUPPRESS_DROPS)。 */
     private static final int FLAGS = Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS;
+    /**
+     * 木を消すときのフラグ(2026-10-06)。形状更新を出さない —— 出すと木に付いたツタ・ココアなどが 1 マスずつ「壊れ」、
+     * 破壊音と破片の粒子が一度に何百も出ていた(ドロップもした)。付いていた植物は {@link StrandedPlants#clearAround} が
+     * 静かに消す。近隣更新は残す(水の中の木を消したあとへ水が流れ込むように)。
+     */
+    private static final int REMOVE_FLAGS = Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS
+            | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
+    /** {@link Direction#values()} は呼ぶたびに配列を複製するので 1 つを使い回す(順番は同じ)。 */
+    private static final Direction[] DIRECTIONS = Direction.values();
+
+    /**
+     * 1 tick に空気へ置き換えるマスの上限(葉と原木の合計。2026-09-24 軽量化、報告 611 / 622)。仮決め 2026-09-24。
+     *
+     * <p>以前の予算は木の本数({@code swampTreeFallPerTick})だけで、大きな木(葉は最大 {@link #MAX_LEAVES})を
+     * 同じ tick に丸ごと {@link Block#UPDATE_ALL} で消していた。1 マスごとに隣への通知・形状更新と、経路を持つ Mob
+     * 全員の経路の確認が走るので、密林の大木では 1 tick に数千回になる。普通の木(葉と原木で数十〜二百マス)は
+     * これまでどおり同じ tick に消え、これを超える大木だけが数 tick に分かれて消える。
+     */
+    private static final int BLOCKS_PER_TICK = 512;
 
     private static final Map<ResourceKey<Level>, LongLinkedOpenHashSet> QUEUE = new HashMap<>();
+    /**
+     * 撤去の途中の木(次元ごとに 1 本だけ)。これが終わるまで次の木は集めない —— 木を 1 本ずつ順に
+     * 「集める → 全部消す → 倒木にする」流れは以前と同じにしておく(消えかけの木の葉を、次の木の葉の探索が
+     * 辿ってしまわないように)。
+     */
+    private static final Map<ResourceKey<Level>, PendingFall> PENDING = new HashMap<>();
+
+    /** 集め終わって、消している途中の木 1 本。 */
+    private static final class PendingFall {
+        /** 空気にするマス。葉 → 原木の順(原木を先に消すと、残った葉の減衰が始まるため)。 */
+        final long[] blocks;
+        /** 次に消す {@link #blocks} の添字。 */
+        int next;
+        final BlockPos lowest;
+        /** 倒木に使う原木(集めたときの切り株の原木から決める。消し終えたあとは切り株も空気なので先に覚える)。 */
+        final BlockState fallenLog;
+        final int trunkLength;
+        final double fallenChance;
+
+        PendingFall(long[] blocks, BlockPos lowest, BlockState fallenLog, int trunkLength, double fallenChance) {
+            this.blocks = blocks;
+            this.lowest = lowest;
+            this.fallenLog = fallenLog;
+            this.trunkLength = trunkLength;
+            this.fallenChance = fallenChance;
+        }
+
+        boolean done() {
+            return next >= blocks.length;
+        }
+    }
+
+    /**
+     * ワールドを閉じたら積んである原木を捨てる(キーはディメンションと座標だけなので、残すと
+     * 次に開いた別のワールドで、同じ座標にある木を倒してしまう)。起動し直したときと同じ状態に戻す。
+     * 撤去の途中の木も同じ理由で捨てる。
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        QUEUE.clear();
+        PENDING.clear();
+    }
 
     /** 湿地系の地域でバニラの原木が汚染された。あとで木ごと処理する。 */
     public static void enqueue(ServerLevel level, BlockPos pos) {
@@ -74,39 +149,189 @@ public final class SwampTreeFall {
 
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
+        if (CorruptionSwitch.isOff()) {
+            return; // /ov corruption false(2026-10-10 ユーザー指定): 止める(順番待ちは残り、オンで続きから)
+        }
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        LongLinkedOpenHashSet queue = QUEUE.get(level.dimension());
-        if (queue == null || queue.isEmpty()) {
+        LongLinkedOpenHashSet waiting = QUEUE.get(level.dimension());
+        if (PENDING.get(level.dimension()) == null && (waiting == null || waiting.isEmpty())) {
+            return;
+        }
+        // サーバーが重いときは予算の番人が次の tick へ回す(2026-10-06。結果は同じで遅れるだけ)。
+        if (!TickBudget.mayStart(PerfJob.SWAMP_TREE_FALL)) {
+            return;
+        }
+        long start = TickBudget.begin();
+        try {
+            tickFalls(level);
+        } finally {
+            TickBudget.end(PerfJob.SWAMP_TREE_FALL, start, 1);
+        }
+    }
+
+    private static void tickFalls(ServerLevel level) {
+        ResourceKey<Level> dimension = level.dimension();
+        LongLinkedOpenHashSet queue = QUEUE.get(dimension);
+        PendingFall pending = PENDING.get(dimension);
+        if (pending == null && (queue == null || queue.isEmpty())) {
+            return;
+        }
+        int blockBudget = BLOCKS_PER_TICK;
+        // 前の tick から続いている木を先に片付ける(この木は積んだ tick に本数の予算を使い済み)。
+        if (pending != null) {
+            blockBudget = removeSome(level, pending, blockBudget);
+            if (!pending.done()) {
+                return;
+            }
+            PENDING.remove(dimension);
+            finishFall(level, pending);
+        }
+        if (queue == null) {
             return;
         }
         int budget = Math.max(1, OvergrownVegetationConfig.COMMON.swampTreeFallPerTick.get());
-        while (budget-- > 0 && !queue.isEmpty()) {
+        int deferred = 0;
+        while (budget-- > 0 && !queue.isEmpty() && blockBudget > 0) {
             long packed = queue.removeFirstLong();
             BlockPos pos = BlockPos.of(packed);
             if (!level.isLoaded(pos)) {
                 continue;
             }
-            processTree(level, pos, queue);
+            if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.areaLoaded(level, pos, FALL_AREA_MARGIN)) {
+                // 11-18 軽量化 ④: 木のまわりのチャンクが読み込まれていなければ、集めずに後ろへ回す(集める・消すときの同期読み込みで 120〜175 ms 止まっていた)。
+                // 回した数は数えず、1 tick に回すのは列の長さまで
+                queue.add(packed);
+                budget++;
+                if (++deferred >= queue.size()) break;
+                continue;
+            }
+            PendingFall fall = collectTree(level, pos, queue, blockBudget);
+            if (fall == null) {
+                continue;
+            }
+            blockBudget = removeSome(level, fall, blockBudget);
+            if (!fall.done()) {
+                // 大木: 残りは次の tick 以降(終わるまで次の木は集めない)。
+                PENDING.put(dimension, fall);
+                return;
+            }
+            finishFall(level, fall);
         }
     }
 
-    private static void processTree(ServerLevel level, BlockPos start, LongLinkedOpenHashSet queue) {
-        if (!isTreeLog(level.getBlockState(start))) {
+    /**
+     * {@code fall} の残りを最大 {@code budget} マス空気にし、残りの予算を返す。
+     * 前の tick から続いている木はその間にチャンクが外れていることがあるので、読み込まれていないマスは飛ばす
+     * (集めた tick のうちに消すぶんは必ず読み込み済み = 以前と同じ)。
+     */
+    /** 木を集める前に読み込みを確かめる水平の範囲(ブロック。11-18 軽量化 ④。木の広がり + 隣の形の更新の分)。 */
+    private static final int FALL_AREA_MARGIN = 12;
+
+    private static int removeSome(ServerLevel level, PendingFall fall, int budget) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        while (budget > 0 && !fall.done()) {
+            cursor.set(fall.blocks[fall.next++]);
+            budget = TickBudget.spend(budget);
+            // 集めた後に生えた封印木は消さない(2026-11-01。数 tick に分けて消す間に苗木が育つことがある)
+            if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor) && !isSigillariaPart(level.getBlockState(cursor))) {
+                level.setBlock(cursor, air, REMOVE_FLAGS);
+                StrandedPlants.clearAround(level, cursor);
+            }
+        }
+        return budget;
+    }
+
+    /** 4. 倒木にする / 消滅。木を全部消し終えた tick に呼ぶ(以前は集めた tick の最後)。 */
+    private static void finishFall(ServerLevel level, PendingFall fall) {
+        // 木に付いていた物の後始末(2026-10-16、ユーザー報告「消された木の跡に垂れ蔦・汚染された下草が空中に浮く」)。
+        // 蔦(リアナ)はブロックエンティティで、支えが無くても残る作りなので StrandedPlants では消えない。下草・茂みは生き残りの判定を持たない。
+        LongOpenHashSet removed = new LongOpenHashSet(fall.blocks);
+        removeLianasEndingIn(level, removed);
+        StrandedPlants.clearUnanchored(level, removed);
+        if (!com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, fall.lowest)) {
+            return; // 撤去の途中で切り株のチャンクが外れた(集めた tick に終わる木では起きない)。
+        }
+        RandomSource random = level.getRandom();
+        if (random.nextDouble() >= fall.fallenChance) {
             return;
+        }
+        layFallenTrunk(level, fall.lowest, fall.fallenLog, Math.max(1, fall.trunkLength), random);
+    }
+
+    /**
+     * 始点か終点が消した木の原木だった蔦(リアナ)を静かに消す。蔦の主アンカーは始点の幹の隣にあり、終点はそこから
+     * 蔦の長さ({@code vineMaxLength} / 手で張る {@code vinePlaceMaxLength})まで離れうるので、消した木の範囲をその分広げた
+     * 読み込み済みのチャンクのブロックエンティティを見る(木 1 本につき 1 回)。
+     */
+    private static void removeLianasEndingIn(ServerLevel level, LongOpenHashSet removed) {
+        if (removed.isEmpty()) {
+            return;
+        }
+        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (long l : removed) {
+            int x = BlockPos.getX(l);
+            int z = BlockPos.getZ(l);
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minZ = Math.min(minZ, z);
+            maxZ = Math.max(maxZ, z);
+        }
+        OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
+        int reach = Math.max(cfg.vineMaxLength.get(), cfg.vinePlaceMaxLength.get()) + 2;
+        List<BlockPos> primaries = new ArrayList<>();
+        for (int cx = (minX - reach) >> 4; cx <= (maxX + reach) >> 4; cx++) {
+            for (int cz = (minZ - reach) >> 4; cz <= (maxZ + reach) >> 4; cz++) {
+                net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+                if (chunk == null) {
+                    continue;
+                }
+                for (net.minecraft.world.level.block.entity.BlockEntity be : chunk.getBlockEntities().values()) {
+                    if (be instanceof CorruptedLianaBlockEntity liana && liana.getPrimaryPos() == null
+                            && (endsIn(liana.getSourcePos(), removed) || endsIn(liana.getTargetPos(), removed))) {
+                        primaries.add(be.getBlockPos());
+                    }
+                }
+            }
+        }
+        // 集め終えてから消す(消しながらだとチャンクのブロックエンティティの表を回している最中に書き換わる)。
+        for (BlockPos primary : primaries) {
+            CorruptedLianaBlock.removeQuietly(level, primary);
+        }
+    }
+
+    private static boolean endsIn(@org.jetbrains.annotations.Nullable BlockPos end, LongOpenHashSet removed) {
+        return end != null && removed.contains(end.asLong());
+    }
+
+    /**
+     * 原木の繋がり(木 1 本)とその葉を集め、消す順に並べて返す。木ではない(建築物・ストラクチャー・葉の無い原木の塊)
+     * ときや、この環境で無効なときは {@code null}。
+     *
+     * <p>以前の processTree の 1〜3 段目(集める・判定する・幹の長さを数える)そのもの。消す順番も以前と同じ
+     * (葉 → 原木、それぞれ集合の並び順)。ただし {@code budgetThisTick} に収まらない大木だけは、葉を
+     * 「原木から遠い順」に並べ替える: 数 tick に分けて消すあいだ、残っている葉から原木までの葉の道が
+     * 途中で切れない(= バニラの葉の距離が伸びて減衰・ドロップし始めない)ようにするため。
+     */
+    @org.jetbrains.annotations.Nullable
+    private static PendingFall collectTree(ServerLevel level, BlockPos start, LongLinkedOpenHashSet queue,
+                                           int budgetThisTick) {
+        if (!isTreeLog(level.getBlockState(start))) {
+            return null;
         }
         // 環境ごとの有効/無効。湿地系は swampTreeFall、密林は jungleTreeFall(2026-09-11 に密林にも拡張)。
         OvergrownVegetationConfig.Common cfg = OvergrownVegetationConfig.COMMON;
         boolean swamp = OvergrowthRegionMap.blendedVariantAt(level, start.getX(), start.getZ(), 2).isSwamp();
         if (swamp ? !cfg.swampTreeFall.get() : !cfg.jungleTreeFall.get()) {
-            return;
+            return null;
         }
         double fallenChance = swamp ? cfg.swampFallenTreeChance.get() : cfg.jungleFallenTreeChance.get();
         // 0. 生成ストラクチャー(村・前哨基地など)のピース内にある原木は、その建物の一部なので触らない。
         //    ピース単位の判定なので、村の中に自然に生えた木(建物の箱の外)は普通に木として扱われる。
         if (isInsideStructurePiece(level, start)) {
-            return;
+            return null;
         }
         // 1. 原木の繋がりを集める。人工物の兆候(樹皮を剥いだ原木、木材・柵・階段などと隣接)があれば木ではない。
         LongOpenHashSet logs = new LongOpenHashSet();
@@ -121,12 +346,12 @@ public final class SwampTreeFall {
                 lowest = p;
             }
             if (isStrippedLog(level.getBlockState(p))) {
-                return; // 樹皮を剥いだ原木は自然には生えない = 建築物。
+                return null; // 樹皮を剥いだ原木は自然には生えない = 建築物。
             }
-            for (Direction dir : Direction.values()) {
+            for (Direction dir : DIRECTIONS) {
                 scratch.setWithOffset(p, dir);
-                if (level.isLoaded(scratch) && isBuildingBlock(level.getBlockState(scratch))) {
-                    return; // 木材・柵・階段・ドアなどに接している = 建築物。
+                if (com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, scratch) && isBuildingBlock(level.getBlockState(scratch))) {
+                    return null; // 木材・柵・階段・ドアなどに接している = 建築物。
                 }
             }
             for (int dx = -1; dx <= 1; dx++) {
@@ -136,17 +361,17 @@ public final class SwampTreeFall {
                             continue;
                         }
                         BlockPos n = p.offset(dx, dy, dz);
-                        if (logs.contains(n.asLong()) || !level.isLoaded(n)) {
+                        if (logs.contains(n.asLong()) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
                             continue;
                         }
                         if (isTreeLog(level.getBlockState(n))) {
                             if (isInsideStructurePiece(level, n)) {
-                                return; // 繋がりの先がストラクチャーの建物に入っている。
+                                return null; // 繋がりの先がストラクチャーの建物に入っている。
                             }
                             logs.add(n.asLong());
                             frontier.add(n);
                             if (logs.size() > MAX_LOGS) {
-                                return; // 建築物などの巨大な繋がり。触らない。
+                                return null; // 建築物などの巨大な繋がり。触らない。
                             }
                         }
                     }
@@ -160,6 +385,8 @@ public final class SwampTreeFall {
 
         // 2. 葉を集める(原木から LEAF_REACH 以内を葉づたいに)。
         LongOpenHashSet leaves = new LongOpenHashSet();
+        // 葉ごとの原木からの葉づたいの距離(1〜LEAF_REACH。幅優先なので最短)。大木を分けて消す順番にだけ使う。
+        Long2IntOpenHashMap leafDist = new Long2IntOpenHashMap();
         ArrayDeque<long[]> leafFrontier = new ArrayDeque<>();
         for (long l : logs) {
             leafFrontier.add(new long[]{l, 0});
@@ -172,15 +399,16 @@ public final class SwampTreeFall {
             if (dist >= LEAF_REACH) {
                 continue;
             }
-            for (Direction dir : Direction.values()) {
+            for (Direction dir : DIRECTIONS) {
                 BlockPos n = p.relative(dir);
                 long nl = n.asLong();
-                if (seen.contains(nl) || !level.isLoaded(n)) {
+                if (seen.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
                     continue;
                 }
                 seen.add(nl);
                 if (isTreeLeaves(level.getBlockState(n))) {
                     leaves.add(nl);
+                    leafDist.put(nl, dist + 1);
                     leafFrontier.add(new long[]{nl, dist + 1});
                 }
             }
@@ -188,10 +416,12 @@ public final class SwampTreeFall {
 
         // 葉が 1 枚も付いていない原木の塊は木ではない(丸太置き場・柱など)。
         if (leaves.isEmpty()) {
-            return;
+            return null;
         }
+        // 隣の mod の木の葉は残す(葉が全部 mod の木のものでも、葉の付いた原木なので木として消す)。
+        releaseModTreeLeaves(level, leaves, leafDist);
 
-        // 3. 幹の長さ(切り株の列に積まれた原木の本数)を数えてから、全部消す。
+        // 3. 幹の長さ(切り株の列に積まれた原木の本数)を数えてから、全部消す(消すのは呼び出し側の removeSome)。
         int trunkLength = 0;
         for (int y = lowest.getY(); y < lowest.getY() + 64; y++) {
             if (!logs.contains(BlockPos.asLong(lowest.getX(), y, lowest.getZ()))) {
@@ -199,26 +429,52 @@ public final class SwampTreeFall {
             }
             trunkLength++;
         }
-        BlockState air = Blocks.AIR.defaultBlockState();
-        for (long l : leaves) {
-            level.setBlock(BlockPos.of(l), air, FLAGS);
+        long[] blocks = new long[leaves.size() + logs.size()];
+        int k = 0;
+        if (blocks.length <= budgetThisTick) {
+            // この tick に消し切れる木: 以前と同じ順番(葉の集合の並び順)。
+            for (long l : leaves) {
+                blocks[k++] = l;
+            }
+        } else {
+            // 数 tick に分かれる大木: 原木から遠い葉から消す(同じ距離の中は集合の並び順)。
+            for (int d = LEAF_REACH; d >= 1; d--) {
+                for (long l : leaves) {
+                    if (leafDist.get(l) == d) {
+                        blocks[k++] = l;
+                    }
+                }
+            }
         }
         for (long l : logs) {
-            level.setBlock(BlockPos.of(l), air, FLAGS);
+            blocks[k++] = l;
         }
+        return new PendingFall(blocks, lowest, fallenLog(level.getBlockState(lowest)), trunkLength, fallenChance);
+    }
 
-        // 4. 倒木にする / 消滅。
-        RandomSource random = level.getRandom();
-        if (random.nextDouble() >= fallenChance) {
-            return;
+    /**
+     * 倒木の原木: 元の木の<b>覆われた原木</b>(2026-10-05 夜から、汚染された幹は同じ木の覆われた原木になる。オークの木はオークの倒木)。
+     * 2026-10-30 から覆われた原木 = 元の原木 + 覆いの記録({@link #layFallenTrunk} が並べたあと記録を書く)。
+     * 元が分からない(前のセーブで過繁茂した原木になっていた幹など)ときは過繁茂した原木。
+     */
+    private static BlockState fallenLog(BlockState stump) {
+        if (CorruptionRegistry.coversInPlace(stump) && stump.hasProperty(RotatedPillarBlock.AXIS)) {
+            return stump.getBlock().defaultBlockState();
         }
-        layFallenTrunk(level, lowest, Math.max(1, trunkLength), random);
+        return ModBlocks.OVERGROWN_LOG.get().defaultBlockState();
+    }
+
+    /** 並べた元の木の原木を記録で覆う(2026-10-30 から覆われた原木 = 原木 + 記録)。過繁茂した原木は何もしない。 */
+    private static void coverIfInPlace(ServerLevel level, BlockPos pos, BlockState log) {
+        if (CorruptionRegistry.coversInPlace(log)) {
+            OvergrownLayerData.cover(level, pos);
+        }
     }
 
     /** 切り株 1 個を残し、幹の長さぶんの原木を横倒しに並べる。 */
-    private static void layFallenTrunk(ServerLevel level, BlockPos stump, int trunkLength, RandomSource random) {
-        BlockState upright = ModBlocks.OVERGROWN_LOG.get().defaultBlockState();
+    private static void layFallenTrunk(ServerLevel level, BlockPos stump, BlockState upright, int trunkLength, RandomSource random) {
         level.setBlock(stump, upright, FLAGS);
+        coverIfInPlace(level, stump, upright);
 
         int length = Math.min(MAX_FALLEN_LENGTH, Math.max(MIN_FALLEN_LENGTH, trunkLength - 1));
         Direction dir = Direction.Plane.HORIZONTAL.getRandomDirection(random);
@@ -246,6 +502,7 @@ public final class SwampTreeFall {
                 break;
             }
             level.setBlock(at, lying, FLAGS);
+            coverIfInPlace(level, at, lying);
             placed.add(at.asLong());
             y = logY;
         }
@@ -287,18 +544,30 @@ public final class SwampTreeFall {
         return Integer.MIN_VALUE;
     }
 
-    /** 生成ストラクチャーのピース(建物 1 棟ぶんの箱)の中か。 */
+    /**
+     * 生成ストラクチャーのピース(建物 1 棟ぶんの箱)の中か。2026-11-19 から構造物と森の融合の口 {@link com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion} へ寄せた
+     * (タグ fusion_excluded で外した構造物と地下の部品は守らない。まだ分からないときは守る側)。
+     */
     private static boolean isInsideStructurePiece(ServerLevel level, BlockPos pos) {
-        return level.structureManager().getStructureWithPieceAt(pos, holder -> true).isValid();
+        return com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.state(level, pos) != com.yayuy.overgrownvegetation.worldgen.fusion.StructureFusion.NONE;
     }
 
     /** 樹皮を剥いだ原木・木(stripped_*)か。自然の木には現れない。 */
     private static boolean isStrippedLog(BlockState state) {
-        return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath().startsWith("stripped_");
+        return BuiltInRegistries.BLOCK.getKey(coveredToVanilla(state).getBlock()).getPath().startsWith("stripped_");
+    }
+
+    /**
+     * 覆われたブロック(汚染された建物の一部)は元のブロックとして見る —— 覆われた樹皮を剥いだ原木・石レンガも建物のしるし。
+     * 2026-10-30 から覆われたブロックは元のブロックのまま(記録で覆う)なので、そのまま返す。
+     */
+    private static BlockState coveredToVanilla(BlockState state) {
+        return state;
     }
 
     /** 建築に使われるブロック(木材・柵・階段・ハーフブロック・ドア・トラップドア・壁・ガラス・松明など)か。 */
     private static boolean isBuildingBlock(BlockState state) {
+        state = coveredToVanilla(state);
         return state.is(BlockTags.PLANKS) || state.is(BlockTags.FENCES) || state.is(BlockTags.FENCE_GATES)
                 || state.is(BlockTags.STAIRS) || state.is(BlockTags.SLABS) || state.is(BlockTags.DOORS)
                 || state.is(BlockTags.TRAPDOORS) || state.is(BlockTags.WALLS) || state.is(BlockTags.WOOL)
@@ -311,12 +580,114 @@ public final class SwampTreeFall {
                 || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.STONE_BRICKS) || state.is(Blocks.BRICKS);
     }
 
+    /**
+     * 集めた葉のうち、このMODの木の葉を外す(2026-10-31)。汚染された元の木の葉も mod の木の葉も同じ
+     * {@link ModBlocks#OVERGROWN_LEAVES} なので、近くの mod の原木から葉づたいの距離を測り、元の木の原木からの距離
+     * ({@code leafDist})と同じか近い葉は mod の木のものとして集合から外す(境目で同点の葉は mod の木に付ける。仮決め)。
+     * バニラの葉は汚染される前の元の木の葉なので、外さない。
+     *
+     * <p>mod の原木は、集めた mod の葉から mod の葉づたいに {@code LEAF_REACH - 1} 歩までの隣だけを探す
+     * (それより遠い mod の原木からの距離は {@code LEAF_REACH} を超え、どの葉の {@code leafDist} にも勝たない)。
+     * 集めた葉に mod の葉が無いか、近くに mod の原木が無ければ何もしない。
+     */
+    private static void releaseModTreeLeaves(ServerLevel level, LongOpenHashSet leaves, Long2IntOpenHashMap leafDist) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        // 1. 近くの mod の原木を探す。
+        ArrayDeque<long[]> frontier = new ArrayDeque<>();
+        LongOpenHashSet seen = new LongOpenHashSet();
+        for (long l : leaves) {
+            if (level.getBlockState(cursor.set(l)).is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)) {
+                frontier.add(new long[]{l, 0});
+                seen.add(l);
+            }
+        }
+        LongOpenHashSet modLogs = new LongOpenHashSet();
+        int pushed = 0; // 集めた葉の外へ広げた葉の数(上限は元の木の葉集めと同じ MAX_LEAVES)
+        while (!frontier.isEmpty() && pushed < MAX_LEAVES) {
+            long[] cur = frontier.poll();
+            int dist = (int) cur[1];
+            for (Direction dir : DIRECTIONS) {
+                cursor.set(cur[0]).move(dir);
+                long nl = cursor.asLong();
+                if (seen.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
+                    continue;
+                }
+                seen.add(nl);
+                BlockState state = level.getBlockState(cursor);
+                if (isModTreeLog(state)) {
+                    modLogs.add(nl);
+                } else if (state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES) && dist + 1 < LEAF_REACH) {
+                    frontier.add(new long[]{nl, dist + 1});
+                    pushed++;
+                }
+            }
+        }
+        if (modLogs.isEmpty()) {
+            return;
+        }
+        // 2. mod の原木から葉づたいの距離を測り、同じか近い葉を外す。
+        frontier.clear(); // 1 が上限で止まったときの残り(1 の距離)を混ぜない
+        for (long l : modLogs) {
+            frontier.add(new long[]{l, 0});
+        }
+        LongOpenHashSet reached = new LongOpenHashSet(modLogs);
+        int walked = 0; // 辿った葉の数(上限は MAX_LEAVES)
+        while (!frontier.isEmpty() && walked < MAX_LEAVES) {
+            long[] cur = frontier.poll();
+            int dist = (int) cur[1];
+            if (dist >= LEAF_REACH) {
+                continue;
+            }
+            for (Direction dir : DIRECTIONS) {
+                cursor.set(cur[0]).move(dir);
+                long nl = cursor.asLong();
+                if (reached.contains(nl) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, cursor)) {
+                    continue;
+                }
+                reached.add(nl);
+                if (level.getBlockState(cursor).is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES)) {
+                    if (leaves.contains(nl) && dist + 1 <= leafDist.get(nl)) {
+                        leaves.remove(nl);
+                        leafDist.remove(nl);
+                    }
+                    frontier.add(new long[]{nl, dist + 1});
+                    walked++;
+                }
+            }
+        }
+    }
+
+    /**
+     * 元の木の原木か: {@code #logs} のうちこのMODが生やす木の原木を除いたもの、または汚染された幹(覆われた原木)。
+     * mod の原木は {@code #logs} に入っているものがある(Create 互換)ので名指しで外す。
+     */
     private static boolean isTreeLog(BlockState state) {
-        return state.is(BlockTags.LOGS) || state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get());
+        return state.is(ModBlocks.OVERGROWN_TRUNK_BLOCK.get()) || (state.is(BlockTags.LOGS) && !isModTreeLog(state));
+    }
+
+    /** このMODが生やす木(苗木の木・巨大樹)の原木か(湿地の木・菌類の柱は 2026-10-31 に parked へ退避)。 */
+    private static boolean isModTreeLog(BlockState state) {
+        return state.is(ModBlocks.OVERGROWN_LOG.get()) || state.is(ModBlocks.OVERGROWN_WOOD.get())
+                || state.is(com.yayuy.overgrownvegetation.ModTags.GIANT_WOOD) // 巨大樹の原木・形成層・硬化した幹・汚染の根
+                // 封印木(2026-11-01)。#logs に入っているので名指しで外す。葉(sigillaria_leaves・_fringe)は isTreeLeaves に入れない = 元の木の葉として集めない
+                || state.is(ModBlocks.SIGILLARIA_LOG.get())
+                // 枝の継ぎ目(2026-11-01)。#logs に入っているので名指しで外す(数えないと枝先から mod の木が元の木として片付く)
+                || state.getBlock() instanceof com.yayuy.overgrownvegetation.block.BranchJointBlock
+                // 木生シダの幹・スティグマリア・コルダイテスの板根(2026-11-12 に #logs へ入れた。タグの見直し)。名指しで外さないと元の木として片付く
+                || state.is(ModBlocks.TREE_FERN_TRUNK.get()) || state.is(ModBlocks.STIGMARIA.get())
+                || state.is(ModBlocks.CORDAITES_BUTTRESS.get());
+    }
+
+    /** 封印木の原木・枝・葉・球果(元の木の一部には決してならない)。 */
+    private static boolean isSigillariaPart(BlockState state) {
+        return state.is(ModBlocks.SIGILLARIA_LOG.get()) || state.is(ModBlocks.SIGILLARIA_BRANCH.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES.get()) || state.is(ModBlocks.SIGILLARIA_LEAVES_FRINGE.get())
+                || state.is(ModBlocks.SIGILLARIA_CONE.get())
+                // 木生シダ(2026-11-01)も同じく消さない
+                || state.is(ModBlocks.TREE_FERN_TRUNK.get()) || state.is(ModBlocks.TREE_FERN_LEAVES.get()) || state.is(ModBlocks.TREE_FERN_FROND.get());
     }
 
     private static boolean isTreeLeaves(BlockState state) {
-        return state.is(BlockTags.LEAVES) || state.is(ModBlocks.OVERGROWN_LEAVES.get());
+        return state.is(BlockTags.LEAVES) || state.is(com.yayuy.overgrownvegetation.ModTags.OVERGROWN_LEAVES);
     }
 
     private SwampTreeFall() {

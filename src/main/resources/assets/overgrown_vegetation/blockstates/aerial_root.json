@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "kind=bundle,tip=false": { "model": "overgrown_vegetation:block/aerial_root_bundle" },
+    "kind=bundle,tip=true": { "model": "overgrown_vegetation:block/aerial_root_bundle_tip" },
+    "kind=single,tip=false": { "model": "overgrown_vegetation:block/aerial_root_single" },
+    "kind=single,tip=true": { "model": "overgrown_vegetation:block/aerial_root_single_tip" }
+  }
+}

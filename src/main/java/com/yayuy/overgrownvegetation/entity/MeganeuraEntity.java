@@ -1,268 +1,455 @@
 package com.yayuy.overgrownvegetation.entity;
 
 import com.yayuy.overgrownvegetation.data.MobStats;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
+import com.yayuy.overgrownvegetation.entity.flyer.DartHover;
+import com.yayuy.overgrownvegetation.entity.flyer.FlightBody;
+import com.yayuy.overgrownvegetation.entity.flyer.Flock;
+import com.yayuy.overgrownvegetation.entity.flyer.FlyerWind;
+import com.yayuy.overgrownvegetation.entity.flyer.SkyFlyer;
+import com.yayuy.overgrownvegetation.entity.flyer.SkyProbe;
+import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.AnimationState;
+import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
-
-import javax.annotation.Nullable;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
- * 「メガネウラ」— 巨大なトンボのグループ3(原生消費種)の飛行 Mob。
+ * メガネウラ {@code meganeura}(狩る側の環境生物・原生消費種。大きなトンボ・狩る側)。Vault「Mob の能力/メガネウラ」。
  *
+ * <h2>段 1(2026-11-16): 飛ぶ・止まる・急ぐまで</h2>
+ * 動きは「飛ぶ型」の土台 {@link SkyFlyer} に、トンボの飛び方を自前の飛び方({@link #ownFlight})で載せる。
+ * 【案・Claude 11-16(全体管理「トンボらしく、低めで速く、急に向きを変えて飛ぶ」)】3 つの動きを行き来する。数値はどれも【仮】:
  * <ul>
- *     <li>普通に空を飛び回って({@link FlyerWanderGoal})獲物を探し、見つけたら直進して
- *     噛みつく({@link MeganeuraHuntGoal})。</li>
- *     <li>獲物を仕留めると、たまに近くの過繁茂した木の枝の上に降りて食事と休息をとる
- *     ({@link MeganeuraRestGoal})。</li>
- *     <li>仕留めた獲物のモデルを口元に咥えて枝まで運び、咀嚼が終わると同時に消す
- *     ({@link #getPreyDisplay()} / {@code MeganeuraPreyLayer})。</li>
- *     <li>攻撃力・移動速度が高いが、体力・防御力は低い。</li>
- *     <li>獲物を1体倒すごとに攻撃力・体力が 5% ずつ上昇する({@link PredatorMob})。</li>
+ *   <li>{@link #MOOD_CRUISE 巡航}: 林冠のすぐ上(+{@link #LAYER_MIN}〜{@link #LAYER_MAX})を速く飛び、{@link #TURN_EVERY_MIN}〜{@link #TURN_EVERY_MAX} tick ごとに
+ *       急に向きを変える(±40〜150 度。小回りの利く {@link FlightBody} で、巡航で半径 約 2 ブロック)。家から {@link #HOME_R} より離れたら家の方へ。</li>
+ *   <li>{@link #MOOD_HOVER 止まっては飛ぶ}: 空中でピタッと止まり、{@link #HOP_MIN}〜{@link #HOP_MAX} ブロック先へ鋭く飛んでまた止まる({@link DartHover}、アクムネスの部品)を 2〜4 回。</li>
+ *   <li>{@link #MOOD_DASH 急ぐ}: 速さ {@link #DASH_SPEED} でまっすぐ。叩かれたら叩いた相手から離れる向きへ、飛び立った直後と巡航のたまにも。</li>
  * </ul>
- *
- * <h2>アニメーション名(GeckoLib)</h2>
- * <ul>
- *     <li>{@code fly} — 飛行中(既定)。</li>
- *     <li>{@code chase} — 獲物を追いかけている間(羽ばたきのみ)。</li>
- *     <li>{@code bite} — 実際に噛みついた瞬間だけの一撃({@link OvergrownFlyerEntity#STATE_BITE})。</li>
- *     <li>{@code relax} → {@code chew} — 枝に降りて羽を下ろし、獲物を咀嚼する({@link OvergrownFlyerEntity#STATE_FEED})。</li>
- *     <li>{@code relax2} — 咀嚼のあと枝の上で休んでいる間のループ({@link OvergrownFlyerEntity#STATE_REST})。</li>
- * </ul>
+ * 夜と雨は木のてっぺんに止まる(土台のまま。1 匹ずつ = 群れを作らない)。風はあまり受けない(強く飛ぶ虫)。
+ * 環境生物は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ critter_hunter = ほかの Mob から敵対される)。
+ * 自然には湧かない(生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。狩り(chase・bite・chew)は後の段。
+ * 形は 9 月製のまま、絵は MOD の色に塗り直し(翅の黄色は残す。ユーザー決定 11-16)。正本 {@code デスクトップ\blockbench\mobs\meganeura.bbmodel}。
  */
-public class MeganeuraEntity extends OvergrownFlyerEntity implements PredatorMob {
+public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedMob {
 
-    /** 獲物を仕留めたあとに枝へ降りて休息する確率。「たまに」なので半々くらい。 */
-    private static final float REST_CHANCE_AFTER_KILL = 0.5F;
+    public static final String ID = "meganeura";
 
-    /** 枝に止まっている間の当たり判定の実寸(胴体ぶん)。{@link #getDefaultDimensions} 参照。 */
-    private static final EntityDimensions RESTING_DIMENSIONS = EntityDimensions.scalable(0.6F, 0.4F);
+    /** 小回りの利く飛び方【仮・Claude 11-16】。巡航 0.5(秒速 10)・急ぐ 1.0・巡航で 14 度/tick(半径 約 2)。 */
+    private static final FlightBody.Params PARAMS = new FlightBody.Params();
 
-    /** 咥えている獲物なし({@link #DATA_PREY_TYPE} の既定値)。 */
-    private static final int NO_PREY = -1;
+    static {
+        PARAMS.cruise = 0.5D;
+        PARAMS.minSpeed = 0.15D;
+        PARAMS.maxSpeed = 1.05D;
+        PARAMS.accel = 0.06D;
+        PARAMS.decel = 0.08D;
+        PARAMS.maxTurnDeg = 14.0D;
+        PARAMS.maxTurnCapDeg = 24.0D;
+        PARAMS.turnAccelDeg = 5.0D;
+        PARAMS.turnGain = 0.5D;
+        PARAMS.climbMax = 0.25D;
+        PARAMS.sinkMax = 0.2D;
+        PARAMS.vyAccel = 0.04D;
+        PARAMS.climbGain = 0.15D;
+        PARAMS.stallLoss = 0.05D;
+        PARAMS.climbCost = 0.02D;
+        PARAMS.windFactor = 0.3D;
+    }
 
-    /**
-     * 口元に咥えて見せる獲物の種類(エンティティレジストリの数値 ID、なければ {@link #NO_PREY})。
-     * 見せるだけの一時的な演出なので NBT には保存しない。
-     */
-    private static final EntityDataAccessor<Integer> DATA_PREY_TYPE =
-            SynchedEntityData.defineId(MeganeuraEntity.class, EntityDataSerializers.INT);
+    /** 止まっては飛ぶ【仮】: 鋭く飛ぶ速さ 0.9・ピタッと止まる。 */
+    private static final DartHover.Params DART = new DartHover.Params();
 
-    private static final RawAnimation FLY_ANIM = RawAnimation.begin().thenLoop("fly");
-    /** 獲物を追いかけている間。羽ばたきだけで、頭も胴体も揺らさない(揺らすと酔う)。 */
-    private static final RawAnimation CHASE_ANIM = RawAnimation.begin().thenLoop("chase");
-    /** 実際に噛みついた瞬間だけの、頭を振り下ろす一撃。 */
-    private static final RawAnimation BITE_ANIM = RawAnimation.begin().thenLoop("bite");
-    /** 枝に降りて羽を下ろす {@code relax}(1回)→ そのまま獲物を咀嚼する {@code chew}(ループ)。 */
-    private static final RawAnimation FEED_ANIM = RawAnimation.begin().thenPlay("relax").thenLoop("chew");
-    /** 咀嚼が終わったあとの休息ループ。{@code relax} の終わりの姿勢から続くように作ってある。 */
-    private static final RawAnimation REST_ANIM = RawAnimation.begin().thenLoop("relax2");
+    static {
+        DART.dartMax = 0.9D;
+        DART.dartAccel = 0.25D;
+        DART.dartBrake = 0.25D;
+        DART.stopDecel = 0.35D;
+        DART.windFactor = 0.2D;
+    }
 
-    private int preyKillCount;
-    /**
-     * 獲物を仕留めた直後だけ立つ「休みたい」フラグ。{@link MeganeuraRestGoal} が消費する。
-     * その場限りの気分なので NBT には保存しない。
-     */
-    private boolean wantsRest;
+    /** 林冠からの高さ(ブロック)【仮】。トンボは低め(梢のすぐ上)。 */
+    public static final double LAYER_MIN = 1.5D, LAYER_MAX = 4.0D;
+    /** 家(湧いた所)からの半径(ブロック)【仮】。 */
+    public static final double HOME_R = 40.0D;
+    /** 巡航で向きを変える間隔(tick)・変える角度(度)【仮】。 */
+    public static final int TURN_EVERY_MIN = 15, TURN_EVERY_MAX = 45;
+    public static final double TURN_MIN = 40.0D, TURN_MAX = 150.0D;
+    /** 巡航の長さ(tick)・その後に止まっては飛ぶに入る割合【仮】。 */
+    public static final int CRUISE_MIN = 80, CRUISE_MAX = 200;
+    public static final double HOVER_CHANCE = 0.6D;
+    /** 止まっては飛ぶ: 止まる長さ(tick)・跳ぶ距離(ブロック)・回数【仮】。 */
+    public static final int HOLD_MIN = 15, HOLD_MAX = 45;
+    public static final double HOP_MIN = 4.0D, HOP_MAX = 10.0D;
+    public static final int HOPS_MIN = 2, HOPS_MAX = 4;
+    /** 急ぐ: 速さ(ブロック/tick)・長さ(tick)・巡航中に始める割合(1 tick あたり)【仮】。 */
+    public static final double DASH_SPEED = 1.0D;
+    public static final int DASH_TICKS = 30;
+    public static final double DASH_CHANCE = 0.004D;
+
+    public static final int MOOD_CRUISE = 0, MOOD_HOVER = 1, MOOD_DASH = 2;
+    private static final EntityDataAccessor<Byte> DATA_MOOD = SynchedEntityData.defineId(MeganeuraEntity.class, EntityDataSerializers.BYTE);
+
+    /** 叩ける部位は無い(当たりは胴の芯だけ。翅は厚み 0 の板)。 */
+    static final String[] PARTS = {};
+    static final float[] PART_W = {};
+    static final float[] PART_H = {};
+    static final double[] PART_CENTERS = {};
+
+    // 段 2 のアニメ(11-17 meganeura-anim。Vault メガネウラ 5 節): 差 0 でつながる段の間は補間 0、途中から入る所だけ ENTRY_SHORT〜ENTRY
+    private static final RawAnimation FLY = RawAnimation.begin().thenLoop("fly");
+    private static final RawAnimation CHASE = RawAnimation.begin().thenLoop("chase");
+    /** 空中で止まる(体を 12 度起こす。止まっている間はコードの機首の上下が 0 なので二重にならない)。 */
+    private static final RawAnimation HOVER = RawAnimation.begin().thenLoop("hover");
+    private static final RawAnimation REST = RawAnimation.begin().thenLoop("rest");
+    private static final RawAnimation WINDUP = RawAnimation.begin().thenPlayAndHold("takeoff_windup");
+    private static final RawAnimation TAKEOFF = RawAnimation.begin().thenPlay("takeoff").thenLoop("fly");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlay("land_windup").thenLoop("land");
+    private static final RawAnimation LAND_RECOVER = RawAnimation.begin().thenPlay("land_recover").thenLoop("rest");
+    /** 補間(tick): 途中から入る所 / 速さの違う繰り返しどうし。 */
+    static final int ENTRY_SHORT = 3, ENTRY = 4;
+    /** 飛び立ちの溜め(takeoff_windup 3 tick + 入りの補間)。【決定 11-17 ユーザー】自分から飛び立つときだけ溜め、驚いたときは溜めない。 */
+    public static final int WINDUP_TICKS = 3 + ENTRY_SHORT;
+    /** 送る動き: 止まっては飛ぶの「飛んでいる」間(サーバーの動きは {@link #MOOD_HOVER} のまま)。 */
+    public static final int MOOD_HOP = 3;
+
+    /** クライアント: 今流しているつなぎ・流し始めた tick・入りの補間。 */
+    private RawAnimation curAnim;
+    private int curStart, curEntry;
+
+    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+
+    // --- 自前の飛び方(サーバー) ---
+    private final FlightBody agile = new FlightBody();
+    private final DartHover dart = new DartHover();
+    private int mood = MOOD_CRUISE, moodTicks, moodLen, turnTimer, hopsLeft, holdLen;
+    private double wantHeading = Double.NaN, myLayer, homeX = Double.NaN, homeZ, canopyY = Double.NaN;
+    private double dashHeading;
+    private boolean wasFlying;
+    private final double[] wind = new double[2];
 
     public MeganeuraEntity(EntityType<? extends MeganeuraEntity> type, Level level) {
         super(type, level);
-        this.xpReward = MobStats.xpReward("meganeura", 8);
+        this.xpReward = MobStats.xpReward(ID, 8);
+        this.myLayer = Mth.lerp(this.random.nextDouble(), LAYER_MIN, LAYER_MAX);
+        this.moodLen = CRUISE_MIN + this.random.nextInt(CRUISE_MAX - CRUISE_MIN);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return MobStats.apply(Mob.createMobAttributes(), "meganeura");
+        return MobStats.apply(Monster.createMonsterAttributes(), ID);
+    }
+
+    /** 計測・テスト用: 飛び方の値(書き換えない)。 */
+    public static FlightBody.Params flightParams() {
+        return PARAMS;
+    }
+
+    /** 計測・テスト用: 止まっては飛ぶの値(書き換えない)。 */
+    public static DartHover.Params dartParams() {
+        return DART;
     }
 
     @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(0, new FloatGoal(this));
-        // 食事・休息は狩りより優先。獲物を食べ終えるまで次の獲物を追いかけない。
-        this.goalSelector.addGoal(1, new MeganeuraRestGoal(this, 1.1D));
-        this.goalSelector.addGoal(2, new MeganeuraHuntGoal(this));
-        this.goalSelector.addGoal(5, new FlyerWanderGoal(this, 1.0D));
-        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
-
-        this.targetSelector.addGoal(1, new OvergrownHurtByTargetGoal(this));
-        // 視線を無視する索敵(茂った過繁茂バイオームでも相手を見失わない。OvergrownHunterTargetGoal 参照)。
-        // 水中・水面にいる相手は狙わない(OvergrownLandTargetGoal / Predation#isLandTarget)。
-        this.targetSelector.addGoal(2, new OvergrownLandTargetGoal(this, Predation::isPredatorOf));
-        // 縄張りに入ってきた侵入者(プレイヤー・バニラの敵対 Mob)にも先制攻撃する。
-        this.targetSelector.addGoal(3, new OvergrownLandTargetGoal(this, Predation::isIntruder));
+    protected FlightBody.Params params() {
+        return PARAMS;
     }
 
-    // --- 食事と休息 ---
+    @Override
+    protected double layerMin() {
+        return LAYER_MIN;
+    }
+
+    @Override
+    protected double layerMax() {
+        return LAYER_MAX;
+    }
+
+    /** 群れを作らない(1 匹ずつ)。 */
+    @Override
+    protected int flockMax() {
+        return 1;
+    }
+
+    @Override
+    protected String[] partNames() {
+        return PARTS;
+    }
+
+    @Override
+    protected float[] partWidths() {
+        return PART_W;
+    }
+
+    @Override
+    protected float[] partHeights() {
+        return PART_H;
+    }
+
+    @Override
+    protected double[] partCenters() {
+        return PART_CENTERS;
+    }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_PREY_TYPE, NO_PREY);
+        builder.define(DATA_MOOD, (byte) MOOD_CRUISE);
     }
 
-    /**
-     * いま口元に咥えて見せている獲物の種類。{@code null} なら何も咥えていない。
-     * 獲物を仕留めた瞬間から、枝の上での咀嚼({@code chew})が終わるまでの間だけ入っている
-     * ({@link MeganeuraRestGoal} が消す)。
-     */
-    @Nullable
-    public EntityType<?> getPreyDisplay() {
-        int id = this.entityData.get(DATA_PREY_TYPE);
-        return id == NO_PREY ? null : BuiltInRegistries.ENTITY_TYPE.byId(id);
+    /** 今の動き(描画も読む)。 */
+    public int mood() {
+        return this.level().isClientSide ? this.entityData.get(DATA_MOOD) : this.mood;
     }
 
-    public void setPreyDisplay(@Nullable EntityType<?> type) {
-        this.entityData.set(DATA_PREY_TYPE, type == null ? NO_PREY : BuiltInRegistries.ENTITY_TYPE.getId(type));
+    private void setMood(int m, int len) {
+        this.mood = m;
+        this.moodTicks = 0;
+        this.moodLen = len;
+        this.entityData.set(DATA_MOOD, (byte) m);
     }
 
-    /** 獲物を仕留めた直後で、枝へ降りて休みたがっているか。 */
-    public boolean wantsRest() {
-        return this.wantsRest;
-    }
+    // ------------------------------------------------------------------ 飛び方
 
-    public void setWantsRest(boolean wantsRest) {
-        this.wantsRest = wantsRest;
-    }
-
-    /**
-     * 何かを仕留めたら、たまに「休みたい」フラグを立てる({@link MeganeuraRestGoal} が枝を探して降りる)。
-     * プレイヤーを倒した場合は食事にはならないので対象外。
-     */
     @Override
-    public boolean killedEntity(ServerLevel level, LivingEntity killed) {
-        boolean dropLoot = super.killedEntity(level, killed);
-        if (!(killed instanceof Player) && this.random.nextFloat() < REST_CHANCE_AFTER_KILL) {
-            this.wantsRest = true;
-            // 枝まで咥えて運び、咀嚼が終わったところで消す(MeganeuraRestGoal)。
-            setPreyDisplay(killed.getType());
+    protected boolean ownFlightPitches() {
+        return true;
+    }
+
+    @Override
+    protected boolean ownFlight(ServerLevel sl, Flock f) {
+        if (Double.isNaN(this.homeX)) {
+            this.homeX = this.getX();
+            this.homeZ = this.getZ();
         }
-        return dropLoot;
-    }
-
-    /**
-     * 枝に止まっている間だけ、当たり判定を {@link #RESTING_DIMENSIONS} に縮める。
-     *
-     * <p>飛行中の判定は {@code mobs.json} の {@code width}/{@code height} × 個体差スケール
-     * (メガネウラは {@code scaleMax} が 1.8 なので最大 1.8×0.9 ブロック)で、これが枝の上の
-     * 1 ブロックに収まらず、周りの葉や地面に埋まってしまう。止まっている間だけ胴体ぶん
-     * (羽を除く)の大きさにしておけばどの個体でも枝に収まる。
-     *
-     * <p>{@code LivingEntity#getDimensions}(final)が {@code getDefaultDimensions(pose).scale(getScale())}
-     * として個体差スケールを掛けてくるので、あらかじめ {@code 1 / getScale()} 倍して打ち消し、
-     * 体格の大きい個体でも休息中の実寸が変わらないようにする({@link BlightFernEntity} と同じ手口)。
-     * 見た目の大きさは GeckoLib が {@code Attributes.SCALE} を別途参照するので影響しない。
-     */
-    @Override
-    protected EntityDimensions getDefaultDimensions(Pose pose) {
-        if (!isStationary()) {
-            return super.getDefaultDimensions(pose);
+        if (!this.wasFlying) {
+            // 飛び立った直後(朝・驚いた): 急いで離れる。土台の飛び方の向きと速さを引き継ぐ
+            this.wasFlying = true;
+            this.agile.heading = this.getYRot();
+            this.agile.speed = Math.max(this.body.speed, PARAMS.minSpeed);
+            startDash(this.getYRot());
         }
-        float scale = this.getScale();
-        return RESTING_DIMENSIONS.scale(scale > 0.0F ? 1.0F / scale : 1.0F);
+        if (this.tickCount % 4 == 0 || Double.isNaN(this.canopyY)) {
+            double c = SkyProbe.canopy(sl, Mth.floor(this.getX()), Mth.floor(this.getZ()));
+            if (!Double.isNaN(c)) this.canopyY = c;
+        }
+        double floorY = Double.isNaN(this.canopyY) ? this.getY() : this.canopyY;
+        double wantY = floorY + this.myLayer;
+        FlyerWind.now(sl, this.wind);
+        this.moodTicks++;
+        switch (this.mood) {
+            case MOOD_HOVER -> tickHover(sl, wantY);
+            case MOOD_DASH -> tickAgile(sl, this.dashHeading, DASH_SPEED, wantY);
+            default -> tickCruise(sl, wantY);
+        }
+        if (this.mood == MOOD_DASH && this.moodTicks >= this.moodLen) {
+            setMood(MOOD_CRUISE, CRUISE_MIN + this.random.nextInt(CRUISE_MAX - CRUISE_MIN));
+        }
+        return true;
     }
 
-    /**
-     * {@code spot} に止まったときに占める当たり判定。{@link MeganeuraRestGoal} が
-     * 「そこに本当に収まるか」を着地前に確かめるのに使う。
-     */
-    public AABB getRestingBoundingBox(Vec3 spot) {
-        return RESTING_DIMENSIONS.makeBoundingBox(spot);
+    private void tickCruise(ServerLevel sl, double wantY) {
+        if (--this.turnTimer <= 0 || Double.isNaN(this.wantHeading)) {
+            double hx = this.homeX - this.getX(), hz = this.homeZ - this.getZ();
+            if (hx * hx + hz * hz > HOME_R * HOME_R) {
+                this.wantHeading = FlightBody.yawOf(hx, hz) + (this.random.nextDouble() * 2.0D - 1.0D) * 30.0D;
+            } else {
+                double turn = Mth.lerp(this.random.nextDouble(), TURN_MIN, TURN_MAX) * (this.random.nextBoolean() ? 1.0D : -1.0D);
+                this.wantHeading = this.agile.heading + turn;
+            }
+            this.turnTimer = TURN_EVERY_MIN + this.random.nextInt(TURN_EVERY_MAX - TURN_EVERY_MIN);
+        }
+        tickAgile(sl, this.wantHeading, PARAMS.cruise, wantY);
+        if (this.moodTicks >= this.moodLen) {
+            if (this.random.nextDouble() < HOVER_CHANCE) {
+                this.hopsLeft = HOPS_MIN + this.random.nextInt(HOPS_MAX - HOPS_MIN + 1);
+                this.dart.vx = this.agile.vx;
+                this.dart.vy = this.agile.vy;
+                this.dart.vz = this.agile.vz;
+                this.dart.holdAt(this.getX(), this.getY(), this.getZ());
+                this.holdLen = HOLD_MIN + this.random.nextInt(HOLD_MAX - HOLD_MIN);
+                setMood(MOOD_HOVER, 0);
+            } else {
+                setMood(MOOD_CRUISE, CRUISE_MIN + this.random.nextInt(CRUISE_MAX - CRUISE_MIN));
+            }
+        } else if (this.random.nextDouble() < DASH_CHANCE) {
+            startDash(this.agile.heading + (this.random.nextDouble() * 2.0D - 1.0D) * 60.0D);
+        }
     }
 
-    // --- 捕食数(PredatorMob) ---
+    /** 小回りの利く惰性の飛び方で 1 tick(巡航・急ぐ)。前が塞がっていれば横へ逃げて昇る。 */
+    private void tickAgile(ServerLevel sl, double heading, double speed, double wantY) {
+        if (this.tickCount % 3 == 0 || this.horizontalCollision) {
+            double y = this.getY() + 0.25D;
+            if (SkyProbe.blockedWithin(sl, this.getX(), y, this.getZ(), this.agile.heading, 4.0D) != Double.POSITIVE_INFINITY || this.horizontalCollision) {
+                double l = SkyProbe.blockedWithin(sl, this.getX(), y, this.getZ(), this.agile.heading + 90.0D, 6.0D);
+                double r = SkyProbe.blockedWithin(sl, this.getX(), y, this.getZ(), this.agile.heading - 90.0D, 6.0D);
+                this.wantHeading = this.agile.heading + (l >= r ? 110.0D : -110.0D);
+                heading = this.wantHeading;
+                wantY += 2.0D;
+                this.turnTimer = Math.max(this.turnTimer, 10);
+            }
+        }
+        this.agile.step(PARAMS, heading, speed, wantY - this.getY(), this.wind[0], this.wind[1]);
+        setOwnMotion(this.agile.vx, this.agile.vy, this.agile.vz);
+        turnToward(this.agile.heading, 360.0F);
+    }
+
+    private void tickHover(ServerLevel sl, double wantY) {
+        boolean blocked = this.horizontalCollision || this.verticalCollision;
+        this.dart.step(DART, this.getX(), this.getY(), this.getZ(), this.wind[0], this.wind[1], blocked);
+        setOwnMotion(this.dart.vx, this.dart.vy, this.dart.vz);
+        byte show = (byte) (this.dart.holding() ? MOOD_HOVER : MOOD_HOP);
+        if (this.entityData.get(DATA_MOOD) != show) this.entityData.set(DATA_MOOD, show);
+        if (!this.dart.holding()) {
+            double dx = this.dart.tx - this.getX(), dz = this.dart.tz - this.getZ();
+            if (dx * dx + dz * dz > 0.04D) turnToward(FlightBody.yawOf(dx, dz), 45.0F);
+            return;
+        }
+        if (this.dart.settled() && this.dart.phaseTicks >= this.holdLen) {
+            if (this.hopsLeft-- <= 0) {
+                this.agile.heading = this.getYRot();
+                this.agile.speed = PARAMS.minSpeed;
+                this.agile.vy = 0.0D;
+                this.agile.turnRate = 0.0D;
+                setMood(MOOD_CRUISE, CRUISE_MIN + this.random.nextInt(CRUISE_MAX - CRUISE_MIN));
+                return;
+            }
+            // 次の止まり点: 4〜10 ブロック先(家から離れていれば家の方)、林冠からの高さは同じ層
+            double a = Math.toRadians(this.getYRot() + (this.random.nextDouble() * 2.0D - 1.0D) * 120.0D);
+            double hx = this.homeX - this.getX(), hz = this.homeZ - this.getZ();
+            if (hx * hx + hz * hz > HOME_R * HOME_R) a = Math.toRadians(FlightBody.yawOf(hx, hz));
+            double d = Mth.lerp(this.random.nextDouble(), HOP_MIN, HOP_MAX);
+            double nx = this.getX() - Math.sin(a) * d, nz = this.getZ() + Math.cos(a) * d;
+            double c = SkyProbe.canopy(sl, Mth.floor(nx), Mth.floor(nz));
+            double ny = Double.isNaN(c) ? wantY : c + this.myLayer;
+            if (SkyProbe.blockedWithin(sl, this.getX(), this.getY() + 0.25D, this.getZ(), Math.toDegrees(a) , d) != Double.POSITIVE_INFINITY) {
+                ny = Math.max(ny, this.getY() + 2.0D);
+            }
+            this.dart.dartTo(nx, ny, nz);
+            this.holdLen = HOLD_MIN + this.random.nextInt(HOLD_MAX - HOLD_MIN);
+        } else {
+            // 止まっている間は少しずつ向きを変えて見回す
+            if (this.dart.phaseTicks % 10 == 0) this.wantHeading = this.getYRot() + (this.random.nextDouble() * 2.0D - 1.0D) * 40.0D;
+            if (!Double.isNaN(this.wantHeading)) turnToward(this.wantHeading, 4.0F);
+        }
+    }
+
+    private void startDash(double heading) {
+        this.dashHeading = heading;
+        setMood(MOOD_DASH, DASH_TICKS);
+    }
 
     @Override
-    public int getPreyKillCount() {
-        return this.preyKillCount;
+    public void tick() {
+        super.tick();
+        if (!this.level().isClientSide && mode() != MODE_FLY) {
+            this.wasFlying = false;
+            if (this.mood != MOOD_CRUISE) setMood(MOOD_CRUISE, CRUISE_MIN);
+        }
     }
 
+    /** 叩かれたら叩いた相手から離れる向きへ急ぐ。 */
     @Override
-    public void setPreyKillCount(int count) {
-        this.preyKillCount = count;
-    }
-
-    @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.putInt("PreyKills", this.preyKillCount);
-    }
-
-    @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.preyKillCount = tag.getInt("PreyKills");
-        PredatorMob.applyPreyKillBonus(this, this.preyKillCount);
-    }
-
-    @Override
-    public boolean doHurtTarget(net.minecraft.world.entity.Entity target) {
-        boolean hit = super.doHurtTarget(target);
-        if (hit && target instanceof LivingEntity living) {
-            // 少しだけ突き飛ばして噛みつきを繋ぐ。
-            living.setDeltaMovement(living.getDeltaMovement().add(0.0D, 0.1D, 0.0D));
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hit = super.hurt(source, amount);
+        if (hit && !this.level().isClientSide && mode() == MODE_FLY) {
+            Entity e = source.getEntity();
+            double h = e != null ? FlightBody.yawOf(this.getX() - e.getX(), this.getZ() - e.getZ()) : this.getYRot() + 180.0D;
+            this.agile.heading = this.getYRot();
+            this.agile.speed = Math.max(this.agile.speed, PARAMS.cruise);
+            startDash(h);
         }
         return hit;
     }
 
+    // ------------------------------------------------------------------ アニメ
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", TRANSITION_TICKS, state -> {
-            AnimationController<MeganeuraEntity> c = state.getController();
-            c.setAnimationSpeed(1.0D);
-            RawAnimation next = switch (getActionState()) {
-                case STATE_FEED -> FEED_ANIM;
-                case STATE_REST -> REST_ANIM;
-                case STATE_BITE -> BITE_ANIM;
-                case STATE_ATTACK -> CHASE_ANIM;
-                default -> FLY_ANIM;
-            };
-            // 噛みつきの出入り(追跡 → 噛みつき → 追跡)だけは補間 0。bite の最初と最後の姿勢は頭と胴が 0・羽が chase と
-            // 同じ羽ばたきなので飛ばない。補間を挟むと 0.25 秒の一撃のうち頭を振り下ろしきるのが 3 tick 遅れ、
-            // 噛んだあとに頭が動いて見えた(2026-09-23)。
-            boolean biteSwitch = next == BITE_ANIM || (next == CHASE_ANIM && c.getCurrentRawAnimation() == BITE_ANIM);
-            c.transitionLength(biteSwitch ? 0 : TRANSITION_TICKS);
-            return state.setAndContinue(next);
-        }));
-    }
-
-    /** 枝で休んでいる間は羽音を出さない(羽を下ろして止まっているため)。 */
-    @Override
-    protected SoundEvent getAmbientSound() {
-        return isStationary() ? null : SoundEvents.BEE_LOOP_AGGRESSIVE;
+        controllers.add(new AnimationController<>(this, "main", 4, this::mainState));
     }
 
     @Override
-    protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.BEE_HURT;
+    protected int takeoffWindupTicks() {
+        return WINDUP_TICKS;
+    }
+
+    /** 驚いて飛び立つときは溜めない(rest → takeoff を補間 3 tick)【決定 11-17 ユーザー】。 */
+    @Override
+    protected int startledWindupTicks() {
+        return 0;
+    }
+
+    /**
+     * つなぎを選ぶ。止まる = rest(降りてきたら land_recover → rest)/ 飛び立つ = (自分からなら takeoff_windup →)takeoff → fly /
+     * 降りる = land_windup → land / 空中で止まる = hover・鋭く飛ぶ = fly / 急ぐ = chase / 巡航 = fly。
+     * 入りの補間は流し始めにだけ使い、過ぎたら 0 にする(つないだ段の間は差 0。GeckoLib は段の間でも補間の長さを使う。ヴェロフィルと同じ作り)。
+     */
+    private PlayState mainState(AnimationState<MeganeuraEntity> state) {
+        int m = mode();
+        int md = mood();
+        RawAnimation want;
+        int entry;
+        if (m == MODE_PERCHED || m == MODE_TAKEOFF && takeoffPhase() == 0) {
+            if (this.curAnim == LAND || this.curAnim == LAND_RECOVER) {
+                want = LAND_RECOVER;   // 止まった tick に掴む(降りる繰り返しの途中から入る)
+                entry = this.curAnim == LAND ? ENTRY_SHORT : this.curEntry;
+            } else {
+                want = REST;   // セーブから止まった姿で読み込んだ個体は直に
+                entry = ENTRY;
+            }
+        } else if (m == MODE_TAKEOFF && takeoffPhase() == 1) {
+            want = WINDUP;
+            entry = this.curAnim == WINDUP ? this.curEntry : ENTRY_SHORT;
+        } else if (m == MODE_TAKEOFF) {
+            want = TAKEOFF;
+            // 溜めの終わり = takeoff の 0 秒(差 0)/ 驚いて rest から直に(補間 3)/ 降りている途中から(補間 4)
+            entry = this.curAnim == TAKEOFF ? this.curEntry : this.curAnim == WINDUP ? 0 : this.curAnim == LAND ? ENTRY : ENTRY_SHORT;
+        } else if (m == MODE_LANDING) {
+            want = LAND;
+            entry = this.curAnim == LAND ? this.curEntry : ENTRY_SHORT;
+        } else if (md == MOOD_DASH) {
+            want = CHASE;
+            entry = ENTRY;
+        } else if (md == MOOD_HOVER) {
+            want = HOVER;
+            entry = ENTRY_SHORT;
+        } else if (md == MOOD_HOP) {
+            want = FLY;
+            entry = ENTRY_SHORT;
+        } else if (this.curAnim == TAKEOFF) {
+            want = TAKEOFF;   // takeoff の後はそのまま fly を繰り返している
+            entry = this.curEntry;
+        } else {
+            want = FLY;
+            entry = ENTRY;
+        }
+        if (want != this.curAnim) {
+            this.curAnim = want;
+            this.curStart = this.tickCount;
+            this.curEntry = entry;
+        }
+        boolean chained = want == TAKEOFF || want == LAND || want == LAND_RECOVER || want == WINDUP;
+        state.getController().transitionLength(chained && this.tickCount - this.curStart > this.curEntry ? 0 : this.curEntry);
+        return state.setAndContinue(want);
     }
 
     @Override
-    protected SoundEvent getDeathSound() {
-        return SoundEvents.BEE_DEATH;
-    }
-
-    @Override
-    protected float getSoundVolume() {
-        return 0.6F;
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.geoCache;
     }
 }
