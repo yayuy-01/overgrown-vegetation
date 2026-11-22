@@ -15,6 +15,12 @@ public final class FrontTable {
         public int[] unitMaxByPhase;
         public Double producePerFrontPerSecond, reserveIncomeDays, reserveCapMaxShare, unitTargetPerChunk;
         public Integer unitTargetMin;
+        public Double postEdgeShare, rebalanceMaxBlocks;
+        public Boolean rebalanceEnabled;
+        public Double reinforceMaxBlocks, reinforceShare, reinforceReturnDays;
+        public Integer reinforceKeepHeads;
+        public Double outpostMinTreeBlocks, outpostWitherDepthBlocks, outpostRefundShare;
+        public Integer outpostAfterInfected, outpostMaxPerCell;
         public Boolean frontWatchersEnabled;
         public Double frontWatcherSpacingBlocks, frontWatcherVisionBlocks;
         public double[] plantShareByPhase;
@@ -59,6 +65,17 @@ public final class FrontTable {
     /** 11-22 ユーザー決定: 樹域ごとの部隊の目標の頭数 = その樹域の過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。届いた樹域は作る・苗床の補充をやめて貯める。係数は【仮】。 */
     public final double unitTargetPerChunk;
     public final int unitTargetMin;
+    /** 11-22 ユーザー決定: 守りの持ち場の postEdgeShare【仮】は樹域の縁(森でないチャンクと接する、その樹域の過繁茂のチャンク)、残りは巨大樹のまわり。縁が無ければ巨大樹のまわり。 */
+    public final double postEdgeShare;
+    /** 11-22 ユーザー決定: 目標を超えた樹域の守りを、rebalanceMaxBlocks【仮】の中の目標に届いていない樹域へ歩いて移す(超えた分だけ・数は減らさない)。 */
+    public final boolean rebalanceEnabled;
+    public final double rebalanceMaxBlocks;
+    /** 11-22 ユーザー決定「内側は予備で駆けつける」: 縁の無い内側の樹域の守りは巨大樹のまわりの予備。reinforceMaxBlocks の中の外側の樹域が攻められたら、予備の reinforceShare をその縁へ出す(reinforceKeepHeads は巨大樹のまわりに残す)。攻められなくなって reinforceReturnDays で戻る。数は【仮】。 */
+    public final double reinforceMaxBlocks, reinforceShare, reinforceReturnDays;
+    public final int reinforceKeepHeads;
+    /** 11-22 ユーザー決定「根付きは広げる部隊の前哨・守りは攻められたときだけ根付く・森に飲み込まれたら枯れて還元」(FrontOutposts)。数は【仮】。 */
+    public final double outpostMinTreeBlocks, outpostWitherDepthBlocks, outpostRefundShare;
+    public final int outpostAfterInfected, outpostMaxPerCell;
     /** 11-22 ユーザー決定「巨大樹の管理できていない前線は、フィロセンスをちょっとずつ置いて視界を確保する」: 広げる部隊が管理の外の升に植える。間隔は【仮】。 */
     public final boolean frontWatchersEnabled;
     public final double frontWatcherSpacingBlocks;
@@ -132,6 +149,18 @@ public final class FrontTable {
         reserveCapMaxShare = Math.min(1.0D, nn(s.reserveCapMaxShare, 0.5D));
         unitTargetPerChunk = nn(s.unitTargetPerChunk, 0.2D);
         unitTargetMin = Math.max(0, s.unitTargetMin != null ? s.unitTargetMin : 50);
+        postEdgeShare = Math.max(0.0D, Math.min(1.0D, nn(s.postEdgeShare, 0.7D)));
+        rebalanceEnabled = s.rebalanceEnabled == null || s.rebalanceEnabled;
+        rebalanceMaxBlocks = nn(s.rebalanceMaxBlocks, 1024.0D);
+        reinforceMaxBlocks = nn(s.reinforceMaxBlocks, 768.0D);
+        reinforceShare = Math.max(0.0D, Math.min(1.0D, nn(s.reinforceShare, 0.5D)));
+        reinforceReturnDays = nn(s.reinforceReturnDays, 0.5D);
+        reinforceKeepHeads = Math.max(0, s.reinforceKeepHeads != null ? s.reinforceKeepHeads : 30);
+        outpostMinTreeBlocks = nn(s.outpostMinTreeBlocks, 640.0D);
+        outpostAfterInfected = Math.max(1, s.outpostAfterInfected != null ? s.outpostAfterInfected : 8);
+        outpostMaxPerCell = Math.max(0, s.outpostMaxPerCell != null ? s.outpostMaxPerCell : 4);
+        outpostWitherDepthBlocks = nn(s.outpostWitherDepthBlocks, 128.0D);
+        outpostRefundShare = Math.max(0.0D, Math.min(1.0D, nn(s.outpostRefundShare, 0.5D)));
         frontWatchersEnabled = s.frontWatchersEnabled == null || s.frontWatchersEnabled;
         frontWatcherSpacingBlocks = nn(s.frontWatcherSpacingBlocks, 160.0D);
         frontWatcherVisionBlocks = nn(s.frontWatcherVisionBlocks, 96.0D);

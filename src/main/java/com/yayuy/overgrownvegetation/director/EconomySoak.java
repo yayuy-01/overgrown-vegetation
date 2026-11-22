@@ -258,6 +258,9 @@ public final class EconomySoak {
         }
     }
 
+    /** 追い払いで倒している間だけ真(KillPoints が撃破の点を入れない)。 */
+    public static boolean repelling;
+
     /** 拠点へ向かう個体を、見つけたらプレイヤーの攻撃で倒す(撃退した扱い)。 */
     private static void repel(ServerLevel level) {
         ServerPlayer p = level.players().isEmpty() ? null : level.players().get(0);
@@ -274,7 +277,13 @@ public final class EconomySoak {
             else if (m instanceof AbstractParasitizedMonster a && a.march() != null && a.march().active()) kind = 0;
             else if (com.yayuy.overgrownvegetation.spawn.PlantMarch.active(m)) kind = 3;
             if (kind < 0) continue;
-            m.hurt(level.damageSources().playerAttack(p), Float.MAX_VALUE);
+            // 11-22: 計測の追い払いは撃破の点に入れない(1 万体の大襲撃を倒すと閾値の何倍もの点が入り、フェーズの日を測れない)。倒したのはプレイヤーのまま(偵察・森の覚えのため)
+            repelling = true;
+            try {
+                m.hurt(level.damageSources().playerAttack(p), Float.MAX_VALUE);
+            } finally {
+                repelling = false;
+            }
             if (!m.isAlive()) repelled[kind]++;
         }
     }
@@ -333,7 +342,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + organLimits(level) + "," + baseStages(level),
+                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + organLimits(level) + "," + unitSpread(level) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -341,7 +350,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,edgeSeenShare,frontWatchers,frontWatchersGrown,frontWatchersReal,frontWatchersKilled,organLimit,organLimitSmall,organsLiving,organsLivingSmall,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,edgeSeenShare,frontWatchers,frontWatchersGrown,frontWatchersReal,frontWatchersKilled,organLimit,organLimitSmall,organsLiving,organsLivingSmall,defendEdgeShare,defendEdgeShareEdgeFronts,defendInEdgeFronts,overTargetHeads,overTargetFronts,overBefore,overShrunkBefore,rebalancedHeads,rebalancedUnits,postEdge,postTree,reposted,reinforcedHeads,reinforcedUnits,reinforceReturned,outposts,outpostsExpand,outpostsDefend,outpostsReal,rootedExpand,rootedDefend,rootedMoved,outpostsWithered,outpostsKilled,outpostRefunded,expandInfected,absorbed,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
@@ -454,6 +463,15 @@ public final class EconomySoak {
     }
 
     /** 11-22 器官の数の上限(フェーズの数 + 生きている巨大樹 × 大 1・小 2 × 器官の数の倍率)と、今生きている数(乗っ取りの器官も含む)。 */
+    /** 11-22 守りの持ち場(縁の割合)・目標を超えた頭数・移した頭数・感染と取り込みで増えた頭数(累計)。 */
+    private static String unitSpread(ServerLevel level) {
+        return com.yayuy.overgrownvegetation.front.FrontDirector.defendEdgeStats(com.yayuy.overgrownvegetation.horde.VirtualHordes.get(level.getServer())) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overTargetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer()))
+                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overBefore + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overShrunkBefore
+                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.rebalancedHeads + "," + com.yayuy.overgrownvegetation.front.FrontDirector.rebalancedUnits
+                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postEdge + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postTree + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reposted + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedHeads + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedUnits + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceReturned + "," + com.yayuy.overgrownvegetation.front.FrontOutposts.stats(level)
+                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.expandInfected + "," + com.yayuy.overgrownvegetation.front.FrontDirector.absorbed;
+    }
+
     private static String organLimits(ServerLevel level) {
         var organs = com.yayuy.overgrownvegetation.organ.ForestOrgans.get(level);
         return com.yayuy.overgrownvegetation.organ.OrganPlanner.limit(level, false) + "," + com.yayuy.overgrownvegetation.organ.OrganPlanner.limit(level, true) + ","

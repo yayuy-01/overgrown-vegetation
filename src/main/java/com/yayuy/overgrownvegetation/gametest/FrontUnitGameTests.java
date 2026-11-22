@@ -231,6 +231,148 @@ public final class FrontUnitGameTests {
         }
     }
 
+    /** 11-22 ユーザー決定: 守りの持ち場の postEdgeShare は樹域の縁、残りは巨大樹のまわり。縁の無い樹域は巨大樹のまわり。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void defendPostsGoToTerritoryEdge(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        FrontDirector.clearCountsForTests();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        try {
+            Fronts.Front f = fronts.addSourceForTests(9_100_000.5D, 9_100_000.5D);
+            Fronts.Front bare = fronts.addSourceForTests(9_200_000.5D, 9_200_000.5D);
+            int fcx = 9_100_000 >> 4, fcz = 9_100_000 >> 4;
+            long[] edge = new long[20];
+            java.util.Set<Long> set = new java.util.HashSet<>();
+            for (int i = 0; i < edge.length; i++) {
+                edge[i] = net.minecraft.world.level.ChunkPos.asLong(fcx + 30, fcz - 10 + i); // 巨大樹から 30 チャンク(postRadiusChunks の外)
+                set.add(edge[i]);
+            }
+            FrontDirector.setEdgesForTests(f.id(), edge);
+            var random = net.minecraft.util.RandomSource.create(7L);
+            int n = 4000, onEdge = 0;
+            for (int i = 0; i < n; i++) {
+                double[] p = FrontDirector.postForTests(level, f, random);
+                if (set.contains(net.minecraft.world.level.ChunkPos.asLong(net.minecraft.util.Mth.floor(p[0]) >> 4, net.minecraft.util.Mth.floor(p[1]) >> 4))) onEdge++;
+            }
+            double share = onEdge / (double) n, want = DesignData.front().postEdgeShare;
+            helper.assertTrue(Math.abs(share - want) < 0.04D, "縁に置く割合が違う: " + share + "(欲しい " + want + ")");
+            for (int i = 0; i < 200; i++) {
+                double[] p = FrontDirector.postForTests(level, bare, random);
+                helper.assertTrue(Math.abs(p[0] - bare.x()) < 16.0D * (DesignData.front().postRadiusChunks + 2) && Math.abs(p[1] - bare.z()) < 16.0D * (DesignData.front().postRadiusChunks + 2), "縁の無い樹域が巨大樹のまわりに置かない");
+            }
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
+        }
+    }
+
+    /** 11-22 ユーザー決定: 目標を超えた樹域の守りのうち超えた分だけを、rebalanceMaxBlocks の中のいちばん近い足りない樹域へ移す(数は減らさない)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void surplusDefendersMoveToShortTerritory(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        FrontDirector.clearCountsForTests();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            var t = DesignData.front();
+            double x0 = 9_300_000.5D;
+            Fronts.Front a = fronts.addSourceForTests(x0, x0);
+            Fronts.Front b = fronts.addSourceForTests(x0 + 400.0D, x0);
+            Fronts.Front farShort = fronts.addSourceForTests(x0 - t.rebalanceMaxBlocks - 200.0D, x0);
+            ResourceLocation type = ResourceLocation.withDefaultNamespace("zombie");
+            VirtualHordes.Swarm s = h.newUnit(x0 + 100.0D, 64.0D, x0, a.id(), UnitPurpose.DEFEND, level.getGameTime());
+            s.addHeads(type, 120, 10.0D);
+            int targetA = Math.max(t.unitTargetMin, (int) Math.ceil(250 * t.unitTargetPerChunk));
+            int targetB = Math.max(t.unitTargetMin, (int) Math.ceil(100 * t.unitTargetPerChunk));
+            FrontDirector.setCountsForTests(a.id(), 250, 120);
+            FrontDirector.setCountsForTests(b.id(), 100, 0);
+            FrontDirector.setCountsForTests(farShort.id(), 2000, 0);
+            long before = FrontDirector.rebalancedHeads;
+            FrontDirector.rebalance(level, fronts, h, new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap());
+            int inA = 0, inB = 0, inFar = 0;
+            for (VirtualHordes.Swarm u : h.swarms()) {
+                if (u.front() == a.id()) inA += u.size();
+                else if (u.front() == b.id()) {
+                    inB += u.size();
+                    helper.assertTrue(u.purpose() == UnitPurpose.DEFEND && !u.arrived(), "移した部隊が守りの持ち場へ歩いていない");
+                } else if (u.front() == farShort.id()) inFar += u.size();
+            }
+            int surplus = 120 - targetA, moved = Math.min(surplus, targetB);
+            helper.assertTrue(inA + inB + inFar == 120, "移すと数が変わった: " + (inA + inB + inFar));
+            helper.assertTrue(inB == moved && inA == 120 - moved, "超えた分だけ移していない: A " + inA + "・B " + inB + "(欲しい B " + moved + ")");
+            helper.assertTrue(inFar == 0, "rebalanceMaxBlocks より遠い樹域へ移した");
+            helper.assertTrue(FrontDirector.heads(a.id()) == 120 - moved && FrontDirector.heads(b.id()) == moved, "移した後の頭数の数え方が違う: " + FrontDirector.heads(a.id()));
+            helper.assertTrue(FrontDirector.rebalancedHeads - before == moved, "移した頭数の記録が違う");
+            // 目標ちょうどなら移さない
+            FrontDirector.rebalance(level, fronts, h, new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap());
+            helper.assertTrue(FrontDirector.rebalancedHeads - before == moved, "目標ちょうどなのにまた移した");
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
+        }
+    }
+
+    /** 11-22 ユーザー決定「内側は予備で駆けつける」: 外側の樹域が攻められると、縁の無い内側の樹域の予備が その縁へ向かい(下限は残す)、攻められなくなると戻る。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void innerReserveRushesToAttackedEdge(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        FrontDirector.clearCountsForTests();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            var t = DesignData.front();
+            double x0 = 9_500_000.5D;
+            Fronts.Front outer = fronts.addSourceForTests(x0, x0);
+            Fronts.Front inner = fronts.addSourceForTests(x0 + Math.min(400.0D, t.reinforceMaxBlocks - 50.0D), x0);
+            Fronts.Front tooFar = fronts.addSourceForTests(x0 - t.reinforceMaxBlocks - 200.0D, x0);
+            int ocx = 9_500_000 >> 4;
+            long[] edge = new long[10];
+            java.util.Set<Long> set = new java.util.HashSet<>();
+            for (int i = 0; i < edge.length; i++) {
+                edge[i] = net.minecraft.world.level.ChunkPos.asLong(ocx - 20, ocx - 5 + i);
+                set.add(edge[i]);
+            }
+            FrontDirector.setEdgesForTests(outer.id(), edge);
+            ResourceLocation type = ResourceLocation.withDefaultNamespace("zombie");
+            VirtualHordes.Swarm home = h.newUnit(inner.x() + 20.0D, 64.0D, inner.z(), inner.id(), UnitPurpose.DEFEND, level.getGameTime());
+            home.addHeads(type, 100, 10.0D);
+            VirtualHordes.Swarm far = h.newUnit(tooFar.x() + 20.0D, 64.0D, tooFar.z(), tooFar.id(), UnitPurpose.DEFEND, level.getGameTime());
+            far.addHeads(type, 100, 10.0D);
+            long now = level.getGameTime();
+            FrontDirector.markAttackedForTests(outer.id(), now);
+            FrontDirector.reinforce(level, fronts, h, outer, new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap());
+            int went = 0, stayed = 0, farMoved = 0;
+            VirtualHordes.Swarm goer = null;
+            for (VirtualHordes.Swarm u : h.swarms()) {
+                if (u.front() == inner.id()) {
+                    if (FrontDirector.reinforcing(u.id())) {
+                        went += u.size();
+                        goer = u;
+                        helper.assertTrue(set.contains(net.minecraft.world.level.ChunkPos.asLong(net.minecraft.util.Mth.floor(u.tx()) >> 4, net.minecraft.util.Mth.floor(u.tz()) >> 4)), "駆けつけた予備が外側の縁へ向かっていない");
+                    } else stayed += u.size();
+                } else if (u.front() == tooFar.id() && u != far) farMoved += u.size();
+            }
+            int want = Math.min((int) Math.floor(100 * t.reinforceShare), 100 - t.reinforceKeepHeads);
+            helper.assertTrue(went == want && stayed == 100 - want, "出した数が違う: " + went + "・残り " + stayed + "(欲しい " + want + ")");
+            helper.assertTrue(stayed >= t.reinforceKeepHeads, "巨大樹のまわりに下限を残していない");
+            helper.assertTrue(farMoved == 0 && far.size() == 100, "reinforceMaxBlocks より遠い予備が出た");
+            // もう一度攻められても、出している分と合わせて割合まで
+            FrontDirector.reinforce(level, fronts, h, outer, new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap());
+            int went2 = 0;
+            for (VirtualHordes.Swarm u : h.swarms()) if (u.front() == inner.id() && FrontDirector.reinforcing(u.id())) went2 += u.size();
+            helper.assertTrue(went2 == want, "2 回目で割合を超えて出した: " + went2);
+            // 攻められなくなってすぐは戻らない・reinforceReturnDays たつと戻る
+            FrontDirector.returnReinforcements(level, fronts, h, now + 20L);
+            helper.assertTrue(goer != null && FrontDirector.reinforcing(goer.id()), "攻められなくなってすぐ戻った");
+            FrontDirector.returnReinforcements(level, fronts, h, now + (long) (t.reinforceReturnDays * 24000.0D) + 1L);
+            helper.assertTrue(!FrontDirector.reinforcing(goer.id()), "戻らない");
+            helper.assertTrue(Math.abs(goer.tx() - inner.x()) < 16.0D * (t.postRadiusChunks + 2) && Math.abs(goer.tz() - inner.z()) < 16.0D * (t.postRadiusChunks + 2), "元の巨大樹のまわりへ戻っていない");
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
+        }
+    }
+
     /**
      * 11-22 ユーザー決定: 取り置き = 1 日の稼ぎ × reserveIncomeDays(半日分)。樹域の頭数が目標(過繁茂のチャンク数 × unitTargetPerChunk)に
      * 届いたら作らずに貯め、減ったらまた作る。
@@ -340,9 +482,9 @@ public final class FrontUnitGameTests {
         }
     }
 
-    /** 部隊の中の根付き(11-21): 守りの持ち場に着いた部隊の段階 0 が根付きの姿へ。根付いた頭数は狩り・襲撃に抜かれない。 */
+    /** 11-22 ユーザー決定: 守りはふだん根付かない。攻められたときだけ根付き、根付いた個体は部隊から外れて前哨に残る(部隊が動いてもついていかない)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
-    public static void defendersRootAndStayPut(GameTestHelper helper) {
+    public static void defendersRootOnlyWhenAttacked(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ForestDirector d = ForestDirector.get(level);
         double budget = d.available(level);
@@ -350,30 +492,138 @@ public final class FrontUnitGameTests {
         var stage = DirectorGates.stageOverride();
         Fronts fronts = Fronts.load(new CompoundTag());
         VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        var outposts = com.yayuy.overgrownvegetation.front.FrontOutposts.get(level.getServer());
+        var keep = new ArrayList<>(outposts.posts());
         try {
+            outposts.clearForTests();
+            FrontDirector.clearCountsForTests();
             DirectorGates.setPhaseForTests(3);
             DirectorGates.setStageForTests(com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK);
             ForestUpkeep.setSampleForTests(0.0D, 0.0D);
             d.setBudget(level, 1.0E9D);
-            Fronts.Front f = fronts.addSourceForTests(42_000_000.5D, 42_000_000.5D);
-            VirtualHordes.Swarm s = h.newUnit(42_000_100, 64, 42_000_000, f.id(), UnitPurpose.DEFEND, level.getGameTime()); // 持ち場(前線の真ん中から離れた所)
-            s.addHeads(zombie(), 10, 100.0D);
-            FrontDirector.root(level, h, f);
             net.minecraft.world.entity.EntityType<?> rt = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(G1Species.ZOMBIE);
             if (rt == null) {
                 helper.succeed(); // ゾンビの根付きの姿が無い構成
                 return;
             }
+            Fronts.Front f = fronts.addSourceForTests(42_000_000.5D, 42_000_000.5D);
+            VirtualHordes.Swarm s = h.newUnit(42_000_100, 64, 42_000_000, f.id(), UnitPurpose.DEFEND, level.getGameTime()); // 持ち場(前線の真ん中から離れた所)
+            s.addHeads(zombie(), 10, 100.0D);
+            FrontDirector.assignForTests(level, h, f, 0.0D);
+            helper.assertTrue(outposts.posts().isEmpty(), "攻められていないのに根付いた: " + outposts.posts().size());
+            FrontDirector.assignForTests(level, h, f, 1.0E9D);
+            int n = outposts.posts().size();
+            helper.assertTrue(n == DesignData.front().rootedPerUnit, "攻められたのに根付かない(または多すぎる): " + n);
             ResourceLocation rid = BuiltInRegistries.ENTITY_TYPE.getKey(rt);
-            int n = s.counts().getOrDefault(rid, 0);
-            helper.assertTrue(n == DesignData.front().rootedPerUnit, "守りの部隊が根付かない: " + s.counts());
-            var taken = s.takeHeads(s.size());
-            helper.assertTrue(!taken.containsKey(rid) && s.counts().getOrDefault(rid, 0) == n, "根付いた姿が抜き出された: " + taken);
+            helper.assertTrue(s.counts().getOrDefault(rid, 0) == 0, "根付いた姿が部隊の中に残っている: " + s.counts());
+            var p = outposts.posts().get(0);
+            helper.assertTrue(p.kind() == com.yayuy.overgrownvegetation.front.FrontOutposts.Kind.DEFEND && p.type().equals(rid), "前哨の記録が違う");
+            helper.assertTrue(Math.abs(p.x() - 42_000_100) <= 6 && Math.abs(p.z() - 42_000_000) <= 6, "部隊の居る所に残っていない");
+            s.assign(UnitPurpose.DEFEND, 42_000_900.0D, 42_000_000.0D, level.getGameTime());
+            helper.assertTrue(outposts.posts().size() == n && outposts.posts().get(0).x() == p.x(), "部隊が動くと前哨もついていった");
             helper.succeed();
         } finally {
+            outposts.clearForTests();
+            outposts.posts().addAll(keep);
+            FrontDirector.clearCountsForTests();
             ForestUpkeep.setSampleForTests(null, null);
             DirectorGates.setPhaseForTests(phase);
             DirectorGates.setStageForTests(stage);
+            d.setBudget(level, budget);
+        }
+    }
+
+    /** 11-22 ユーザー決定: 広げる部隊が巨大樹から遠い升に着いたら、行進の間に取り込んだ生き物を根付きの前哨に変える(近い升では変えない)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void expandersLeaveRootedOutposts(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        Integer phase = DirectorGates.phaseOverride();
+        var stage = DirectorGates.stageOverride();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        var outposts = com.yayuy.overgrownvegetation.front.FrontOutposts.get(level.getServer());
+        var keep = new ArrayList<>(outposts.posts());
+        try {
+            outposts.clearForTests();
+            DirectorGates.setPhaseForTests(3);
+            DirectorGates.setStageForTests(com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK);
+            ForestUpkeep.setSampleForTests(0.0D, 0.0D);
+            d.setBudget(level, 1.0E9D);
+            var t = DesignData.front();
+            G1Species sp = com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(G1Species.COW) != null ? G1Species.COW
+                    : com.yayuy.overgrownvegetation.director.G1Fate.rootedTypeOf(G1Species.ZOMBIE) != null ? G1Species.ZOMBIE : null;
+            if (sp == null) {
+                helper.succeed(); // 根付きの姿が無い構成
+                return;
+            }
+            ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(sp.entityType());
+            double x0 = 43_000_000.5D;
+            Fronts.Front f = fronts.addSourceForTests(x0, x0);
+            int far = (int) Math.ceil(t.outpostMinTreeBlocks / 64.0D) + 1;
+            int fcx = (43_000_000 >> 4) >> 2, fcz = fcx;
+            VirtualHordes.Swarm s = h.newUnit(x0, 64, x0, f.id(), UnitPurpose.EXPAND, level.getGameTime());
+            s.addHeads(id, t.outpostAfterInfected, 0.0D);
+            com.yayuy.overgrownvegetation.front.FrontOutposts.noteInfected(s.id(), t.outpostAfterInfected - 1);
+            helper.assertTrue(outposts.tryOutpost(level, s, f, fcx + far, fcz) == 0, "取り込んだ数が足りないのに根付いた");
+            com.yayuy.overgrownvegetation.front.FrontOutposts.noteInfected(s.id(), 1);
+            helper.assertTrue(outposts.tryOutpost(level, s, f, fcx + 1, fcz) == 0, "巨大樹に近い升で根付いた");
+            int done = outposts.tryOutpost(level, s, f, fcx + far, fcz);
+            int want = Math.min(t.outpostMaxPerCell, t.outpostAfterInfected);
+            helper.assertTrue(done == want && outposts.posts().size() == want, "遠い升で前哨にした数が違う: " + done + "(欲しい " + want + ")");
+            helper.assertTrue(outposts.posts().get(0).kind() == com.yayuy.overgrownvegetation.front.FrontOutposts.Kind.EXPAND, "広げる部隊の前哨の印が違う");
+            helper.assertTrue(s.counts().getOrDefault(id, 0) == t.outpostAfterInfected - want, "取り込んだ生き物が部隊から抜けていない: " + s.counts());
+            com.yayuy.overgrownvegetation.front.FrontOutposts.noteInfected(s.id(), t.outpostAfterInfected);
+            helper.assertTrue(outposts.tryOutpost(level, s, f, fcx + far, fcz) == 0, "升 1 つの上限を超えて根付いた");
+            helper.succeed();
+        } finally {
+            outposts.clearForTests();
+            outposts.posts().addAll(keep);
+            ForestUpkeep.setSampleForTests(null, null);
+            DirectorGates.setPhaseForTests(phase);
+            DirectorGates.setStageForTests(stage);
+            d.setBudget(level, budget);
+        }
+    }
+
+    /** 11-22 ユーザー決定: 森に飲み込まれた(まわり outpostWitherDepthBlocks が全部森の)前哨は枯れ、値段の outpostRefundShare を森の稼ぎへ返す。縁の前哨は残る。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void swallowedOutpostsWitherAndRefund(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        double budget = d.available(level);
+        var outposts = com.yayuy.overgrownvegetation.front.FrontOutposts.get(level.getServer());
+        var keep = new ArrayList<>(outposts.posts());
+        PhaseData pd = PhaseData.get(level);
+        List<net.minecraft.world.level.ChunkPos> marked = new ArrayList<>();
+        try {
+            outposts.clearForTests();
+            var t = DesignData.front();
+            int r = (int) Math.ceil(t.outpostWitherDepthBlocks / 16.0D) + 1;
+            int c0 = 44_000_000 >> 4;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    var cp = new net.minecraft.world.level.ChunkPos(c0 + dx, c0 + dz);
+                    if (!pd.isOvergrownChunk(cp) && pd.markOvergrownChunk(level, cp)) marked.add(cp);
+                }
+            }
+            ResourceLocation type = zombie();
+            outposts.addForTests(44_000_008, 44_000_008, 0, type, 1000.0D); // 森の真ん中
+            outposts.addForTests((c0 + r) * 16 + 8, 44_000_008, 0, type, 1000.0D); // 森の縁
+            d.setBudget(level, 0.0D);
+            long before = com.yayuy.overgrownvegetation.front.FrontOutposts.withered;
+            double back = outposts.witherSwallowed(level);
+            helper.assertTrue(com.yayuy.overgrownvegetation.front.FrontOutposts.withered - before == 1 && outposts.posts().size() == 1, "飲み込まれた前哨だけが枯れていない: 残り " + outposts.posts().size());
+            helper.assertTrue(Math.abs(back - 1000.0D * t.outpostRefundShare) < 1.0E-6D, "返した額が違う: " + back);
+            helper.assertTrue(d.available(level) >= back - 1.0E-6D, "森の稼ぎへ返っていない: " + d.available(level));
+            var again = com.yayuy.overgrownvegetation.front.FrontOutposts.load(outposts.save(new CompoundTag(), level.registryAccess()));
+            helper.assertTrue(again.posts().size() == 1 && again.posts().get(0).x() == (c0 + r) * 16 + 8, "読み直すと消える");
+            helper.succeed();
+        } finally {
+            for (var cp : marked) pd.forgetOvergrownChunk(cp);
+            outposts.clearForTests();
+            outposts.posts().addAll(keep);
             d.setBudget(level, budget);
         }
     }

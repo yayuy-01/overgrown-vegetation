@@ -30,6 +30,9 @@ public final class KillPoints {
         if (!(event.getSource().getEntity() instanceof Player player) || player instanceof FakePlayer) {
             return;
         }
+        if (com.yayuy.overgrownvegetation.director.EconomySoak.repelling) {
+            return; // 計測(EconomySoak)の追い払いは数えない
+        }
         int kind = kindOf(dead.getType());
         if (kind < 0) {
             return;
