@@ -579,4 +579,48 @@ public final class VentGameTests {
         }
         helper.succeed();
     }
+
+    /** 区画へ直に書く(壊す・置くの処理を通さない)。3 ブロックになる前の古い換気機を作るため。 */
+    private static void rawSet(GameTestHelper helper, BlockPos rel, net.minecraft.world.level.block.state.BlockState state) {
+        BlockPos abs = helper.absolutePos(rel);
+        net.minecraft.world.level.chunk.LevelChunk chunk = helper.getLevel().getChunkAt(abs);
+        chunk.getSection(chunk.getSectionIndex(abs.getY())).setBlockState(abs.getX() & 15, abs.getY() & 15, abs.getZ() & 15, state);
+    }
+
+    /**
+     * 3 ブロックになる前に置いた換気機(本体だけ)は、最初の tick に上 2 つを付け直す(11-22 見直し 15)。
+     * 揃っていれば何もしない。欠けた所のどれかがふさがっていれば何も付けない。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
+    public static void oldOneBlockVentGetsUpperParts(GameTestHelper helper) {
+        BlockPos rel = new BlockPos(2, 1, 2);
+        placeVent(helper, rel);
+        net.minecraft.world.level.block.state.BlockState lower = helper.getBlockState(rel);
+        if (VentBlock.repairParts(helper.getLevel(), helper.absolutePos(rel), lower) != 0) {
+            helper.fail("揃った換気機に部位を足した");
+            return;
+        }
+        // 古い換気機: 上 2 つが無い
+        rawSet(helper, rel.above(1), Blocks.AIR.defaultBlockState());
+        rawSet(helper, rel.above(2), Blocks.AIR.defaultBlockState());
+        // 2 台目: 真上が石でふさがった古い換気機
+        BlockPos rel2 = new BlockPos(5, 1, 2);
+        placeVent(helper, rel2);
+        rawSet(helper, rel2.above(1), Blocks.STONE.defaultBlockState());
+        rawSet(helper, rel2.above(2), Blocks.AIR.defaultBlockState());
+        // 読み込み直しと同じく、新しい中身で最初の tick を待つ
+        helper.getLevel().removeBlockEntity(helper.absolutePos(rel));
+        helper.getLevel().setBlockEntity(new VentBlockEntity(helper.absolutePos(rel), lower));
+        helper.getLevel().removeBlockEntity(helper.absolutePos(rel2));
+        helper.getLevel().setBlockEntity(new VentBlockEntity(helper.absolutePos(rel2), helper.getBlockState(rel2)));
+        helper.succeedWhen(() -> {
+            for (int i = 1; i < 3; i++) {
+                net.minecraft.world.level.block.state.BlockState s = helper.getBlockState(rel.above(i));
+                helper.assertTrue(s.is(ModVent.VENTILATOR.get()) && s.getValue(VentBlock.PART).offset == i
+                        && s.getValue(VentBlock.FACING) == lower.getValue(VentBlock.FACING), "上の部位 " + i + " が付かない: " + s);
+            }
+            helper.assertBlockPresent(Blocks.STONE, rel2.above(1));
+            helper.assertBlockPresent(Blocks.AIR, rel2.above(2)); // 一部だけは付けない
+        });
+    }
 }

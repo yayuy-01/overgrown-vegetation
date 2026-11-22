@@ -346,7 +346,13 @@ public class WasherBlockEntity extends BlockEntity implements GeoBlockEntity {
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
         ListTag list = new ListTag();
-        List<ItemStack> now = level != null && !level.isClientSide ? computeShown() : shown;
+        List<ItemStack> now = shown;
+        if (level != null && !level.isClientSide) {
+            // 送った物を覚える(11-22 見直し): 読み込んだ直後は shown が空のままなので、チャンクと一緒に今の中身を送った後で
+            // 槽を空にしても「変わっていない」と見て送らず、クライアントに浮いた物が残っていた。
+            now = computeShown();
+            shown = now;
+        }
         for (ItemStack s : now) list.add(s.save(registries));
         tag.put("shown", list);
         return tag;

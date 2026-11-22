@@ -545,4 +545,37 @@ public final class DeconGameTests {
         helper.setBlock(new BlockPos(3, 2, 3), Blocks.AIR);
         helper.succeed();
     }
+
+    /**
+     * 読み込み直した後でも、チャンクと一緒に送った物を覚えている(11-22 見直し 11)。覚えていないと、止まっている間に槽を空にしても
+     * 「変わっていない」と見て送らず、クライアントに浮いた物が残る。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void washerRemembersShownAfterReload(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos rel = new BlockPos(3, 2, 3);
+        WasherBlockEntity be = placeWasher(helper, rel);
+        be.insert(new ItemStack(ModItems.OVERGROWN_LEATHER.get(), 4));
+        CompoundTag saved = be.saveWithoutMetadata(level.registryAccess());
+        // 置き直して保存した中身を読み込む(枠の読み込みは onContentsChanged を通らないので、shown は空のまま = 開き直した直後と同じ)
+        helper.setBlock(rel, Blocks.AIR);
+        WasherBlockEntity loaded = placeWasher(helper, rel);
+        loaded.loadWithComponents(saved, level.registryAccess());
+        if (!loaded.shown().isEmpty() || loaded.computeShown().size() != 1) {
+            helper.fail("読み込んだ直後の形が想定と違う: shown " + loaded.shown() + "・中身 " + loaded.computeShown());
+            return;
+        }
+        loaded.getUpdateTag(level.registryAccess()); // チャンクを送るときと同じ
+        if (loaded.shown().size() != 1) {
+            helper.fail("送った物を覚えていない: " + loaded.shown());
+            return;
+        }
+        loaded.items().setStackInSlot(0, ItemStack.EMPTY);
+        if (!loaded.shown().isEmpty()) {
+            helper.fail("槽を空にしても送り直さない: " + loaded.shown());
+            return;
+        }
+        helper.setBlock(rel, Blocks.AIR);
+        helper.succeed();
+    }
 }

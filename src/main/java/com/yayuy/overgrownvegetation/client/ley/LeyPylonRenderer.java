@@ -123,10 +123,17 @@ public class LeyPylonRenderer extends GeoBlockRenderer<LeyPylonBlockEntity> {
 
     @Override
     public AABB getRenderBoundingBox(LeyPylonBlockEntity be) {
-        AABB box = new AABB(be.getBlockPos());
+        // 毎フレーム呼ばれるので、線 1 本ごとに箱を作らず、座標の端だけ数えて箱を 1 つ作る(11-22 見直し 15)
+        BlockPos me = be.getBlockPos();
+        int x0 = me.getX(), y0 = me.getY(), z0 = me.getZ(), x1 = x0, y1 = y0, z1 = z0;
         for (BlockPos p : be.links()) {
-            box = box.minmax(new AABB(p));
+            x0 = Math.min(x0, p.getX());
+            y0 = Math.min(y0, p.getY());
+            z0 = Math.min(z0, p.getZ());
+            x1 = Math.max(x1, p.getX());
+            y1 = Math.max(y1, p.getY());
+            z1 = Math.max(z1, p.getZ());
         }
-        return box.inflate(1.0);
+        return new AABB(x0 - 1.0, y0 - 1.0, z0 - 1.0, x1 + 2.0, y1 + 2.0, z1 + 2.0);
     }
 }

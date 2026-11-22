@@ -13,12 +13,15 @@ import com.yayuy.overgrownvegetation.registry.ModBlocks;
 import com.yayuy.overgrownvegetation.registry.ModDrift;
 import com.yayuy.overgrownvegetation.registry.ModPushBack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Husk;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -433,5 +436,35 @@ public final class DriftMimicGameTests {
             h.assertTrue(husk.getY() >= landTop - 0.5D, "陸に降ろしていない: y = " + husk.getY() + " / " + off[0]);
             forgetIslands(h);
         });
+    }
+
+    /**
+     * 岸に着いている途中で読み込み直しても、見た目の印(鉤・破裂)が着いてからの tick から戻る(11-22 見直し 15)。
+     * 描く範囲の箱は当たり(4.5)でなく形の広さ(横 約 10・下 約 9)(11-22 見直し 13)。
+     */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void arrivalLooksSurviveReloadAndCullBoxCoversShape(GameTestHelper h) {
+        pool(h);
+        DriftMimicEntity e = mimic(h, 12.5D, 12.5D, Vec3.ZERO);
+        try {
+            AABB cull = e.getBoundingBoxForCulling();
+            h.assertTrue(cull.contains(e.getX() + 9.5D, e.getY(), e.getZ()) && cull.contains(e.getX(), e.getY(), e.getZ() - 9.5D)
+                    && cull.contains(e.getX(), e.getY() - 8.8D, e.getZ()) && cull.contains(e.getX(), e.getY() + 1.1D, e.getZ()),
+                    "描く範囲の箱が形より狭い: " + cull);
+            for (int tick : new int[]{10, DriftMimicEntity.GRIP_TICKS + 5}) {
+                CompoundTag tag = new CompoundTag();
+                e.addAdditionalSaveData(tag);
+                tag.put("DriftArrivalShore", NbtUtils.writeBlockPos(h.absolutePos(new BlockPos(12, WY, 20))));
+                tag.put("DriftArrivalStand", NbtUtils.writeBlockPos(h.absolutePos(new BlockPos(12, WY + 1, 20))));
+                tag.putInt("DriftArrivalTick", tick);
+                e.readAdditionalSaveData(tag);
+                boolean grip = tick < DriftMimicEntity.GRIP_TICKS;
+                h.assertTrue(e.gripping() == grip && e.bursting() == !grip && e.revealed() == grip,
+                        "tick " + tick + " で読み込んだ印: 鉤 " + e.gripping() + "・破裂 " + e.bursting() + "・正体 " + e.revealed());
+            }
+        } finally {
+            e.discard(); // 着いた扱いのまま tick させると岸で破裂するので、すぐ消す
+        }
+        h.succeed();
     }
 }

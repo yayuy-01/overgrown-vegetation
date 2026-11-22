@@ -51,6 +51,8 @@ public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
     private double loadCarry;
     /** 直近の場の更新 1 回あたりに抜いた量(濃度 % に直した値。表示用)。 */
     private double lastPulledPercent = Double.NaN;
+    /** 上 2 つの部位を確かめたか(読み込みごとに 1 回。保存しない)。 */
+    private boolean partsChecked;
 
     private final IEnergyStorage port = new IEnergyStorage() {
         @Override
@@ -152,6 +154,10 @@ public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, VentBlockEntity be) {
+        if (!be.partsChecked) {
+            be.partsChecked = true;
+            VentBlock.repairParts(level, pos, state); // 3 ブロックになる前に置いた換気機の上 2 つを付ける(11-22 見直し 15)
+        }
         be.tickOnce();
     }
 

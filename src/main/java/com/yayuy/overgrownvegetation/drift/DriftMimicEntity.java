@@ -24,6 +24,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -156,6 +157,16 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
         return flag(F_REVEALED);
     }
 
+    /** 岸で鉤を掛けている印(描画・GameTest から)。 */
+    public boolean gripping() {
+        return flag(F_GRIPPING);
+    }
+
+    /** 破裂している印(描画・GameTest から)。 */
+    public boolean bursting() {
+        return flag(F_BURSTING);
+    }
+
     /** 岸に着いて、鉤を掛けている・破裂している最中か。 */
     public boolean arriving() {
         return arrivalStand != null || flag(F_GRIPPING) || flag(F_BURSTING);
@@ -238,6 +249,19 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
      * 形はこの分だけ後ろへずらして描く(描画 {@code client/DriftMimicRenderer})。席も同じだけずらす。
      */
     public static final double MODEL_BACK = 14.0D / 16.0D;
+
+    /**
+     * 描くかどうかを決める箱の広さ(11-22 見直し 13)。当たりは塊の 4.5 だけなので、そのままだと塊が画面の外へ出たとたんに、
+     * まだ見えている筏の縁・水中の腕が消える。形 B 改 6 の geo で数えた: 横は {@link #MODEL_BACK} のずらしを入れて半径 約 9.8、
+     * 腕は水面の 約 8.8 下まで、上は 約 1.1。アニメの揺れの分を少し足す。
+     */
+    static final double CULL_RADIUS = 10.5D, CULL_DOWN = 9.5D, CULL_UP = 2.0D;
+
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        double x = getX(), y = getY(), z = getZ();
+        return new AABB(x - CULL_RADIUS, y - CULL_DOWN, z - CULL_RADIUS, x + CULL_RADIUS, y + CULL_UP, z + CULL_RADIUS);
+    }
 
     @Override
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
@@ -659,6 +683,15 @@ public class DriftMimicEntity extends Monster implements ParasitizedMob, GeoEnti
         arrivalShore = NbtUtils.readBlockPos(tag, "DriftArrivalShore").orElse(null);
         arrivalStand = arrivalShore == null ? null : NbtUtils.readBlockPos(tag, "DriftArrivalStand").orElse(null);
         arrivalTick = tag.getInt("DriftArrivalTick");
+        if (arrivalStand != null) {
+            // 見た目の印は保存しない(同期するだけ)ので、着いてからの tick から立て直す(11-22 見直し 15)。
+            // 立て直さないと、鉤を掛けている・破裂している途中で読み込み直したとき、漂う絵のまま破裂する。
+            boolean gripping = arrivalTick < GRIP_TICKS;
+            setFlag(F_PADDLING, false);
+            setFlag(F_REVEALED, gripping);
+            setFlag(F_GRIPPING, gripping);
+            setFlag(F_BURSTING, !gripping);
+        }
     }
 
     /** 近くにプレイヤー(観戦を除く)がいるか。 */

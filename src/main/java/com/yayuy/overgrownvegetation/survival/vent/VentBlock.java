@@ -205,6 +205,44 @@ public class VentBlock extends BaseEntityBlock {
         }
     }
 
+    /**
+     * 上 2 つの部位が欠けていたら付け直す(11-22 見直し 15)。3 ブロックになる前(2b925dad より前)に置いた換気機は、読み込むと
+     * 本体だけになる({@link #onPlace} は読み込みでは呼ばれない)ので、本体の最初の tick に呼ぶ。欠けた所のどれかが置き換えられない
+     * ブロックでふさがっていれば何も付けない(働きは変わらず、形だけ重なる。壊して置き直せば直る)。
+     *
+     * @return 付けた部位の数
+     */
+    public static int repairParts(Level level, BlockPos pos, BlockState lower) {
+        if (!lower.hasProperty(PART) || lower.getValue(PART) != Part.LOWER) {
+            return 0;
+        }
+        boolean[] missing = new boolean[3];
+        for (int i = 1; i < 3; i++) {
+            BlockPos p = pos.above(i);
+            if (p.getY() >= level.getMaxBuildHeight()) {
+                return 0;
+            }
+            BlockState s = level.getBlockState(p);
+            if (s.is(lower.getBlock()) && s.getValue(PART).offset == i && s.getValue(FACING) == lower.getValue(FACING)) {
+                continue;
+            }
+            if (!s.canBeReplaced()) {
+                return 0; // 一部だけ付けると宙に浮いた部位になるので、全部空いているときだけ付ける
+            }
+            missing[i] = true;
+        }
+        int added = 0;
+        for (int i = 1; i < 3; i++) {
+            if (!missing[i]) {
+                continue;
+            }
+            BlockPos p = pos.above(i);
+            level.setBlock(p, lower.setValue(PART, Part.at(i)).setValue(RUNNING, false), Block.UPDATE_ALL);
+            added++;
+        }
+        return added;
+    }
+
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
