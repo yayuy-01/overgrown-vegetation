@@ -5,9 +5,9 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.survival.vent.AirFilterItem;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlock;
 import com.yayuy.overgrownvegetation.survival.vent.VentBlockEntity;
+import com.yayuy.overgrownvegetation.survival.vent.VentBlockItem;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.SoundType;
@@ -58,11 +58,14 @@ public final class ModVent {
                     .strength(3.5F, 6.0F)
                     .requiresCorrectToolForDrops()
                     .noOcclusion()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK) // 3 ブロックの機械はピストンで動かさない
                     .sound(SoundType.COPPER));
 
     // ---- アイテム ----
 
-    public static final DeferredItem<BlockItem> VENTILATOR_ITEM = ModItems.ITEMS.registerSimpleBlockItem(VENTILATOR);
+    /** 3 ブロックの機械を置くアイテム(置けない訳を出す・見た目は機械の模型を縮めた物)。 */
+    public static final DeferredItem<VentBlockItem> VENTILATOR_ITEM = ModItems.ITEMS.register(
+            "ley_ventilator", () -> new VentBlockItem(VENTILATOR.get(), new Item.Properties()));
 
     public static final DeferredItem<AirFilterItem> AIR_FILTER = ModItems.ITEMS.registerItem(
             "air_filter", AirFilterItem::new, new Item.Properties().stacksTo(16));

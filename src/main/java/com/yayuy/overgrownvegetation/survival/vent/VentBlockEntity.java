@@ -16,6 +16,13 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.energy.IEnergyStorage;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.PlayState;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
  * <b>地脈の換気機</b>の中身(2026-11-14 サバイバルの背骨 段 2c)。
@@ -28,7 +35,11 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
  * </ul>
  * 中の FE・フィルターは保存する。
  */
-public class VentBlockEntity extends BlockEntity {
+public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
+
+    /** ふいごが動く(2.4 秒の繰り返し)。Blockbench の正本 zyokyosouti_kai_B_yayuy の run。 */
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("animation.ley_ventilator.run");
+    private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
 
     /** 最後に動いた tick からこの間は「動いている」とみなす(FE が途切れ途切れでも見た目と吸い込みが揺れないように)。 */
     static final int RUNNING_GRACE_TICKS = 20;
@@ -221,5 +232,27 @@ public class VentBlockEntity extends BlockEntity {
         energy = Math.max(0, tag.getInt("energy"));
         filter = tag.contains("filter") ? ItemStack.parseOptional(registries, tag.getCompound("filter")) : ItemStack.EMPTY;
         loadCarry = tag.getDouble("loadCarry");
+    }
+
+    // ---------------------------------------------------------------- 見た目(GeckoLib)
+
+    /**
+     * 働いている間だけふいごを動かす。クライアントはブロックの状態の {@link VentBlock#RUNNING}(サーバーが {@link #tickOnce} で切り替えて送る)を読む。
+     * 止まると置いた姿(ふいごが少し開いた形)に戻る。アニメの最初のコマは置いた姿と同じなので、動き出しに跳びは出ない。
+     */
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "bellows", 0, state -> {
+            BlockState bs = getBlockState();
+            if (bs.hasProperty(VentBlock.RUNNING) && bs.getValue(VentBlock.RUNNING)) {
+                return state.setAndContinue(RUN);
+            }
+            return PlayState.STOP;
+        }));
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return geoCache;
     }
 }

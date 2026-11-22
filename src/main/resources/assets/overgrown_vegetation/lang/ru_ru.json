@@ -920,6 +920,7 @@
   "item.overgrown_vegetation.cure_draught.not_infected": "Вы не заражены — снадобье не подействует",
   "message.overgrown_vegetation.ley_ventilator.info": " · фильтр %s%% · %s/%s FE · вытянуто %s%%",
   "message.overgrown_vegetation.ley_ventilator.filter_clogged": "Этот фильтр забит",
+  "message.overgrown_vegetation.ley_ventilator.no_room": "Вентилятор высотой 3 блока: сверху нужно 2 свободных блока",
   "message.overgrown_vegetation.ley_stake.on": "Кол лей-линии: сдерживает заражение в радиусе %s · %s/%s FE",
   "message.overgrown_vegetation.ley_stake.off": "Кол лей-линии: нет силы лей-линий (не сдерживает) · %s/%s FE",
   "block.overgrown_vegetation.ley_washer": "Лей-мойка",

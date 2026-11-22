@@ -920,6 +920,7 @@
   "item.overgrown_vegetation.cure_draught.not_infected": "感染していないので、飲んでも効かない",
   "message.overgrown_vegetation.ley_ventilator.info": "・フィルター %s%%・%s/%s FE・抜いた %s%%",
   "message.overgrown_vegetation.ley_ventilator.filter_clogged": "このフィルターは詰まっている",
+  "message.overgrown_vegetation.ley_ventilator.no_room": "換気機は高さ 3 ブロック: 上に 2 マスの空きが要る",
   "message.overgrown_vegetation.ley_stake.on": "地脈の杭: 半径 %s の汚染を止めている・%s/%s FE",
   "message.overgrown_vegetation.ley_stake.off": "地脈の杭: 地脈の力が無い(止めていない)・%s/%s FE",
   "block.overgrown_vegetation.ley_washer": "地脈の洗い場",

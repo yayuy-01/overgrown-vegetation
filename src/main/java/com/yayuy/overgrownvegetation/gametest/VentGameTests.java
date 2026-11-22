@@ -424,6 +424,129 @@ public final class VentGameTests {
         helper.succeed();
     }
 
+    // ---------------------------------------------------------------- 3 ブロックの機械(2026-11-22)
+
+    /** 部位がそろっているか(下 = 中身あり、上 2 つ = 中身なし、向きは同じ)。食い違いを返す(そろっていれば null)。 */
+    private static String checkWhole(GameTestHelper helper, BlockPos lowerRel, net.minecraft.core.Direction facing) {
+        VentBlock.Part[] parts = VentBlock.Part.values();
+        for (int i = 0; i < 3; i++) {
+            BlockPos p = lowerRel.above(i);
+            var s = helper.getBlockState(p);
+            if (!s.is(ModVent.VENTILATOR.get()) || s.getValue(VentBlock.PART) != parts[i] || s.getValue(VentBlock.FACING) != facing) {
+                return "高さ " + i + " が " + parts[i] + "(" + facing + ")でない: " + s;
+            }
+            if ((helper.getLevel().getBlockEntity(helper.absolutePos(p)) instanceof VentBlockEntity) != (i == 0)) {
+                return "中身は下だけのはずが、高さ " + i + " で違う";
+            }
+            if (s.getShape(helper.getLevel(), helper.absolutePos(p)).isEmpty()) {
+                return "高さ " + i + " に当たり判定が無い";
+            }
+        }
+        return null;
+    }
+
+    private static java.util.List<net.minecraft.world.entity.item.ItemEntity> dropsNear(GameTestHelper helper, BlockPos rel) {
+        return helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                new net.minecraft.world.phys.AABB(helper.absolutePos(rel)).inflate(2.0D, 3.0D, 2.0D));
+    }
+
+    private static int countOf(java.util.List<net.minecraft.world.entity.item.ItemEntity> items, net.minecraft.world.item.Item item) {
+        return items.stream().filter(e -> e.getItem().is(item)).mapToInt(e -> e.getItem().getCount()).sum();
+    }
+
+    /**
+     * 下を置くと上 2 つが付き(当たり判定 3 ブロック分・中身は下だけ)、どこを壊しても全部が消えて落とすのは 1 つだけ。
+     * 中のフィルターは下と一緒に出てくる。上・中・下のどれを壊しても同じ。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void ventThreeBlocksBreakTogether(GameTestHelper helper) {
+        BlockPos rel = new BlockPos(3, 2, 3);
+        for (int broken = 0; broken < 3; broken++) {
+            var facing = net.minecraft.core.Direction.from2DDataValue(broken + 1); // 北・東・南
+            helper.setBlock(rel, ModVent.VENTILATOR.get().defaultBlockState().setValue(VentBlock.FACING, facing));
+            String bad = checkWhole(helper, rel, facing);
+            if (bad != null) {
+                helper.fail("置いた直後: " + bad);
+                return;
+            }
+            if (!(helper.getBlockEntity(rel) instanceof VentBlockEntity be)) {
+                helper.fail("中身が無い");
+                return;
+            }
+            be.setFilter(freshFilter());
+            // どの部位のルートも換気機 1 つ(道具の決まりはどこを掘っても同じ)
+            var partState = helper.getBlockState(rel.above(broken));
+            var loot = net.minecraft.world.level.block.Block.getDrops(partState, helper.getLevel(), helper.absolutePos(rel.above(broken)),
+                    helper.getLevel().getBlockEntity(helper.absolutePos(rel.above(broken))), null, new ItemStack(net.minecraft.world.item.Items.STONE_PICKAXE));
+            if (loot.size() != 1 || !loot.get(0).is(ModVent.VENTILATOR_ITEM.get()) || loot.get(0).getCount() != 1) {
+                helper.fail("高さ " + broken + " のルートが換気機 1 つでない: " + loot);
+                return;
+            }
+            dropsNear(helper, rel).forEach(net.minecraft.world.entity.Entity::discard);
+            helper.getLevel().destroyBlock(helper.absolutePos(rel.above(broken)), true);
+            for (int i = 0; i < 3; i++) {
+                if (!helper.getBlockState(rel.above(i)).isAir()) {
+                    helper.fail("高さ " + broken + " を壊しても高さ " + i + " が残った: " + helper.getBlockState(rel.above(i)));
+                    return;
+                }
+            }
+            var drops = dropsNear(helper, rel);
+            int vents = countOf(drops, ModVent.VENTILATOR_ITEM.get());
+            int filters = countOf(drops, ModVent.AIR_FILTER.get());
+            drops.forEach(net.minecraft.world.entity.Entity::discard);
+            if (vents != 1 || filters != 1) {
+                helper.fail("高さ " + broken + " を壊して落ちたのが換気機 " + vents + "・フィルター " + filters + "(どちらも 1 のはず)");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * アイテムで置く: 上に 2 マスの空きがないと置けず、アイテムは減らない。空ければ置けて、正面(facing)は置いた人の方を向く。
+     * 置いた人が南にいて北を向いている → 機械の正面は南。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
+    public static void ventNeedsRoomAbove(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos floorRel = new BlockPos(3, 1, 3);
+        BlockPos rel = floorRel.above();
+        BlockPos stoneRel = rel.above(2);
+        net.minecraft.world.phys.Vec3 standAt = net.minecraft.world.phys.Vec3.atBottomCenterOf(helper.absolutePos(rel.south(2)));
+        player.moveTo(standAt.x, standAt.y, standAt.z, 180.0F, 30.0F); // 北を向く
+        ItemStack stack = new ItemStack(ModVent.VENTILATOR_ITEM.get(), 2);
+        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+        net.minecraft.world.phys.BlockHitResult hit = new net.minecraft.world.phys.BlockHitResult(
+                net.minecraft.world.phys.Vec3.atCenterOf(helper.absolutePos(floorRel)).add(0.0D, 0.5D, 0.0D),
+                net.minecraft.core.Direction.UP, helper.absolutePos(floorRel), false);
+        java.util.function.Supplier<net.minecraft.world.InteractionResult> use = () -> stack.useOn(
+                new net.minecraft.world.item.context.UseOnContext(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit));
+
+        helper.setBlock(stoneRel, Blocks.STONE); // 2 マス上がふさがっている
+        var r1 = use.get();
+        if (r1.consumesAction() || !helper.getBlockState(rel).isAir() || stack.getCount() != 2) {
+            helper.fail("上がふさがっているのに置けた・アイテムが減った: " + r1 + "・" + helper.getBlockState(rel) + "・数 " + stack.getCount());
+            return;
+        }
+        helper.setBlock(stoneRel, Blocks.AIR);
+        var r2 = use.get();
+        if (!r2.consumesAction() || stack.getCount() != 1) {
+            helper.fail("空いているのに置けない: " + r2 + "・数 " + stack.getCount());
+            return;
+        }
+        String bad = checkWhole(helper, rel, net.minecraft.core.Direction.SOUTH);
+        if (bad != null) {
+            helper.fail("置いた機械: " + bad);
+            return;
+        }
+        helper.setBlock(rel, Blocks.AIR);
+        if (!helper.getBlockState(rel.above(2)).isAir()) {
+            helper.fail("下を消しても上が残った");
+            return;
+        }
+        helper.succeed();
+    }
+
     /** フィルター・換気機・胞子濃度計は、汚染の前から作れる(材料がバニラだけ)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void recipesUseVanillaOnly(GameTestHelper helper) {
