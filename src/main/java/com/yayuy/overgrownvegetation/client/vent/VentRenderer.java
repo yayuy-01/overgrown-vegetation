@@ -12,6 +12,8 @@ public class VentRenderer extends GeoBlockRenderer<VentBlockEntity> {
 
     public VentRenderer() {
         super(new VentModel<>());
+        // 動いている間だけ、青い格子を暗い所でも光らせる(GeckoLib の発光の層。光る画素は _glowmask の 24 画素だけ)
+        addRenderLayer(new com.yayuy.overgrownvegetation.client.G1Glow<>(this, be -> !VentModel.running(be)));
     }
 
     /** 模型は高さ 3 ブロック(排気の口が少し上へ出る)。本体の 1 ブロックの箱のままだと、下が画面の外へ出たとき上まで消える。 */
