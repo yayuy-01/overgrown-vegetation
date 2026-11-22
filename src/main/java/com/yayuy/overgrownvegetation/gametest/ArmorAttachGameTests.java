@@ -486,4 +486,78 @@ public final class ArmorAttachGameTests {
         h.assertTrue(ArmorAttachments.count(dyed, ModArmorAttach.BARK_PLATE.get()) == 1 && countIn(p2, ModArmorAttach.BARK_PLATE.get()) == 0, "染め直しで樹皮が増えた");
         h.succeed();
     }
+
+    // ---- 11-22 見直しの直し ----
+
+    /** 設定の枠の数を減らしても、超えた所の付け物は消えず、持ち主へ返る(見直し 16)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void shrinkingSlotsReturnsOverflow(GameTestHelper h) {
+        var table = ArmorAttachments.table();
+        int before = table.slots;
+        try {
+            ItemStack legs = new ItemStack(Items.LEATHER_LEGGINGS);
+            ArmorAttachments.attach(legs, 0, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
+            ArmorAttachments.attach(legs, 1, new ItemStack(ModArmorAttach.CONDUIT_SASH.get()));
+            ArmorAttachments.attach(legs, 2, bark());
+            table.slots = 2;
+            h.assertTrue(ArmorAttachments.list(legs).size() == 2, "枠が 2 つに見えない");
+            ArmorAttachments.detach(legs, 1); // 枠の中を書き換えても、超えた所の樹皮は残る
+            h.assertTrue(ArmorAttachments.count(legs, ModArmorAttach.BARK_PLATE.get()) == 1, "書き換えで超えた所の樹皮が消えた");
+            Player player = h.makeMockPlayer(GameType.SURVIVAL);
+            player.getInventory().setItem(5, legs);
+            AttachEffects.onPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Post(player));
+            h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "超えた所の樹皮が持ち主へ返らない");
+            ItemStack after = player.getInventory().getItem(5);
+            h.assertTrue(ArmorAttachments.count(after, ModArmorAttach.BARK_PLATE.get()) == 0
+                    && ArmorAttachments.count(after, ModArmorAttach.STORAGE_BELT.get()) == 1, "返した後の防具が違う: " + ArmorAttachments.list(after));
+            table.slots = before;
+            h.assertTrue(ArmorAttachments.count(after, ModArmorAttach.BARK_PLATE.get()) == 0, "枠を戻したら樹皮が増えた(2 つになった)");
+        } finally {
+            table.slots = before;
+        }
+        h.succeed();
+    }
+
+    /** ベルトを入れた袋・箱(中にベルトの付いた防具を入れた物)は、小物入れに入らない(見直し 12)。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void beltCannotHideInsideAnotherContainer(GameTestHelper h) {
+        ItemStack bundle = new ItemStack(Items.BUNDLE);
+        bundle.set(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS,
+                new net.minecraft.world.item.component.BundleContents(java.util.List.of(new ItemStack(ModArmorAttach.STORAGE_BELT.get()))));
+        h.assertFalse(BeltPouchMenu.allowed(bundle), "ベルトを入れた袋が小物入れに入る");
+        ItemStack legs = new ItemStack(Items.LEATHER_LEGGINGS);
+        ArmorAttachments.attach(legs, 0, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
+        ItemStack chest = new ItemStack(Items.CHEST);
+        chest.set(net.minecraft.core.component.DataComponents.CONTAINER,
+                net.minecraft.world.item.component.ItemContainerContents.fromItems(java.util.List.of(legs)));
+        h.assertFalse(BeltPouchMenu.allowed(chest), "ベルトの付いた防具を入れた箱が小物入れに入る");
+        ItemStack plainBundle = new ItemStack(Items.BUNDLE);
+        plainBundle.set(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS,
+                new net.minecraft.world.item.component.BundleContents(java.util.List.of(new ItemStack(Items.TORCH, 4))));
+        h.assertTrue(BeltPouchMenu.allowed(plainBundle), "ふつうの袋まで入らなくなった");
+        h.succeed();
+    }
+
+    /** 台の枠の口覆いの布にフィルターを右クリックしても入れ替わらない(枠の物は写しなので、入れ替えるとフィルターが増える)。同じ物を 2 つまでにしても。 */
+    @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
+    public static void benchClothSlotIgnoresFilterSwap(GameTestHelper h) {
+        var e = ArmorAttachments.table().attachments.get("mouth_cloth");
+        int before = e.max;
+        try {
+            e.max = 2; // 「1 つまで」に頼らずに確かめる
+            Player player = h.makeMockPlayer(GameType.SURVIVAL);
+            var inv = player.getInventory();
+            inv.setItem(0, helmetWith(0, usedCloth(5000)));
+            AttachBenchMenu menu = new AttachBenchMenu(1, inv, ContainerLevelAccess.NULL);
+            menu.quickMoveStack(player, AttachBenchMenu.INV_END - 9);
+            menu.setCarried(new ItemStack(com.yayuy.overgrownvegetation.registry.ModVent.AIR_FILTER.get()));
+            menu.clicked(AttachBenchMenu.FIRST_ATTACH, 1, ClickType.PICKUP, player); // 枠の布の上で右クリック
+            ItemStack hand = menu.getCarried();
+            h.assertTrue(AirFilters.used(menu.armor()) == 5000 && AirFilters.isFilter(hand) && AirFilters.used(hand) == 0 && hand.getCount() == 1,
+                    "枠の布でフィルターが入れ替わった: 兜の詰まり " + AirFilters.used(menu.armor()) + "・手 " + hand + " 詰まり " + AirFilters.used(hand));
+        } finally {
+            e.max = before;
+        }
+        h.succeed();
+    }
 }

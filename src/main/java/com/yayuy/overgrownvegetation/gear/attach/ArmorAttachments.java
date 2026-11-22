@@ -108,14 +108,41 @@ public final class ArmorAttachments {
 
     /** 付いている物(枠の数ぶん。空いた枠は空のスタック)。中身は写し。 */
     public static NonNullList<ItemStack> list(ItemStack armor) {
+        NonNullList<ItemStack> all = all(armor);
         NonNullList<ItemStack> out = NonNullList.withSize(slotCount(), ItemStack.EMPTY);
+        for (int i = 0; i < out.size() && i < all.size(); i++) out.set(i, all.get(i));
+        return out;
+    }
+
+    /**
+     * 持っている物を全部(枠の数を超えた所も)。設定の枠の数を減らしたとき、超えた所の物を消さずに持ち続けて、持ち主へ返すため
+     * (11-22 見直し 16。{@link #takeOverflow})。書き戻しはいつもこちらから。
+     */
+    private static NonNullList<ItemStack> all(ItemStack armor) {
         ItemContainerContents c = armor.get(ModArmorAttach.ATTACHMENTS.get());
+        NonNullList<ItemStack> out = NonNullList.withSize(Math.max(slotCount(), c == null ? 0 : c.getSlots()), ItemStack.EMPTY);
         if (c != null) c.copyInto(out);
         return out;
     }
 
+    /** 枠の数を超えた所に残っている物を外して返す(口覆いの布はフィルターの状態を連れる)。無ければ空。 */
+    public static java.util.List<ItemStack> takeOverflow(ItemStack armor) {
+        java.util.List<ItemStack> out = new java.util.ArrayList<>();
+        if (!hasAny(armor)) return out;
+        int n = all(armor).size();
+        for (int i = slotCount(); i < n; i++) {
+            ItemStack s = detach(armor, i);
+            if (!s.isEmpty()) out.add(s);
+        }
+        if (n > slotCount()) {
+            NonNullList<ItemStack> l = all(armor); // 長さを枠の数へ縮める
+            write(armor, l.subList(0, Math.min(slotCount(), l.size())));
+        }
+        return out;
+    }
+
     public static ItemStack get(ItemStack armor, int index) {
-        List<ItemStack> l = list(armor);
+        List<ItemStack> l = all(armor);
         return index >= 0 && index < l.size() ? l.get(index) : ItemStack.EMPTY;
     }
 
@@ -132,7 +159,7 @@ public final class ArmorAttachments {
             AirFilters.copyState(one, armor); // フィルターの状態は防具の側へ
             clearFilter(one);
         }
-        NonNullList<ItemStack> l = list(armor);
+        NonNullList<ItemStack> l = all(armor);
         l.set(index, one);
         write(armor, l);
         return true;
@@ -140,7 +167,7 @@ public final class ArmorAttachments {
 
     /** {@code index} の枠の物を外して返す(空なら空)。口覆いの布はフィルターの状態を連れて戻る。 */
     public static ItemStack detach(ItemStack armor, int index) {
-        NonNullList<ItemStack> l = list(armor);
+        NonNullList<ItemStack> l = all(armor);
         if (index < 0 || index >= l.size() || l.get(index).isEmpty()) return ItemStack.EMPTY;
         ItemStack out = l.get(index);
         l.set(index, ItemStack.EMPTY);
@@ -170,7 +197,8 @@ public final class ArmorAttachments {
     /** 付いている物を全部外して返す(口覆いの布はフィルターの状態を連れる)。防具が壊れたとき。 */
     public static java.util.List<ItemStack> detachAll(ItemStack armor) {
         java.util.List<ItemStack> out = new java.util.ArrayList<>();
-        for (int i = 0; i < slotCount(); i++) {
+        int n = all(armor).size();
+        for (int i = 0; i < n; i++) {
             ItemStack s = detach(armor, i);
             if (!s.isEmpty()) out.add(s);
         }
@@ -191,7 +219,8 @@ public final class ArmorAttachments {
         if (hasAny(output)) detachAll(output); // 写しで付いてきた物(とフィルターの状態)を捨てて、入力から付け直す
         for (ItemStack in : inputs) {
             if (!hasAny(in)) continue;
-            for (int i = 0; i < slotCount(); i++) {
+            int n = all(in).size();
+            for (int i = 0; i < n; i++) {
                 ItemStack a = peek(in, i);
                 if (a.isEmpty()) continue;
                 boolean placed = false;
@@ -219,7 +248,7 @@ public final class ArmorAttachments {
 
     /** 付いている枠の物を差し替える(中身だけ変わるとき。ベルトの小物入れ)。種類が同じでなければ何もしない。 */
     public static void replace(ItemStack armor, int index, ItemStack same) {
-        NonNullList<ItemStack> l = list(armor);
+        NonNullList<ItemStack> l = all(armor);
         if (index < 0 || index >= l.size() || l.get(index).isEmpty() || !l.get(index).is(same.getItem())) return;
         l.set(index, same.copyWithCount(1));
         write(armor, l);

@@ -87,10 +87,24 @@ public class BeltPouchMenu extends AbstractContainerMenu {
         return size;
     }
 
-    /** 小物入れに入れられる物(ベルトそのもの・ベルトの付いた防具・ほかの入れ物の中に入れられない物は入れない)。 */
+    /**
+     * 小物入れに入れられる物。ベルトそのもの・ベルトの付いた防具・ほかの入れ物の中に入れられない物は入れない。
+     * 入れ物(箱の中身・バンドルの中身を持つ物)は中を 2 段までのぞき、ベルトが入っていれば入れない(11-22 見直し 12: 袋に入れてから入れる入れ子)。
+     */
     public static boolean allowed(ItemStack stack) {
-        return !stack.is(ModArmorAttach.STORAGE_BELT.get()) && stack.getItem().canFitInsideContainerItems()
-                && ArmorAttachments.count(stack, ModArmorAttach.STORAGE_BELT.get()) == 0; // ベルトの付いた防具も入れない(入れ子)
+        return stack.getItem().canFitInsideContainerItems() && !holdsBelt(stack, 2);
+    }
+
+    /** {@code stack} がベルトか、ベルトの付いた防具か、中(depth 段まで)にそれを持つ入れ物か。 */
+    static boolean holdsBelt(ItemStack stack, int depth) {
+        if (stack.isEmpty()) return false;
+        if (stack.is(ModArmorAttach.STORAGE_BELT.get()) || ArmorAttachments.count(stack, ModArmorAttach.STORAGE_BELT.get()) > 0) return true;
+        if (depth <= 0) return false;
+        ItemContainerContents box = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+        if (box != null) for (ItemStack s : box.nonEmptyItems()) if (holdsBelt(s, depth - 1)) return true;
+        net.minecraft.world.item.component.BundleContents bundle = stack.get(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS);
+        if (bundle != null) for (ItemStack s : bundle.items()) if (holdsBelt(s, depth - 1)) return true;
+        return false;
     }
 
     private ItemStack belt() {

@@ -49,6 +49,8 @@ public class MouthClothItem extends ArmorAttachmentItem implements FilterMask {
 
     @Override
     public boolean overrideOtherStackedOnMe(ItemStack cloth, ItemStack other, Slot slot, ClickAction action, Player player, SlotAccess access) {
+        // 付け物の台の枠の布は防具から作った写しなので、そこで入れ替えるとフィルターが増える(11-22 見直し・Fable)。入れ替えは外してから
+        if (AttachBenchMenu.isAttachmentSlot(slot)) return false;
         if (action != ClickAction.SECONDARY || !AirFilters.isFilter(other) || AirFilters.clogged(other) || !slot.allowModification(player)) {
             return false;
         }

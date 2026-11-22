@@ -59,6 +59,24 @@ public final class AttachEffects {
         event.setCanceled(true);
     }
 
+    /**
+     * 設定の枠の数({@code slots})を減らしたとき、超えた所に残った付け物を持ち主へ返す(11-22 見直し 16)。2 秒に 1 回、持ち物と着ている物を見る。
+     * 付け物の無い物はコンポーネントを見るだけで終わる。
+     */
+    @SubscribeEvent
+    public static void onPlayerTick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) {
+        var player = event.getEntity();
+        if (player.level().isClientSide || player.tickCount % 40 != 0) return;
+        var inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (ArmorAttachments.hasAny(s)) {
+                java.util.List<ItemStack> over = ArmorAttachments.takeOverflow(s);
+                if (!over.isEmpty()) ArmorAttachments.giveBack(player, over);
+            }
+        }
+    }
+
     // ---- 修理で付け物を引き継ぐ(2026-11-22 ユーザー「修理では消えない」)。結果に載せ切れなかった物を持ち主へ ----
 
     /** 金床で受け取った(結果への引き継ぎは {@code AnvilAttachCarryMixin})。 */

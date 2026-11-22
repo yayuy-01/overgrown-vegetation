@@ -26,10 +26,13 @@ public class AttachBenchMenu extends AbstractContainerMenu {
     public static final int ARMOR_X = 26, ATTACH_X = 80, ROW_Y = 18;
 
     private final ContainerLevelAccess access;
+    private net.minecraft.world.entity.player.Player owner;
     final SimpleContainer armorBox = new SimpleContainer(1) {
         @Override
         public void setChanged() {
             super.setChanged();
+            // 枠の数を減らした後の防具を置いたら、超えた所の付け物を持ち主へ返す(11-22 見直し 16)
+            if (owner != null && !owner.level().isClientSide) ArmorAttachments.giveBack(owner, ArmorAttachments.takeOverflow(getItem(0)));
             AttachBenchMenu.this.slotsChanged(this);
         }
     };
@@ -43,6 +46,7 @@ public class AttachBenchMenu extends AbstractContainerMenu {
     public AttachBenchMenu(int id, Inventory inv, ContainerLevelAccess access) {
         super(ModArmorAttach.BENCH_MENU.get(), id);
         this.access = access;
+        this.owner = inv.player;
         addSlot(new Slot(armorBox, 0, ARMOR_X, ROW_Y) {
             @Override
             public boolean mayPlace(ItemStack stack) {
@@ -81,6 +85,11 @@ public class AttachBenchMenu extends AbstractContainerMenu {
         for (int c = 0; c < 9; c++) {
             addSlot(new Slot(inv, c, 8 + c * 18, 108));
         }
+    }
+
+    /** 付け物の台の付け物の枠か(枠の物は防具から作った写し。{@link MouthClothItem} の入れ替えを止める)。 */
+    public static boolean isAttachmentSlot(Slot slot) {
+        return slot.container instanceof View;
     }
 
     /** 台に置いた防具(無ければ空)。 */
