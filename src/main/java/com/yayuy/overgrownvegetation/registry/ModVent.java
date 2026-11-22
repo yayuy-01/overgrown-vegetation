@@ -81,6 +81,11 @@ public final class ModVent {
     @SubscribeEvent
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, VENTILATOR_BE.get(), (be, side) -> be.energyPort());
+        // 3 ブロックの機械(11-22): 上 2 つの部位(地脈の端子の結晶は中の段にある)に当てた線・隣の汲み上げ器も、本体の口へつなぐ
+        event.registerBlock(Capabilities.EnergyStorage.BLOCK, (level, pos, state, be, side) ->
+                state.getValue(VentBlock.PART) != VentBlock.Part.LOWER
+                        && level.getBlockEntity(VentBlock.basePos(pos, state)) instanceof VentBlockEntity base ? base.energyPort() : null,
+                VENTILATOR.get());
     }
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */

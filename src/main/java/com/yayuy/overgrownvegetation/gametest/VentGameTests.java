@@ -473,6 +473,16 @@ public final class VentGameTests {
                 helper.fail("中身が無い");
                 return;
             }
+            // FE の口はどの部位からでも本体へ(線の端子の結晶は中の段)
+            for (int i = 0; i < 3; i++) {
+                var cap = helper.getLevel().getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.BLOCK,
+                        helper.absolutePos(rel.above(i)), null);
+                int e0 = be.energy();
+                if (cap == null || cap.receiveEnergy(10, false) != 10 || be.energy() != e0 + 10) {
+                    helper.fail("高さ " + i + " の FE の口が本体へつながらない");
+                    return;
+                }
+            }
             be.setFilter(freshFilter());
             // どの部位のルートも換気機 1 つ(道具の決まりはどこを掘っても同じ)
             var partState = helper.getBlockState(rel.above(broken));
