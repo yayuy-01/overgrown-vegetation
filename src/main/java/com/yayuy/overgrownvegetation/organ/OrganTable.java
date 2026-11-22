@@ -14,6 +14,7 @@ public final class OrganTable {
         public Integer minPhase;
         public Double planIntervalDays;
         public int[] maxOrgans;
+        public Integer maxOrgansPerTree, maxSmallPerTree;
         public Double price, growDays, minAgeDays;
         public Integer minDepthChunks, spacingChunks, baseClearChunks, samples, anchorMinChunks, anchorMaxChunks;
         public Double ruinAgeDays;
@@ -68,6 +69,8 @@ public final class OrganTable {
     public final int minPhase;
     public final double planIntervalDays;
     public final int[] maxOrgans;
+    /** 11-22 ユーザー決定「巨大樹 1 つにつき大 1 個、小 2 個まで上限が増える」: 上限 = フェーズの数 + 生きている巨大樹 × これ(難易度の倍率は全体に掛ける)。 */
+    public final int maxOrgansPerTree, maxSmallPerTree;
     public final double price, growDays, minAgeDays;
     public final int minDepthChunks, spacingChunks, baseClearChunks, samples, anchorMinChunks, anchorMaxChunks;
     public final double ruinAgeDays;
@@ -128,6 +131,8 @@ public final class OrganTable {
         minPhase = Math.max(0, or(j.minPhase, 3));
         planIntervalDays = Math.max(0.01D, or(j.planIntervalDays, 0.5D));
         maxOrgans = j.maxOrgans != null && j.maxOrgans.length > 0 ? j.maxOrgans.clone() : new int[]{0, 0, 0, 1, 2, 3, 5, 7, 9, 11, 13};
+        maxOrgansPerTree = Math.max(0, or(j.maxOrgansPerTree, 1));
+        maxSmallPerTree = Math.max(0, or(j.maxSmallPerTree, 2));
         price = Math.max(0.0D, or(j.price, 12000.0D));
         growDays = Math.max(0.01D, or(j.growDays, 3.0D));
         minAgeDays = Math.max(0.0D, or(j.minAgeDays, 3.0D));
@@ -212,6 +217,12 @@ public final class OrganTable {
     /** そのフェーズで生きていてよい小さい版の数。 */
     public int maxSmall(int phase) {
         return (int) Math.round(maxOrgans(phase) * smallMaxFactor);
+    }
+
+    /** 11-22: 器官の数の上限 = フェーズの数(巨大樹の無い序盤の土台)+ 生きている巨大樹 × 1 本あたりの数。難易度の倍率は呼ぶ側で全体に掛ける。 */
+    public int limit(int phase, int livingTrees, boolean small) {
+        int trees = Math.max(0, livingTrees);
+        return small ? maxSmall(phase) + trees * maxSmallPerTree : maxOrgans(phase) + trees * maxOrgansPerTree;
     }
 
     /** 大きさごとの強さの倍率(大きい版 1、小さい版 smallStrength)。 */

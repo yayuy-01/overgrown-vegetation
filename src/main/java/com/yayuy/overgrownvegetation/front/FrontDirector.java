@@ -144,6 +144,7 @@ public final class FrontDirector {
         }
         expand(level, hordes, seconds);
         FrontNurseries.get(level.getServer()).tick(level, hordes);
+        FrontWatchers.get(level.getServer()).tick(level);
         if (replacesOldSpawns(level) && level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes);
         // 空の部隊(実物も残っていない)を片付ける
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
@@ -737,6 +738,7 @@ public final class FrontDirector {
             long cell = cellKey(s.tx(), s.tz());
             int cx = (int) (cell >> 32), cz = (int) cell;
             FrontNurseries.get(level.getServer()).tryMake(level, s, cx, cz); // 11-21 夜: 着いた升に苗床を 1 つ
+            FrontWatchers.get(level.getServer()).tryPlant(level, s, cx, cz); // 11-22: 巨大樹の管理の外なら前線のフィロセンスを 1 体
             CellLife.Result r = CellLife.get().infect(level, cx, cz, s.size(), t.expandIntervalSeconds);
             if (r.gain() > 0.0D) {
                 ForestDirector.get(level).refund(level, r.gain());

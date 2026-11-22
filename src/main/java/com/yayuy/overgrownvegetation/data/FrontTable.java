@@ -15,6 +15,8 @@ public final class FrontTable {
         public int[] unitMaxByPhase;
         public Double producePerFrontPerSecond, reserveIncomeDays, unitTargetPerChunk;
         public Integer unitTargetMin;
+        public Boolean frontWatchersEnabled;
+        public Double frontWatcherSpacingBlocks, frontWatcherVisionBlocks;
         public double[] plantShareByPhase;
         public Double defendShareQuiet, defendShareAttacked, expandShareQuiet;
         public Double attackedLossShare, attackDecayDays;
@@ -55,6 +57,11 @@ public final class FrontTable {
     /** 11-22 ユーザー決定: 樹域ごとの部隊の目標の頭数 = その樹域の過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。届いた樹域は作る・苗床の補充をやめて貯める。係数は【仮】。 */
     public final double unitTargetPerChunk;
     public final int unitTargetMin;
+    /** 11-22 ユーザー決定「巨大樹の管理できていない前線は、フィロセンスをちょっとずつ置いて視界を確保する」: 広げる部隊が管理の外の升に植える。間隔は【仮】。 */
+    public final boolean frontWatchersEnabled;
+    public final double frontWatcherSpacingBlocks;
+    /** 前線のフィロセンスの視界(11-22 ユーザー「見える範囲を 96 ブロックに」【仮】。拠点の見張りは vision.watcherBlocks 48 のまま)。 */
+    public final double frontWatcherVisionBlocks;
     /** 作る中の G2 以降(眷属種・植物種)の割合(F0〜F10。残りは段階 0 の感染 Mob)。 */
     private final double[] plantShareByPhase;
     /** 守りに置く割合(静かな前線・攻められた前線)・静かな前線で広げるに出す割合(残りは襲う = 区切り 3)。 */
@@ -122,6 +129,9 @@ public final class FrontTable {
         reserveIncomeDays = nn(s.reserveIncomeDays, 0.5D);
         unitTargetPerChunk = nn(s.unitTargetPerChunk, 0.2D);
         unitTargetMin = Math.max(0, s.unitTargetMin != null ? s.unitTargetMin : 50);
+        frontWatchersEnabled = s.frontWatchersEnabled == null || s.frontWatchersEnabled;
+        frontWatcherSpacingBlocks = nn(s.frontWatcherSpacingBlocks, 160.0D);
+        frontWatcherVisionBlocks = nn(s.frontWatcherVisionBlocks, 96.0D);
         plantShareByPhase = s.plantShareByPhase != null && s.plantShareByPhase.length > 0 ? s.plantShareByPhase.clone()
                 : new double[]{0.0D, 0.05D, 0.1D, 0.2D, 0.3D, 0.4D, 0.5D, 0.6D, 0.6D, 0.6D, 0.6D};
         defendShareQuiet = Math.min(1.0D, nn(s.defendShareQuiet, 0.4D));

@@ -61,7 +61,7 @@ public final class ForestVision {
                 && (!com.yayuy.overgrownvegetation.front.FrontTrees.visionLimited(level)
                 || com.yayuy.overgrownvegetation.front.FrontTrees.managed(level, pos.getX() + 0.5D, pos.getZ() + 0.5D))) return Why.FOREST;
         if (nearScout(level, pos, t.scoutBlocks)) return Why.SCOUT;
-        if (nearWatcher(level, pos, t.watcherBlocks)) return Why.WATCHER;
+        if (nearWatcher(level, pos, t.watcherBlocks) || com.yayuy.overgrownvegetation.front.FrontWatchers.nearGrown(level, pos, DesignData.front().frontWatcherVisionBlocks)) return Why.WATCHER; // 11-22 前線のフィロセンスも
         if (underLeyLine(level, pos, t)) return Why.LEY;
         return Why.NONE;
     }

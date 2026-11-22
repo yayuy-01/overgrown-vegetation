@@ -54,6 +54,14 @@ public final class OrganPlanner {
      * 1 回考える。芽吹かせたら説明、見送ったら理由を返す(司令塔の直近の一覧へ)。{@code force} を渡すとその種類で
      * (予算・数の上限・フェーズを見ない。確かめ用)。
      */
+    /** 器官の数の上限(11-22 ユーザー決定): (フェーズの数 + 生きている巨大樹 × 大 1・小 2)× MOD の設定「器官の数」の倍率。乗っ取りの器官も数える。 */
+    public static long limit(ServerLevel level, boolean small) {
+        OrganTable t = DesignData.organs();
+        double countFactor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
+        int trees = com.yayuy.overgrownvegetation.phase.PhaseData.get(level).livingGiantTreeCount();
+        return Math.round(t.limit(DirectorGates.phase(level), trees, small) * countFactor);
+    }
+
     @Nullable
     public static String tryPlan(ServerLevel level, RandomSource random, @Nullable OrganKind force, boolean small) {
         OrganTable t = DesignData.organs();
@@ -65,9 +73,8 @@ public final class OrganPlanner {
         }
         ForestOrgans data = ForestOrgans.get(level);
         if (force == null && !com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.on(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGANS)) return null; // 11-19 MOD の設定「器官が生えるか」
-        // MOD の設定「器官の数」(11-19): 上限に倍率を掛ける(減らしても今ある器官は消さない)
-        double countFactor = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(level.getServer(), com.yayuy.overgrownvegetation.difficulty.DifficultySetting.ORGAN_COUNT);
-        if (force == null && data.livingCount(small) >= Math.round((small ? t.maxSmall(phase) : t.maxOrgans(phase)) * countFactor)) return null;
+        // MOD の設定「器官の数」(11-19): 上限に倍率を掛ける(減らしても今ある器官は消さない)。11-22 から上限は巨大樹の数でも増える(limit)
+        if (force == null && data.livingCount(small) >= limit(level, small)) return null;
         double cap = ForestDirector.cap(level);
         OrganKind kind = force != null ? force : pickKind(level, data, random);
         // 11-22 ユーザー決定: 蓄えの嚢は 2 つ目から値段が上がる(今ある嚢 1 つごとに × sacPriceGrowth【仮】)

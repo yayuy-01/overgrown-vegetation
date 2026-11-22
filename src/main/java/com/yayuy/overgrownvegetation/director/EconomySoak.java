@@ -333,7 +333,7 @@ public final class EconomySoak {
                 RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
                 RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
                 decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
-                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + baseStages(level),
+                front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + organLimits(level) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
                 "day,phase,stage,points,overgrownChunks,leyOrgans,giantTrees,hiveNodes,incForest,incLey,incTree,incInfect,refundDeath,refundDespawn,"
@@ -341,7 +341,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,edgeSeenShare,frontWatchers,frontWatchersGrown,frontWatchersReal,frontWatchersKilled,organLimit,organLimitSmall,organsLiving,organsLivingSmall,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
@@ -422,6 +422,14 @@ public final class EconomySoak {
                 if (!pd.isOvergrownKey(ChunkPos.asLong(nx * 4 + 2, nz * 4 + 2))) edgeCells.add(ChunkPos.asLong(nx, nz));
             }
         });
+        // 11-22 縁の升のうち森の視界(ForestVision。森の縁 64・偵察・見張り・前線のフィロセンス・地脈)の中にある割合(多ければ 5000 升まで間引く)
+        int seenStride = Math.max(1, edgeCells.size() / 5000), seenAll = 0, seenIn = 0, idx = 0;
+        for (long c : edgeCells) {
+            if (idx++ % seenStride != 0) continue;
+            seenAll++;
+            if (ForestVision.sees(level, new net.minecraft.core.BlockPos(ChunkPos.getX(c) * 64 + 32, 64, ChunkPos.getZ(c) * 64 + 32))) seenIn++;
+        }
+        String seenShare = seenAll > 0 ? String.format(Locale.ROOT, "%.3f", (double) seenIn / seenAll) : "";
         String median = "", p90 = ""; // 巨大樹が無ければ空(試算と同じ)
         if (n > 0 && !edgeCells.isEmpty()) {
             double[] a = new double[edgeCells.size()];
@@ -441,7 +449,15 @@ public final class EconomySoak {
         }
         int funding = 0;
         for (var s : com.yayuy.overgrownvegetation.front.FrontTrees.get(level.getServer()).sites()) if (s.state() == com.yayuy.overgrownvegetation.front.FrontTrees.State.FUNDING) funding++;
-        return String.format(Locale.ROOT, "%.3f,%s,%s,%d", total[0] > 0 ? (double) managed[0] / total[0] : 0.0D, median, p90, funding);
+        return String.format(Locale.ROOT, "%.3f,%s,%s,%d,%s,%s", total[0] > 0 ? (double) managed[0] / total[0] : 0.0D, median, p90, funding, seenShare,
+                com.yayuy.overgrownvegetation.front.FrontWatchers.stats(level));
+    }
+
+    /** 11-22 器官の数の上限(フェーズの数 + 生きている巨大樹 × 大 1・小 2 × 器官の数の倍率)と、今生きている数(乗っ取りの器官も含む)。 */
+    private static String organLimits(ServerLevel level) {
+        var organs = com.yayuy.overgrownvegetation.organ.ForestOrgans.get(level);
+        return com.yayuy.overgrownvegetation.organ.OrganPlanner.limit(level, false) + "," + com.yayuy.overgrownvegetation.organ.OrganPlanner.limit(level, true) + ","
+                + organs.livingCount(false) + "," + organs.livingCount(true);
     }
 
     private static String baseStages(ServerLevel level) {
