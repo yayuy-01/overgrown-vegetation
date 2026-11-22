@@ -198,6 +198,11 @@ public final class FrontNurseries extends SavedData {
             FrontDirector.nurseryAtTargetSkips++;
             return;
         }
+        // 11-22 ユーザー決定: 全体の頭数が目標の合計の unitGlobalCapShare 倍を超えている間は補充しない
+        if (FrontDirector.overGlobalCap(Fronts.get(level.getServer()))) {
+            FrontDirector.nurseryGlobalCapSkips++;
+            return;
+        }
         EntityType<?> type = FrontDirector.pickType(level, level.getRandom(), DirectorGates.phase(level));
         if (type == null) return;
         boolean g1 = FrontDirector.isG1(type);

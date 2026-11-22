@@ -20,6 +20,7 @@ public final class FrontTable {
         public Double reinforceMaxBlocks, reinforceShare, reinforceReturnDays;
         public Integer reinforceKeepHeads;
         public Double outpostMinTreeBlocks, outpostWitherDepthBlocks, outpostRefundShare;
+        public Double outpostDefendWitherDays, unitGlobalCapShare;
         public Integer outpostAfterInfected, outpostMaxPerCell;
         public Boolean frontWatchersEnabled;
         public Double frontWatcherSpacingBlocks, frontWatcherVisionBlocks;
@@ -76,6 +77,10 @@ public final class FrontTable {
     /** 11-22 ユーザー決定「根付きは広げる部隊の前哨・守りは攻められたときだけ根付く・森に飲み込まれたら枯れて還元」(FrontOutposts)。数は【仮】。 */
     public final double outpostMinTreeBlocks, outpostWitherDepthBlocks, outpostRefundShare;
     public final int outpostAfterInfected, outpostMaxPerCell;
+    /** 11-22 見直し・ユーザー決定: 守りの根付きは森に飲み込まれても枯れず、その樹域が outpostDefendWitherDays【仮】攻められなかったら枯れて値段の outpostRefundShare を返す。 */
+    public final double outpostDefendWitherDays;
+    /** 11-22 ユーザー決定: 全体の頭数(全部の樹域の守る + 広げる)が目標の合計の unitGlobalCapShare【仮 1.3】倍を超えている間は、どの樹域も部隊を作らず、現地の苗床も補充しない(0 で切る)。 */
+    public final double unitGlobalCapShare;
     /** 11-22 ユーザー決定「巨大樹の管理できていない前線は、フィロセンスをちょっとずつ置いて視界を確保する」: 広げる部隊が管理の外の升に植える。間隔は【仮】。 */
     public final boolean frontWatchersEnabled;
     public final double frontWatcherSpacingBlocks;
@@ -161,6 +166,8 @@ public final class FrontTable {
         outpostMaxPerCell = Math.max(0, s.outpostMaxPerCell != null ? s.outpostMaxPerCell : 4);
         outpostWitherDepthBlocks = nn(s.outpostWitherDepthBlocks, 128.0D);
         outpostRefundShare = Math.max(0.0D, Math.min(1.0D, nn(s.outpostRefundShare, 0.5D)));
+        outpostDefendWitherDays = Math.max(0.0D, nn(s.outpostDefendWitherDays, 2.0D));
+        unitGlobalCapShare = Math.max(0.0D, nn(s.unitGlobalCapShare, 1.3D));
         frontWatchersEnabled = s.frontWatchersEnabled == null || s.frontWatchersEnabled;
         frontWatcherSpacingBlocks = nn(s.frontWatcherSpacingBlocks, 160.0D);
         frontWatcherVisionBlocks = nn(s.frontWatcherVisionBlocks, 96.0D);

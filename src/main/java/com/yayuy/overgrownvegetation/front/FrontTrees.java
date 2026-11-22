@@ -194,11 +194,11 @@ public final class FrontTrees extends SavedData {
     public static int livingTreeCount(ServerLevel level) {
         PhaseData pd = PhaseData.get(level);
         int n = pd.livingGiantTreeCount();
-        long[] origins = pd.giantTreeOriginSnapshot();
+        // 11-22 見直し: 置く待ちの巨大樹が、倒された巨大樹と同じ根元に建て直す途中なら数える(生きている根元とだけ比べる)。比べは集合で
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet living = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        for (long o : pd.giantTreeOriginSnapshot()) if (!pd.isGiantTreeDead(o)) living.add(o);
         for (long k : pendingTreeKeys(level)) {
-            boolean placed = false;
-            for (long o : origins) if (o == k) { placed = true; break; }
-            if (!placed) n++;
+            if (!living.contains(k)) n++;
         }
         return n;
     }

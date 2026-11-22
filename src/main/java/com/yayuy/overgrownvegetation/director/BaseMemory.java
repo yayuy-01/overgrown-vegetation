@@ -757,6 +757,13 @@ public final class BaseMemory extends SavedData {
         setDirty();
     }
 
+    /** 11-22 見直し: 終えた貯めを戻す(襲撃を起こしたが樹域から 1 体も出せずに試し直すとき。財布はそのまま)。 */
+    public void restoreSaving(Base b, double start) {
+        if (Double.isNaN(start)) return;
+        b.saveStart = start;
+        setDirty();
+    }
+
     /** 財布へ足す(足した日を day に)。 */
     public void addPurse(Base b, double amount, double day) {
         b.purse = Math.max(0.0D, b.purse + Math.max(0.0D, amount));

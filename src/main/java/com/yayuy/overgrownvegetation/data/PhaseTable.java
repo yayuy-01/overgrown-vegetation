@@ -511,8 +511,11 @@ public final class PhaseTable {
         //   (前の値 2026-09-28: 263000 / 696000 / 1421000 / 2452000 / 26329000 / 67841000 / 55816000 / 73784000 / 94305000)
         //   11-18 夜 ユーザー決定でフェーズの長さを役割で変えた(F1・F2 1〜3 日・F3 3〜5・F4 6〜8・F5 10〜20・F6 3〜6・F7 10〜20)。
         //   下はその真ん中(2・2・4・7・15・4.5・F7 15)に合わせて、同じ計測から出し直した値【仮】(上の 75 日の表と値は前のもの)。
-        long[] pointsToAdvance = {0, 0, 22_000L, 90_000L, 700_000L, 5_200_000L, 56_000_000L, 36_000_000L,
-                216_000_000L, 285_000_000L, 365_000_000L};
+        //   11-22 C-1(ユーザー決定「閾値を上げる」): design の phases.json と同じ値に揃えた(器官の点・phaseSpend 入りの試算で各フェーズの長さが targetDays の真ん中)。
+        long[] pointsToAdvance = {0, 0, 52_000L, 5_300_000L, 40_000_000L, 140_000_000L, 700_000_000L, 380_000_000L,
+                1_600_000_000L, 2_100_000_000L, 2_700_000_000L};
+        // 11-22 C-1: フェーズごとの段の区切り(establishedFrom, peakFrom)。phases.json と同じ。F8 以降は global の 1/3・2/3
+        double[][] stageFrom = {null, {0.07D, 0.18D}, {0.20D, 0.59D}, {0.26D, 0.58D}, {0.25D, 0.59D}, {0.22D, 0.55D}, {0.31D, 0.60D}, {0.28D, 0.61D}, null, null, null};
         // ふつうの広さ(今の過繁茂のチャンク数。司令塔のバイオマスの物差し)。2026-11-14 夜の計測(感染の入ったビルド・プレイヤーは汚染のそば・
         // フェーズは日数の表どおり)の、各フェーズの真ん中の日の台帳。F1・F2 は実測、F3 から先は伸び方からの見積もり【仮】。F8〜F10 は F7 と同じ【仮】。
         // 11-18 夜: 新しいフェーズの長さの真ん中の日の台帳に直した【仮】。
@@ -523,6 +526,12 @@ public final class PhaseTable {
             Phase p = new Phase();
             p.pointsToAdvance = pointsToAdvance[n] > 0 ? Long.valueOf(pointsToAdvance[n]) : null;
             p.normalArea = normalArea[n];
+            if (stageFrom[n] != null) {
+                Stages ps = new Stages();
+                ps.establishedFrom = stageFrom[n][0];
+                ps.peakFrom = stageFrom[n][1];
+                p.stages = ps;
+            }
 
             p.notes = "";
             j.phases.put(String.valueOf(n), p);

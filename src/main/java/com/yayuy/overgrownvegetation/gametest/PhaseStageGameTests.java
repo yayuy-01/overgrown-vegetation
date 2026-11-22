@@ -95,7 +95,7 @@ public final class PhaseStageGameTests {
         three.stages.peakFrom = 0.8D;
         j.phases.put("3", three);
         PhaseTable t = PhaseTable.fromJson(j);
-        helper.assertTrue(t.stageFrom(2, PhaseStage.ESTABLISHED) == 0.5D, "global の establishedFrom: " + t.stageFrom(2, PhaseStage.ESTABLISHED));
+        helper.assertTrue(t.stageFrom(9, PhaseStage.ESTABLISHED) == 0.5D, "global の establishedFrom(既定にフェーズの区切りが無い F9): " + t.stageFrom(9, PhaseStage.ESTABLISHED));
         helper.assertTrue(t.stageMultiplier(2, PhaseStage.PEAK) == 0.9D, "global の peak");
         helper.assertTrue(t.stageMultiplier(3, PhaseStage.INTRO) == 0.11D, "フェーズ 3 の intro の上書き");
         helper.assertTrue(t.stageMultiplier(3, PhaseStage.PEAK) == 0.9D, "フェーズ 3 の書いていない peak は global");

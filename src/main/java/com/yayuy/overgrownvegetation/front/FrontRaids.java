@@ -110,6 +110,11 @@ public final class FrontRaids extends SavedData {
     /** 拠点の id → 続けて出せなかった回数(保存しない。11-22)。 */
     private static final Map<Integer, Integer> RETRIES = new HashMap<>();
 
+    /** 11-22 見直し: サーバーが止まったら消す(拠点の番号は別のワールドで使い回される)。 */
+    static void clearStatics() {
+        RETRIES.clear();
+    }
+
     /**
      * 送り込み・貯めた襲撃が 1 体も出せなかったら、送ったと数えず raidRetryDays 日後に試し直す(raidRetryMax 回まで。11-22 全体管理了承)。
      * 試し直すなら true(呼ぶ側は送ったと数えない)。出せた・回数を超えたら false。

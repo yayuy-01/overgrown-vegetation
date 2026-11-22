@@ -609,14 +609,28 @@ public final class FrontUnitGameTests {
                 }
             }
             ResourceLocation type = zombie();
-            outposts.addForTests(44_000_008, 44_000_008, 0, type, 1000.0D); // 森の真ん中
-            outposts.addForTests((c0 + r) * 16 + 8, 44_000_008, 0, type, 1000.0D); // 森の縁
+            var EXPAND = com.yayuy.overgrownvegetation.front.FrontOutposts.Kind.EXPAND;
+            var DEFEND = com.yayuy.overgrownvegetation.front.FrontOutposts.Kind.DEFEND;
+            long now = level.getGameTime();
+            long wait = (long) (t.outpostDefendWitherDays * 24000.0D);
+            int fid = 770_001;
+            outposts.addForTests(44_000_008, 44_000_008, 0, type, 1000.0D, EXPAND, now); // 森の真ん中
+            outposts.addForTests((c0 + r) * 16 + 8, 44_000_008, 0, type, 1000.0D, EXPAND, now); // 森の縁
+            // 11-22 見直し: 守りの根付きは森の真ん中でも、樹域が最近攻められていれば枯れない
+            outposts.addForTests(44_000_010, 44_000_010, fid, type, 800.0D, DEFEND, now - wait - 10);
+            FrontDirector.markAttackedForTests(fid, now);
             d.setBudget(level, 0.0D);
             long before = com.yayuy.overgrownvegetation.front.FrontOutposts.withered;
             double back = outposts.witherSwallowed(level);
-            helper.assertTrue(com.yayuy.overgrownvegetation.front.FrontOutposts.withered - before == 1 && outposts.posts().size() == 1, "飲み込まれた前哨だけが枯れていない: 残り " + outposts.posts().size());
+            helper.assertTrue(com.yayuy.overgrownvegetation.front.FrontOutposts.withered - before == 1 && outposts.posts().size() == 2, "飲み込まれた広げる前哨だけが枯れていない: 残り " + outposts.posts().size());
+            helper.assertTrue(outposts.posts().stream().anyMatch(p -> p.kind() == DEFEND), "守りの根付きが森の奥ですぐ枯れた");
             helper.assertTrue(Math.abs(back - 1000.0D * t.outpostRefundShare) < 1.0E-6D, "返した額が違う: " + back);
             helper.assertTrue(d.available(level) >= back - 1.0E-6D, "森の稼ぎへ返っていない: " + d.available(level));
+            // 攻められなくなって outpostDefendWitherDays たった: 守りの根付きも枯れて半分を返す
+            FrontDirector.markAttackedForTests(fid, now - wait - 1);
+            double back2 = outposts.witherSwallowed(level);
+            helper.assertTrue(outposts.posts().size() == 1 && outposts.posts().get(0).kind() == EXPAND, "攻められなくなった守りの根付きが枯れない: 残り " + outposts.posts().size());
+            helper.assertTrue(Math.abs(back2 - 800.0D * t.outpostRefundShare) < 1.0E-6D, "守りの根付きの返した額が違う: " + back2);
             var again = com.yayuy.overgrownvegetation.front.FrontOutposts.load(outposts.save(new CompoundTag(), level.registryAccess()));
             helper.assertTrue(again.posts().size() == 1 && again.posts().get(0).x() == (c0 + r) * 16 + 8, "読み直すと消える");
             helper.succeed();
@@ -624,6 +638,7 @@ public final class FrontUnitGameTests {
             for (var cp : marked) pd.forgetOvergrownChunk(cp);
             outposts.clearForTests();
             outposts.posts().addAll(keep);
+            FrontDirector.clearCountsForTests();
             d.setBudget(level, budget);
         }
     }
@@ -711,6 +726,161 @@ public final class FrontUnitGameTests {
             CellLife.register(null);
             for (net.minecraft.world.level.ChunkPos c : marked) pd.forgetOvergrownChunk(c);
             fronts.fronts().remove(f);
+        }
+    }
+
+    /** 11-22 見直し: 樹域の数え直しの「いちばん近い樹域」は、升の索引で引いても総当たりと同じ(同じ距離は一覧の前の方)。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void territoryIndexMatchesBruteForce(GameTestHelper helper) {
+        java.util.Random rnd = new java.util.Random(12345L);
+        for (int round = 0; round < 6; round++) {
+            int n = round == 0 ? 1 : round * 40;
+            double spread = round % 2 == 0 ? 30_000.0D : 3_000.0D;
+            double[] xs = new double[n], zs = new double[n];
+            for (int i = 0; i < n; i++) {
+                if (i > 0 && rnd.nextInt(8) == 0) { // 同じ所の樹域(同じ距離)
+                    xs[i] = xs[i - 1];
+                    zs[i] = zs[i - 1];
+                } else {
+                    xs[i] = Math.floor((rnd.nextDouble() - 0.5D) * spread) + 0.5D;
+                    zs[i] = Math.floor((rnd.nextDouble() - 0.5D) * spread) + 0.5D;
+                }
+            }
+            FrontDirector.NearestIndex index = new FrontDirector.NearestIndex(xs, zs);
+            for (int q = 0; q < 5000; q++) {
+                double x = (rnd.nextInt(8000) - 4000) * 16.0D + 8.0D, z = (rnd.nextInt(8000) - 4000) * 16.0D + 8.0D; // 遠い所も
+                if (q % 2 == 0) {
+                    x = Math.floor(((rnd.nextDouble() - 0.5D) * spread) / 16.0D) * 16.0D + 8.0D;
+                    z = Math.floor(((rnd.nextDouble() - 0.5D) * spread) / 16.0D) * 16.0D + 8.0D;
+                }
+                int a = index.nearest(x, z), b = FrontDirector.NearestIndex.brute(xs, zs, x, z);
+                if (a != b) {
+                    helper.fail("索引と総当たりが違う: 樹域 " + n + "・(" + x + ", " + z + ") 索引 " + a + " 総当たり " + b);
+                    return;
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /** 11-22 見直し・ユーザー決定: 前哨と前線のフィロセンスは、実物が立っていなくても いつも維持費に数える。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void outpostsAndWatchersAlwaysPayUpkeep(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var outposts = com.yayuy.overgrownvegetation.front.FrontOutposts.get(level.getServer());
+        var watchers = com.yayuy.overgrownvegetation.front.FrontWatchers.get(level.getServer());
+        var keepO = new ArrayList<>(outposts.posts());
+        var keepW = new ArrayList<>(watchers.sites());
+        try {
+            outposts.clearForTests();
+            watchers.sites().clear();
+            ForestUpkeep.invalidate();
+            double before = ForestUpkeep.priceInForest(level) + ForestUpkeep.priceOutside(level);
+            outposts.addForTests(45_000_008, 45_000_008, 0, zombie(), 1234.0D); // 読み込まれていない所(記録だけ)
+            watchers.addForTests(45_000_200, 45_000_008, 0);
+            ForestUpkeep.invalidate();
+            double after = ForestUpkeep.priceInForest(level) + ForestUpkeep.priceOutside(level);
+            double want = 1234.0D + com.yayuy.overgrownvegetation.front.FrontWatchers.price();
+            helper.assertTrue(Math.abs(after - before - want) < 1.0E-6D, "前哨・フィロセンスの記録が維持費に入らない: 差 " + (after - before) + "(欲しい " + want + ")");
+            helper.succeed();
+        } finally {
+            outposts.clearForTests();
+            outposts.posts().addAll(keepO);
+            watchers.sites().clear();
+            watchers.sites().addAll(keepW);
+            ForestUpkeep.invalidate();
+        }
+    }
+
+    /** 11-22 ユーザー決定: 全体の頭数が目標の合計の unitGlobalCapShare 倍を超えている間は、目標に届いていない樹域も作らない。下がれば作る。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void globalHeadCapStopsAllProduction(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ForestDirector d = ForestDirector.get(level);
+        Double income = ForestEconomy.incomeOverride();
+        double budget = d.available(level);
+        Integer phase = DirectorGates.phaseOverride();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            var t = DesignData.front();
+            if (t.unitGlobalCapShare <= 0.0D) {
+                helper.succeed(); // 全体の上限を切った構成
+                return;
+            }
+            DirectorGates.setPhaseForTests(3);
+            ForestEconomy.setIncomeForTests(1.0E7D);
+            ForestUpkeep.setSampleForTests(0.0D, 0.0D);
+            d.setBudget(level, 1.0E12D);
+            Fronts.Front a = fronts.addSourceForTests(46_000_000.5D, 46_000_000.5D);
+            Fronts.Front b = fronts.addSourceForTests(46_000_300.5D, 46_000_000.5D);
+            int chunks = 1000;
+            FrontDirector.setCountsForTests(a.id(), chunks, 0);
+            FrontDirector.setCountsForTests(b.id(), chunks, 0);
+            int target = FrontDirector.target(a.id());
+            int over = (int) Math.ceil(2 * target * t.unitGlobalCapShare) + 10; // a だけで全体の上限を超える
+            FrontDirector.setCountsForTests(a.id(), chunks, over);
+            long skips = FrontDirector.globalCapSkips;
+            for (int i = 0; i < 30; i++) FrontDirector.produce(level, fronts, h, b, 1.0D);
+            int made = 0;
+            for (VirtualHordes.Swarm s : h.swarms()) made += s.size();
+            helper.assertTrue(made == 0 && FrontDirector.globalCapSkips > skips, "全体の上限を超えているのに作った: " + made);
+            helper.assertTrue(FrontDirector.overGlobalCap(fronts), "全体の割合の判定が違う: " + FrontDirector.globalRatio(fronts));
+            FrontDirector.setCountsForTests(a.id(), chunks, target); // 全体 = 目標の半分
+            for (int i = 0; i < 30; i++) FrontDirector.produce(level, fronts, h, b, 1.0D);
+            made = 0;
+            for (VirtualHordes.Swarm s : h.swarms()) made += s.size();
+            helper.assertTrue(made > 0, "全体の上限の下なのに足りない樹域が作らない");
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
+            ForestUpkeep.setSampleForTests(null, null);
+            ForestEconomy.setIncomeForTests(income);
+            DirectorGates.setPhaseForTests(phase);
+            d.setBudget(level, budget);
+        }
+    }
+
+    /** 11-22 ユーザー決定: 広げる部隊が感染させた分は、まず rebalanceMaxBlocks の中の目標に届いていない樹域へ回し、無ければ今の部隊に入れる。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void infectedHeadsGoToShortTerritory(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Fronts fronts = Fronts.load(new CompoundTag());
+        VirtualHordes h = VirtualHordes.load(new CompoundTag());
+        try {
+            var t = DesignData.front();
+            double x0 = 47_000_000.5D;
+            Fronts.Front a = fronts.addSourceForTests(x0, x0);
+            Fronts.Front b = fronts.addSourceForTests(x0 + 300.0D, x0); // 近い・足りない
+            Fronts.Front far = fronts.addSourceForTests(x0 + t.rebalanceMaxBlocks + 2000.0D, x0); // 遠い・足りない
+            int chunks = 1000;
+            FrontDirector.setCountsForTests(a.id(), chunks, 0);
+            int target = FrontDirector.target(a.id());
+            FrontDirector.setCountsForTests(a.id(), chunks, target); // 自分は届いている
+            FrontDirector.setCountsForTests(b.id(), chunks, target - 5);
+            FrontDirector.setCountsForTests(far.id(), chunks, 0);
+            VirtualHordes.Swarm s = h.newUnit(x0 + 100.0D, 64, x0, a.id(), UnitPurpose.EXPAND, level.getGameTime());
+            s.addHeads(zombie(), 10, 0.0D);
+            List<ResourceLocation> got = new ArrayList<>();
+            for (int i = 0; i < 8; i++) got.add(zombie());
+            int kept = FrontDirector.routeInfectedForTests(level, fronts, h, s, got);
+            int toB = 0, toFar = 0;
+            for (VirtualHordes.Swarm u : h.swarms()) {
+                if (u == s) continue;
+                if (u.front() == b.id() && u.purpose() == UnitPurpose.DEFEND) toB += u.size();
+                if (u.front() == far.id()) toFar += u.size();
+            }
+            helper.assertTrue(toB == 5 && toFar == 0, "足りない樹域へ回した数が違う: 近い " + toB + "・遠い " + toFar);
+            helper.assertTrue(kept == 3 && s.size() == 13, "残りが今の部隊に入らない: 残した " + kept + "・部隊 " + s.size());
+            helper.assertTrue(FrontDirector.heads(b.id()) == target && FrontDirector.heads(a.id()) == target + 3, "頭数の数えが違う");
+            // 近くに足りない樹域が無い: 全部いまの部隊へ
+            List<ResourceLocation> more = new ArrayList<>();
+            for (int i = 0; i < 4; i++) more.add(zombie());
+            int kept2 = FrontDirector.routeInfectedForTests(level, fronts, h, s, more);
+            helper.assertTrue(kept2 == 4 && s.size() == 17, "足りない樹域が無いのに今の部隊に入らない: " + kept2 + "・部隊 " + s.size());
+            helper.succeed();
+        } finally {
+            FrontDirector.clearCountsForTests();
         }
     }
 }

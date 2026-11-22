@@ -20,7 +20,11 @@ import java.util.List;
 public final class Fronts extends SavedData {
 
     public static final String ID = OvergrownVegetation.MODID + "_fronts";
-    public static final SavedData.Factory<Fronts> FACTORY = new SavedData.Factory<>(Fronts::new, (tag, registries) -> load(tag), null);
+    public static final SavedData.Factory<Fronts> FACTORY = new SavedData.Factory<>(Fronts::new, (tag, registries) -> {
+        Fronts f = load(tag);
+        FrontDirector.loadState(tag); // 11-22 見直し: 駆けつけの記録と攻められた tick(テストの Fronts.load では読まない)
+        return f;
+    }, null);
 
     /** 前線の種類。 */
     public enum Kind {
@@ -167,6 +171,7 @@ public final class Fronts extends SavedData {
         }
         tag.put("Fronts", list);
         tag.putInt("NextId", nextId);
+        FrontDirector.saveState(tag);
         return tag;
     }
 

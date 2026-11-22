@@ -226,7 +226,7 @@ public final class ForestAwareness {
         if (a == null) return;
         State st = STATES.computeIfAbsent(p.getUUID(), u -> new State());
         long now = p.level().getGameTime();
-        if (now - st.lastHitTick < 10L) return;
+        if (st.lastHitTick != Long.MIN_VALUE && now - st.lastHitTick < 10L) return; // 11-22 見直し: MIN_VALUE との引き算はあふれて負になり、最初の 1 回が通らなかった
         st.lastHitTick = now;
         add(p, a, 1.0D);
     }

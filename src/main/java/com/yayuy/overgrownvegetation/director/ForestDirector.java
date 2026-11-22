@@ -192,11 +192,22 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     }
 
     /** 貯蓄の上限 = 基礎値 + (生きている巨大樹 + 蓄えの嚢の換算) × capPerHiveNode(11-22)。貯める・大きな襲撃の間は倍にする。 */
+    private static long capNodesAt = Long.MIN_VALUE;
+    private static int capNodesLevel;
+    private static double capNodes;
+
     public static double cap(ServerLevel level) {
         // 11-22 ユーザー決定: 上限 = 基礎値 + ハイヴノード × a + 蓄えの嚢(ハイヴノード sacHiveNodes 個分。11-17)× a。1 日の稼ぎには比例しない
         // ハイヴノードは「生きている巨大樹の数」で数える(仕様の「巨大樹 1 本 = ハイヴノード 1 つ」。記録されたノードは読み込まれた所でしか増えないため。11-22 全体管理了承)
-        double base = DesignData.director().cap(com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level)
-                + com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level));
+        // 11-22 見直し: 巨大樹と嚢の数え(上限は 1 tick に何百回も聞かれる)は同じ tick の中は覚えておく(GameTest のサーバーでは毎回数える)
+        long now = level.getGameTime();
+        boolean test = level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer;
+        if (test || now != capNodesAt || capNodesLevel != System.identityHashCode(level)) {
+            capNodes = com.yayuy.overgrownvegetation.front.FrontTrees.livingTreeCount(level) + com.yayuy.overgrownvegetation.organ.OrganWorld.sacHiveEquivalent(level);
+            capNodesAt = now;
+            capNodesLevel = System.identityHashCode(level);
+        }
+        double base = DesignData.director().cap(capNodes);
         // MOD の設定「森の予算の上限」(11-19。難易度の段で変わる)。収入の倍率は accrue で掛けるので、ここは上限の倍率だけ
         base *= com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.forestCap(level.getServer());
         // 貯める間は上限を上げる(第 3 段「貯めて一気に使う」)
@@ -482,7 +493,11 @@ public final class ForestDirector extends SavedData implements ForestBudget {
     @Override
     public void refund(ServerLevel level, double amount) {
         accrue(level);
-        budget = Math.min(Math.max(budget, cap(level)), budget + Math.max(0.0D, amount));
+        // 11-22 見直し: 上限を超えた分は捨てずに、あふれ(胞子)へ回す(accrue と同じ扱い)
+        double c = cap(level), before = budget, add = Math.max(0.0D, amount);
+        budget = Math.min(Math.max(budget, c), budget + add);
+        double over = before + add - budget;
+        if (over > 1.0E-9D) StorageOverflow.add(over);
         setDirty();
     }
 

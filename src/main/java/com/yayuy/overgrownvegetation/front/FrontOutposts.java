@@ -48,7 +48,7 @@ import java.util.UUID;
  *   outpostAfterInfected【仮】たまったら、升 1 つに outpostMaxPerCell【仮】まで根付きに変える。現地の苗床が萌芽体を生むまでの守りと周りの汚染の受け持ち。</li>
  *   <li>守りの根付き: ふだんは根付かない。樹域が攻められた(attacked)ときだけ、持ち場に着いた守りの段階 0 を rootedPerUnit ずつ・部隊の rootedMaxShare まで(【仮】)。</li>
  *   <li>読み込まれていない所は記録だけ。読み込まれたら実物を立てる(前線のフィロセンスと同じ)。実物が倒されたら記録ごと消える。</li>
- *   <li>森に飲み込まれたら枯れる: まわり outpostWitherDepthBlocks【仮】に森でないチャンクが無くなったら、根付きの値段の outpostRefundShare【仮】を森の稼ぎへ返して消える。</li>
+ *   <li>森に飲み込まれたら枯れる: まわり outpostWitherDepthBlocks【仮】に森でないチャンクが無くなったら、根付きの値段の outpostRefundShare【仮】を森の稼ぎへ返して消える。守りの根付きは飲み込まれても枯れず、樹域が outpostDefendWitherDays【仮】攻められなかったら枯れて返す(11-22 見直し)。</li>
  *   <li>値段は根付きの姿の値段 − 段階 0(今までの根付きと同じ。取り置きを残して払う)。重砲兵(根付きの第二進化体)はまだ入れない。</li>
  * </ul>
  */
@@ -74,6 +74,8 @@ public final class FrontOutposts extends SavedData {
         final long cell;
         final long at;
         UUID real;
+        /** 読み込まれているのに実物が見つからなかった秒(保存しない)。 */
+        int miss;
 
         Post(int id, int x, int z, int front, ResourceLocation type, double price, Kind kind, long unit, long cell, long at) {
             this.id = id;
@@ -114,8 +116,18 @@ public final class FrontOutposts extends SavedData {
     private int nextId = 1;
     /** 広げる部隊の id → 行進の間に取り込んだ(まだ根付きにしていない)生き物の数。起動し直すと消える。 */
     private static final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap INFECTED = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
-    public static long rootedExpand, rootedDefend, rootedMoved, withered, killed;
+    public static long rootedExpand, rootedDefend, rootedMoved, withered, witheredDefend, killed, realLost;
     public static double paid, refunded;
+    /** 実物が見つからないまま待つ秒(1 秒ごとに数える)。 */
+    static final int REAL_MISS_SECONDS = 10;
+
+    static {
+        // 11-22 見直し・ユーザー決定: 前哨は実物が立っていなくても、いつも維持費に数える(実物は ForestUpkeep.sampleLoaded で数えない)
+        ForestUpkeep.addFeed((level, sink) -> {
+            if (level.getServer() == null || level.dimension() != Level.OVERWORLD) return;
+            for (Post p : get(level.getServer()).posts) sink.add(p.price, com.yayuy.overgrownvegetation.director.ForestEconomy.inForest(level, p.x, p.z));
+        });
+    }
 
     public static FrontOutposts get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
@@ -128,6 +140,11 @@ public final class FrontOutposts extends SavedData {
     /** 広げる部隊が生き物を取り込んだ(FrontDirector.addInfected から)。 */
     public static void noteInfected(long unit, int n) {
         if (n > 0) INFECTED.addTo(unit, n);
+    }
+
+    /** 11-22 見直し: サーバーが止まったら消す。 */
+    static void clearStatics() {
+        INFECTED.clear();
     }
 
     public static int infectedOf(long unit) {
@@ -196,7 +213,10 @@ public final class FrontOutposts extends SavedData {
             if (rType == null) continue;
             while (done < room && s.counts().getOrDefault(e.getKey(), 0) > 0) {
                 double cost = payRooting(level, rType);
-                if (cost < 0.0D) return done;
+                if (cost < 0.0D) {
+                    room = done; // 11-22 見直し: 払えなければ止める(return せず、根付かせた分を INFECTED と touch に反映する)
+                    break;
+                }
                 s.takeHeadsOf(e.getKey(), 1);
                 int x = Mth.floor(cx) + random.nextInt(25) - 12, z = Mth.floor(cz) + random.nextInt(25) - 12;
                 add(x, z, s.front(), BuiltInRegistries.ENTITY_TYPE.getKey(rType), ForestUpkeep.unitPrice(rType, false), Kind.EXPAND, s.id(), cell, now);
@@ -221,19 +241,25 @@ public final class FrontOutposts extends SavedData {
         RandomSource random = level.getRandom();
         long now = level.getGameTime();
         int total = 0;
+        boolean broke = false;
         for (VirtualHordes.Swarm s : hordes.swarms()) {
+            if (broke) break;
             if (s.front() != f.id || s.purpose() != UnitPurpose.DEFEND || !s.arrived() || s.size() <= 0) continue;
+            if (FrontDirector.reinforcing(s.id())) continue; // 11-22 見直し: 駆けつけた予備は元の樹域の部隊。駆けつけた先の縁で根付かせない
             if (FrontDirector.atFormingSpot(level, f, s.x(), s.z())) continue; // 作る途中の部隊(前線の真ん中)は根付かせない
             int from = countFrom(s.id());
             int max = (int) Math.floor(t.rootedMaxShare * (s.size() + from));
             int done = 0;
             for (var e : new ArrayList<>(s.counts().entrySet())) {
-                if (done >= t.rootedPerUnit || from + done >= max) break;
+                if (broke || done >= t.rootedPerUnit || from + done >= max) break;
                 EntityType<?> rType = rootedOf(e.getKey());
                 if (rType == null) continue;
                 while (done < t.rootedPerUnit && from + done < max && s.counts().getOrDefault(e.getKey(), 0) > 0) {
                     double cost = payRooting(level, rType);
-                    if (cost < 0.0D) return total + done;
+                    if (cost < 0.0D) {
+                        broke = true; // 11-22 見直し: 払えなければ止める(return せず、touch する)
+                        break;
+                    }
                     s.takeHeadsOf(e.getKey(), 1);
                     int x = Mth.floor(s.x()) + random.nextInt(13) - 6, z = Mth.floor(s.z()) + random.nextInt(13) - 6;
                     add(x, z, f.id, BuiltInRegistries.ENTITY_TYPE.getKey(rType), ForestUpkeep.unitPrice(rType, false), Kind.DEFEND, s.id(), Long.MIN_VALUE, now);
@@ -274,8 +300,19 @@ public final class FrontOutposts extends SavedData {
 
     /** 読み込まれていれば実物を立てる(倒されたら記録ごと消える)。 */
     void ensureReal(ServerLevel level, Post p) {
-        if (p.real != null) return;
         if (level.getChunkSource().getChunkNow(p.x >> 4, p.z >> 4) == null || !level.isPositionEntityTicking(new BlockPos(p.x, 64, p.z))) return;
+        if (p.real != null) {
+            // 11-22 見直し: 読み込まれているのに実物が REAL_MISS_SECONDS 続けて見つからない(倒されずに消えた)なら、立て直す
+            if (level.getEntity(p.real) != null) {
+                p.miss = 0;
+                return;
+            }
+            if (++p.miss < REAL_MISS_SECONDS) return;
+            p.miss = 0;
+            p.real = null;
+            realLost++;
+            setDirty();
+        }
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(p.type);
         BlockPos feet = com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.findSpawnSurface(level, p.x, p.z);
         if (feet == null) return;
@@ -299,9 +336,16 @@ public final class FrontOutposts extends SavedData {
         int r = Math.max(1, (int) Math.ceil(t.outpostWitherDepthBlocks / 16.0D));
         double back = 0.0D;
         int gone = 0;
+        long now = level.getGameTime();
+        long wait = (long) (t.outpostDefendWitherDays * 24000.0D);
         for (java.util.Iterator<Post> it = posts.iterator(); it.hasNext(); ) {
             Post p = it.next();
-            if (!swallowed(pd, p.x >> 4, p.z >> 4, r)) continue;
+            if (p.kind == Kind.DEFEND) {
+                // 11-22 見直し・ユーザー決定: 守りの根付きは飲み込まれても枯れない。樹域が outpostDefendWitherDays 攻められなかったら枯れる
+                long last = Math.max(p.at, FrontDirector.lastAttacked(p.front));
+                if (now - last < wait) continue;
+                witheredDefend++;
+            } else if (!swallowed(pd, p.x >> 4, p.z >> 4, r)) continue;
             double v = p.price * t.outpostRefundShare;
             if (v > 0.0D) ForestDirector.get(level).refund(level, v);
             back += v;
@@ -355,7 +399,9 @@ public final class FrontOutposts extends SavedData {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD || !event.loadedFromDisk()) return;
         Entity e = event.getEntity();
         if (!e.getPersistentData().contains(KEY)) return;
-        if (get(level.getServer()).byId(e.getPersistentData().getInt(KEY)) == null) event.setCanceled(true);
+        Post p = get(level.getServer()).byId(e.getPersistentData().getInt(KEY));
+        // 11-22 見直し: 立て直した後に古い実物が読み込まれたら消す(記録の実物と違う)
+        if (p == null || (p.real != null && !p.real.equals(e.getUUID()))) event.setCanceled(true);
     }
 
     /** 計測の CSV 用: 前哨の数・広げる部隊の前哨・守りの根付き・実物・根付いた数(広げる・守り・前の部隊から移した)・枯れた・倒された・返した額(累計)。 */
@@ -385,6 +431,10 @@ public final class FrontOutposts extends SavedData {
 
     public Post addForTests(int x, int z, int front, ResourceLocation type, double price) {
         return add(x, z, front, type, price, Kind.DEFEND, -1L, Long.MIN_VALUE, 0L);
+    }
+
+    public Post addForTests(int x, int z, int front, ResourceLocation type, double price, Kind kind, long at) {
+        return add(x, z, front, type, price, kind, -1L, Long.MIN_VALUE, at);
     }
 
     @Override

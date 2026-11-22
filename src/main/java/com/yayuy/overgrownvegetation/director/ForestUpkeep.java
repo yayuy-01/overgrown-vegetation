@@ -179,6 +179,8 @@ public final class ForestUpkeep {
         if (level.dimension() != Level.OVERWORLD) return;
         for (Entity e : level.getAllEntities()) {
             if (!(e instanceof Mob m) || !m.isAlive()) continue;
+            // 11-22 見直し: 前哨と前線のフィロセンスは記録の方で いつも数える(実物は二重に数えない)
+            if (m.getPersistentData().contains(com.yayuy.overgrownvegetation.front.FrontOutposts.KEY) || m.getPersistentData().contains(com.yayuy.overgrownvegetation.front.FrontWatchers.KEY)) continue;
             double p = unitPrice(m);
             if (p <= 0.0D) continue;
             sink.add(p, ForestEconomy.inForest(level, m.getX(), m.getZ()));

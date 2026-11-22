@@ -235,7 +235,11 @@ public final class FrontDirector {
         LivingEntity e = event.getEntity();
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         if (!e.getPersistentData().contains(VirtualHordes.UNIT_KEY)) return;
-        Fronts.Front f = Fronts.get(level.getServer()).byId(e.getPersistentData().getInt(VirtualHordes.FRONT_KEY));
+        int fid = e.getPersistentData().getInt(VirtualHordes.FRONT_KEY);
+        // 11-22 見直し: 駆けつけた予備が倒されたら、駆けつけた先の樹域が攻められたと数える(元の内側の樹域ではなく)
+        int[] r = REINFORCING.get(e.getPersistentData().getLong(VirtualHordes.UNIT_KEY));
+        if (r != null) fid = r[1];
+        Fronts.Front f = Fronts.get(level.getServer()).byId(fid);
         if (f == null) return;
         decayLosses(level, f, DesignData.front());
         f.losses += Math.max(1.0D, ForestUpkeep.unitPrice(e));
@@ -258,6 +262,11 @@ public final class FrontDirector {
         int room = target(f.id) - heads(f.id);
         if (room <= 0) {
             atTargetSkips++;
+            return;
+        }
+        // 11-22 ユーザー決定: 全体の頭数が目標の合計の unitGlobalCapShare 倍を超えている間は、どの樹域も作らない
+        if (overGlobalCap(fronts)) {
+            globalCapSkips++;
             return;
         }
         n = Math.min(n, room);
@@ -330,6 +339,24 @@ public final class FrontDirector {
         return heads(front) >= target(front);
     }
 
+    public static long globalCapSkips, nurseryGlobalCapSkips, routedInfected;
+
+    /** 全体の頭数(全部の樹域の守る + 広げる)/ 目標の合計(目標が無ければ 0)。 */
+    public static double globalRatio(Fronts fronts) {
+        long h = 0, t = 0;
+        for (Fronts.Front f : fronts.fronts()) {
+            h += heads(f.id);
+            t += target(f.id);
+        }
+        return t > 0 ? h / (double) t : 0.0D;
+    }
+
+    /** 11-22 ユーザー決定: 全体の頭数が目標の合計の unitGlobalCapShare【仮 1.3】倍を超えているか(超えている間は作らない・苗床も補充しない)。 */
+    public static boolean overGlobalCap(Fronts fronts) {
+        double share = DesignData.front().unitGlobalCapShare;
+        return share > 0.0D && globalRatio(fronts) > share;
+    }
+
     static void countHeads(VirtualHordes hordes, Long2IntOpenHashMap real) {
         HEADS.clear();
         for (VirtualHordes.Swarm s : hordes.swarms()) {
@@ -356,25 +383,18 @@ public final class FrontDirector {
         EDGE_ALL.clear();
         PhaseData pd = PhaseData.get(level);
         it.unimi.dsi.fastutil.longs.LongArrayList[] edges = new it.unimi.dsi.fastutil.longs.LongArrayList[n];
+        // 11-22 見直し: いちばん近い樹域は升の索引で引く(チャンク × 樹域の総当たりをやめた。結果は総当たりと同じ)
+        NearestIndex index = new NearestIndex(xs, zs);
         pd.forEachOvergrownChunk(k -> {
             int ccx = ChunkPos.getX(k), ccz = ChunkPos.getZ(k);
-            double x = ccx * 16.0D + 8.0D, z = ccz * 16.0D + 8.0D;
-            int best = 0;
-            double bd = Double.MAX_VALUE;
-            for (int i = 0; i < n; i++) {
-                double dx = xs[i] - x, dz = zs[i] - z, d = dx * dx + dz * dz;
-                if (d < bd) {
-                    bd = d;
-                    best = i;
-                }
-            }
+            int best = index.nearest(ccx * 16.0D + 8.0D, ccz * 16.0D + 8.0D);
             counts[best]++;
             // 縁 = 4 方向のどれかが森でない過繁茂のチャンク(11-22 守りの持ち場)
             if (!pd.isOvergrownKey(ChunkPos.asLong(ccx + 1, ccz)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx - 1, ccz))
                     || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz + 1)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz - 1))) {
                 if (edges[best] == null) edges[best] = new it.unimi.dsi.fastutil.longs.LongArrayList();
                 edges[best].add(k);
-                EDGE_ALL.add(k);
+                EDGE_ALL.put(k, ids[best]);
             }
         });
         for (int i = 0; i < n; i++) {
@@ -384,9 +404,101 @@ public final class FrontDirector {
         }
     }
 
+    /**
+     * いちばん近い点を NearestIndex.CELL ブロックの升に分けて引く索引(11-22 見直し)。升を内から輪に広げ、見つけた点より近い点が
+     * 残りの輪に居ないと分かったら止める。同じ距離なら一覧の前の方(総当たりの {@code d < bd} と同じ)。
+     */
+    public static final class NearestIndex {
+        static final int CELL = 512;
+        private final double[] xs, zs;
+        private final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<int[]> grid = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        private int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+
+        public NearestIndex(double[] xs, double[] zs) {
+            this.xs = xs;
+            this.zs = zs;
+            it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<it.unimi.dsi.fastutil.ints.IntArrayList> lists = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+            for (int i = 0; i < xs.length; i++) {
+                int gx = Math.floorDiv(Mth.floor(xs[i]), CELL), gz = Math.floorDiv(Mth.floor(zs[i]), CELL);
+                minX = Math.min(minX, gx);
+                maxX = Math.max(maxX, gx);
+                minZ = Math.min(minZ, gz);
+                maxZ = Math.max(maxZ, gz);
+                lists.computeIfAbsent(ChunkPos.asLong(gx, gz), k -> new it.unimi.dsi.fastutil.ints.IntArrayList()).add(i);
+            }
+            for (var e : lists.long2ObjectEntrySet()) grid.put(e.getLongKey(), e.getValue().toIntArray());
+        }
+
+        /** (x, z) にいちばん近い点の番号(点が無ければ 0)。 */
+        public int nearest(double x, double z) {
+            if (xs.length == 0) return 0;
+            int gx = Math.floorDiv(Mth.floor(x), CELL), gz = Math.floorDiv(Mth.floor(z), CELL);
+            int maxR = Math.max(Math.max(Math.abs(gx - minX), Math.abs(gx - maxX)), Math.max(Math.abs(gz - minZ), Math.abs(gz - maxZ)));
+            // 点の升の囲みより内側の輪は空なので飛ばし、輪も囲みの中だけ見る(11-23: 遠く離れた所を引くと輪を何万も回っていた)
+            int rMin = Math.max(0, Math.max(Math.max(minX - gx, gx - maxX), Math.max(minZ - gz, gz - maxZ)));
+            // 囲みの外から引くときは輪がいくつも要るので、総当たりの方が速い(同じ答え)
+            if (rMin > 0) return brute(xs, zs, x, z);
+            qBest = -1;
+            qBd = Double.MAX_VALUE;
+            for (int r = rMin; r <= maxR; r++) {
+                int x0 = Math.max(-r, minX - gx), x1 = Math.min(r, maxX - gx);
+                int z0 = Math.max(-r, minZ - gz), z1 = Math.min(r, maxZ - gz);
+                if (x0 <= x1 && z0 <= z1) {
+                    for (int dx = x0; dx <= x1; dx++) {
+                        if (dx == -r || dx == r) {
+                            for (int dz = z0; dz <= z1; dz++) visit(gx + dx, gz + dz, x, z);
+                        } else {
+                            if (-r >= z0) visit(gx + dx, gz - r, x, z);
+                            if (r <= z1) visit(gx + dx, gz + r, x, z);
+                        }
+                    }
+                }
+                int best = qBest;
+                double bd = qBd;
+                // 輪 r より外の升の点は r × CELL より遠い
+                double lim = (double) r * CELL;
+                if (best >= 0 && bd <= lim * lim) break;
+            }
+            return Math.max(0, qBest);
+        }
+
+        private int qBest;
+        private double qBd;
+
+        private void visit(int cx, int cz, double x, double z) {
+            int[] l = grid.get(ChunkPos.asLong(cx, cz));
+            if (l == null) return;
+            for (int i : l) {
+                double ddx = xs[i] - x, ddz = zs[i] - z, d = ddx * ddx + ddz * ddz;
+                if (d < qBd || (d == qBd && i < qBest)) {
+                    qBd = d;
+                    qBest = i;
+                }
+            }
+        }
+
+        /** 総当たり(テストで比べる用)。 */
+        public static int brute(double[] xs, double[] zs, double x, double z) {
+            int best = 0;
+            double bd = Double.MAX_VALUE;
+            for (int i = 0; i < xs.length; i++) {
+                double dx = xs[i] - x, dz = zs[i] - z, d = dx * dx + dz * dz;
+                if (d < bd) {
+                    bd = d;
+                    best = i;
+                }
+            }
+            return best;
+        }
+    }
+
     /** 樹域ごとの縁のチャンク(countTerritory が数え直す)。守りの持ち場の 7 割【仮】はここから。 */
     private static final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<it.unimi.dsi.fastutil.longs.LongArrayList> EDGES = new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
-    private static final it.unimi.dsi.fastutil.longs.LongOpenHashSet EDGE_ALL = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+    /** 縁のチャンク → その縁を持つ樹域(11-22 見直し: 置き直しは自分の樹域の縁かで見る)。 */
+    private static final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap EDGE_ALL = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+    static {
+        EDGE_ALL.defaultReturnValue(Integer.MIN_VALUE);
+    }
     public static long rebalancedHeads, rebalancedUnits, postEdge, postTree;
     /** 樹域の過繁茂のチャンク数の これまでの最大(この起動の中)。目標を超えた訳を確かめる用(11-22)。 */
     private static final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap PEAK = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
@@ -394,7 +506,7 @@ public final class FrontDirector {
     public static long overBefore, overShrunkBefore;
 
     public static boolean isEdgeChunk(long chunkKey) {
-        return EDGE_ALL.contains(chunkKey);
+        return EDGE_ALL.containsKey(chunkKey);
     }
 
     /**
@@ -409,7 +521,7 @@ public final class FrontDirector {
             all += s.size();
             var es = EDGES.get(s.front());
             if (es != null && !es.isEmpty()) inEdgeFronts += s.size();
-            if (EDGE_ALL.contains(ChunkPos.asLong(Mth.floor(s.tx()) >> 4, Mth.floor(s.tz()) >> 4))) edge += s.size();
+            if (EDGE_ALL.containsKey(ChunkPos.asLong(Mth.floor(s.tx()) >> 4, Mth.floor(s.tz()) >> 4))) edge += s.size();
         }
         if (all <= 0) return "0,0,0";
         return String.format(Locale.ROOT, "%.3f,%.3f,%.3f", edge / (double) all, inEdgeFronts > 0 ? edge / (double) inEdgeFronts : 0.0D, inEdgeFronts / (double) all);
@@ -509,7 +621,7 @@ public final class FrontDirector {
         RandomSource random = level.getRandom();
         for (VirtualHordes.Swarm s : hordes.swarms()) {
             if (s.front() < 0 || s.purpose() != UnitPurpose.DEFEND || !s.arrived() || s.size() <= 0 || real.get(s.id()) > 0 || REINFORCING.containsKey(s.id())) continue;
-            if (EDGE_ALL.contains(ChunkPos.asLong(Mth.floor(s.tx()) >> 4, Mth.floor(s.tz()) >> 4))) continue;
+            if (EDGE_ALL.get(ChunkPos.asLong(Mth.floor(s.tx()) >> 4, Mth.floor(s.tz()) >> 4)) == s.front()) continue; // 11-22 見直し: 自分の樹域の縁にいる(ほかの樹域の縁は置き直す)
             Fronts.Front f = fronts.byId(s.front());
             if (f == null || near(s.tx(), s.tz(), f.x, f.z, r)) continue; // 巨大樹のまわりの持ち場
             it.unimi.dsi.fastutil.longs.LongArrayList edges = EDGES.get(f.id);
@@ -541,6 +653,53 @@ public final class FrontDirector {
 
     public static boolean reinforcing(long swarmId) {
         return REINFORCING.containsKey(swarmId);
+    }
+
+    /** 樹域が最後に攻められた tick(攻められたことが無ければ Long.MIN_VALUE)。 */
+    public static long lastAttacked(int front) {
+        return ATTACKED_AT.containsKey(front) ? ATTACKED_AT.get(front) : Long.MIN_VALUE;
+    }
+
+    /** 11-22 見直し: 駆けつけの記録と攻められた tick を樹域の台帳(Fronts)と一緒に保存する。 */
+    static void saveState(net.minecraft.nbt.CompoundTag tag) {
+        it.unimi.dsi.fastutil.longs.LongArrayList r = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (var e : REINFORCING.long2ObjectEntrySet()) {
+            r.add(e.getLongKey());
+            r.add(((long) e.getValue()[0] << 32) | (e.getValue()[1] & 0xFFFFFFFFL));
+        }
+        tag.putLongArray("Reinforcing", r.toLongArray());
+        it.unimi.dsi.fastutil.longs.LongArrayList a = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (var e : ATTACKED_AT.int2LongEntrySet()) {
+            a.add(e.getIntKey());
+            a.add(e.getLongValue());
+        }
+        tag.putLongArray("AttackedAt", a.toLongArray());
+    }
+
+    static void loadState(net.minecraft.nbt.CompoundTag tag) {
+        REINFORCING.clear();
+        ATTACKED_AT.clear();
+        long[] r = tag.getLongArray("Reinforcing");
+        for (int i = 0; i + 1 < r.length; i += 2) REINFORCING.put(r[i], new int[]{(int) (r[i + 1] >> 32), (int) r[i + 1]});
+        long[] a = tag.getLongArray("AttackedAt");
+        for (int i = 0; i + 1 < a.length; i += 2) ATTACKED_AT.put((int) a[i], a[i + 1]);
+    }
+
+    /** 11-22 見直し: 起動の間だけの覚え(樹域の広さ・縁・駆けつけなど)を、サーバーが止まったら消す(別のワールドへ持ち越さない)。 */
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        TERRITORY.clear();
+        HEADS.clear();
+        territoryAt = Long.MIN_VALUE;
+        EDGES.clear();
+        EDGE_ALL.clear();
+        PEAK.clear();
+        REINFORCING.clear();
+        ATTACKED_AT.clear();
+        EXPAND_LEG_START.clear();
+        FrontOutposts.clearStatics();
+        FrontRaids.clearStatics();
+        com.yayuy.overgrownvegetation.director.StorageOverflow.clearStatics();
     }
 
     /**
@@ -584,6 +743,7 @@ public final class FrontDirector {
                 long c = edges.getLong(random.nextInt(edges.size()));
                 go.assign(UnitPurpose.DEFEND, ChunkPos.getX(c) * 16 + 8.5D, ChunkPos.getZ(c) * 16 + 8.5D, now);
                 REINFORCING.put(go.id(), new int[]{g.id, f.id});
+                fronts.touch();
                 room -= k;
                 reinforcedHeads += k;
                 reinforcedUnits++;
@@ -612,7 +772,7 @@ public final class FrontDirector {
             alive.remove(s.id());
             reinforceReturned++;
         }
-        REINFORCING.keySet().removeIf(id -> !alive.contains(id));
+        if (REINFORCING.keySet().removeIf(id -> !alive.contains(id))) fronts.touch();
     }
 
     /** テスト用: 前線の「最近倒された値段」を決めて assign を 1 回まわす(実物なし)。 */
@@ -634,7 +794,7 @@ public final class FrontDirector {
     public static void setEdgesForTests(int front, long... chunks) {
         it.unimi.dsi.fastutil.longs.LongArrayList l = new it.unimi.dsi.fastutil.longs.LongArrayList(chunks);
         EDGES.put(front, l);
-        for (long k : chunks) EDGE_ALL.add(k);
+        for (long k : chunks) EDGE_ALL.put(k, front);
     }
 
     /** 目標の合計・届いた樹域の数(計測の CSV 用)。 */
@@ -730,6 +890,7 @@ public final class FrontDirector {
         boolean attacked = attacked(f, value);
         if (attacked) {
             ATTACKED_AT.put(f.id, now);
+            Fronts.get(level.getServer()).touch(); // 攻められた tick を保存する
             reinforce(level, Fronts.get(level.getServer()), hordes, f, real); // 11-22 ユーザー決定: 内側の予備が縁へ駆けつける
         }
         double defendShare = attacked ? t.defendShareAttacked : t.defendShareQuiet;
@@ -1029,14 +1190,63 @@ public final class FrontDirector {
 
     /** 感染した生き物を G1 として部隊に足す(払いは無し = 森の稼ぎ。部隊の上限を超えた分は新しい部隊に)。 */
     static void addInfected(ServerLevel level, VirtualHordes.Swarm s, int infected, int villagers) {
-        FrontOutposts.noteInfected(s.id(), infected);
         RandomSource random = level.getRandom();
         G1Species[] animals = {G1Species.COW, G1Species.PIG, G1Species.SHEEP, G1Species.CHICKEN};
+        List<ResourceLocation> got = new ArrayList<>();
         for (int i = 0; i < infected; i++) {
             G1Species sp = i < villagers ? G1Species.VILLAGER : animals[random.nextInt(animals.length)];
-            s.addHeads(BuiltInRegistries.ENTITY_TYPE.getKey(sp.entityType()), 1, 0.0D);
+            got.add(BuiltInRegistries.ENTITY_TYPE.getKey(sp.entityType()));
         }
-        VirtualHordes.get(level.getServer()).touch();
+        VirtualHordes hordes = VirtualHordes.get(level.getServer());
+        int kept = routeInfected(level, Fronts.get(level.getServer()), hordes, s, got);
+        FrontOutposts.noteInfected(s.id(), kept); // 前哨にするのは部隊に残った分だけ
+        hordes.touch();
+    }
+
+    /**
+     * 11-22 ユーザー決定「感染で増えた分は、まず目標に届いていない樹域へ回す」: 部隊の居る所から rebalanceMaxBlocks の中の、目標に届いていない樹域へ
+     * (自分の樹域が足りなければ自分を先に、ほかは近い順。足りない分まで)。ほかの樹域の分は新しい守りの部隊にしてその持ち場へ歩かせる。
+     * 届いていない樹域が無ければ今の部隊に入れる。部隊 s に残した数を返す。
+     */
+    static int routeInfected(ServerLevel level, Fronts fronts, VirtualHordes hordes, VirtualHordes.Swarm s, List<ResourceLocation> got) {
+        FrontTable t = DesignData.front();
+        int left = got.size(), idx = 0, kept = 0;
+        if (left <= 0) return 0;
+        double max2 = t.rebalanceMaxBlocks * t.rebalanceMaxBlocks;
+        List<Fronts.Front> short_ = new ArrayList<>();
+        for (Fronts.Front g : fronts.fronts()) {
+            double dx = g.x - s.x(), dz = g.z - s.z();
+            if (heads(g.id) < target(g.id) && (g.id == s.front() || dx * dx + dz * dz <= max2)) short_.add(g);
+        }
+        short_.sort(java.util.Comparator.comparingDouble((Fronts.Front g) -> g.id == s.front() ? -1.0D : (g.x - s.x()) * (g.x - s.x()) + (g.z - s.z()) * (g.z - s.z())));
+        long now = level.getGameTime();
+        RandomSource random = level.getRandom();
+        for (Fronts.Front g : short_) {
+            if (left <= 0) break;
+            int k = Math.min(left, target(g.id) - heads(g.id));
+            if (k <= 0) continue;
+            VirtualHordes.Swarm into = s;
+            if (g.id != s.front()) {
+                into = hordes.newUnit(s.x(), s.y(), s.z(), g.id, UnitPurpose.DEFEND, now);
+                double[] post = post(level, g, random);
+                into.assign(UnitPurpose.DEFEND, post[0], post[1], now);
+                routedInfected += k;
+            } else {
+                kept += k;
+            }
+            for (int i = 0; i < k; i++) into.addHeads(got.get(idx++), 1, 0.0D);
+            HEADS.addTo(g.id, k);
+            left -= k;
+        }
+        // 届いていない樹域が無い(残り): 今の部隊へ
+        for (; idx < got.size(); idx++) s.addHeads(got.get(idx), 1, 0.0D);
+        if (left > 0 && s.front() >= 0) HEADS.addTo(s.front(), left);
+        return kept + left;
+    }
+
+    /** テスト用。 */
+    public static int routeInfectedForTests(ServerLevel level, Fronts fronts, VirtualHordes hordes, VirtualHordes.Swarm s, List<ResourceLocation> got) {
+        return routeInfected(level, fronts, hordes, s, got);
     }
 
     // ---------------------------------------------------------------- 補助

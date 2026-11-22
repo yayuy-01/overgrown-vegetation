@@ -54,6 +54,11 @@ public final class StorageOverflow {
         return recent;
     }
 
+    /** 11-22 見直し: サーバーが止まったら消す(別のワールドへ持ち越さない)。 */
+    public static void clearStatics() {
+        total = sporeTotal = recent = pending = 0.0D;
+    }
+
     /** テスト用: 0 に戻す。 */
     public static void resetForTests() {
         total = sporeTotal = recent = pending = 0.0D;

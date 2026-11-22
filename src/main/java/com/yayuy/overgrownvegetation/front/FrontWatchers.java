@@ -57,6 +57,8 @@ public final class FrontWatchers extends SavedData {
         final long plantedAt;
         boolean grown;
         UUID real;
+        /** 読み込まれているのに実物が見つからなかった秒(保存しない)。 */
+        int miss;
 
         Site(int id, int x, int z, int front, long plantedAt) {
             this.id = id;
@@ -93,6 +95,15 @@ public final class FrontWatchers extends SavedData {
     }
 
     /** フィロセンス 1 体の値段(Mob の値段。無ければ監視塔の値段)。 */
+    static {
+        // 11-22 見直し・ユーザー決定: 前線のフィロセンスは実物が立っていなくても(育ち途中も)いつも維持費に数える(実物は ForestUpkeep.sampleLoaded で数えない)
+        ForestUpkeep.addFeed((level, sink) -> {
+            if (level.getServer() == null || level.dimension() != Level.OVERWORLD) return;
+            double p = price();
+            for (Site w : get(level.getServer()).sites) sink.add(p, com.yayuy.overgrownvegetation.director.ForestEconomy.inForest(level, w.x, w.z));
+        });
+    }
+
     public static double price() {
         double p = ForestUpkeep.unitPrice(ModPhyllosens.PHYLLOSENS.get(), false);
         return p > 0.0D ? p : DesignData.director().watcher.cost;
@@ -200,9 +211,19 @@ public final class FrontWatchers extends SavedData {
 
     /** 育ち切って読み込まれていれば実物を立てる(置いた実物がこの辺りに居なければ置き直さない。倒されたら記録ごと消える)。 */
     void ensureReal(ServerLevel level, Site w) {
-        if (w.real != null) return;
         BlockPos center = new BlockPos(w.x, 64, w.z);
         if (level.getChunkSource().getChunkNow(w.x >> 4, w.z >> 4) == null || !level.isPositionEntityTicking(center)) return;
+        if (w.real != null) {
+            // 11-22 見直し: 読み込まれているのに実物が 10 秒続けて見つからない(倒されずに消えた)なら、立て直す
+            if (level.getEntity(w.real) != null) {
+                w.miss = 0;
+                return;
+            }
+            if (++w.miss < 10) return;
+            w.miss = 0;
+            w.real = null;
+            setDirty();
+        }
         BlockPos feet = com.yayuy.overgrownvegetation.phase.TreeCanopyGroundFinder.findSpawnSurface(level, w.x, w.z);
         if (feet == null) return;
         Mob m = com.yayuy.overgrownvegetation.spawn.EnemySpawns.create(level, ModPhyllosens.PHYLLOSENS.get(), feet, MobSpawnType.EVENT, level.getRandom());
@@ -227,6 +248,14 @@ public final class FrontWatchers extends SavedData {
             killed++;
             d.setDirty();
         }
+    }
+
+    /** テスト用: 育ち切った前線のフィロセンスの記録を 1 つ足す(実物なし)。 */
+    public void addForTests(int x, int z, int front) {
+        Site w = new Site(nextId++, x, z, front, 0L);
+        w.grown = true;
+        sites.add(w);
+        setDirty();
     }
 
     /** 計測の CSV 用: 数・育ち切った数・実物の数・倒された数(累計)。 */

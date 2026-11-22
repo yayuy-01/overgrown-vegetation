@@ -245,6 +245,7 @@ public final class RaidScales {
             d.note(lastNote);
             return true;
         }
+        double saveStart0 = b.saving() ? b.saveStart() : Double.NaN; // 11-22 見直し: 出せずに試し直すときは貯めを戻す
         memory.endSaving(b);
         lastNote = String.format(java.util.Locale.ROOT, "拠点 #%d: %s規模の襲撃(貯め %.2f 日・財布 %.1f)", b.id(), dec.scale().label, saved, b.purse());
         d.note(lastNote);
@@ -252,6 +253,7 @@ public final class RaidScales {
         int sent = start(level, b, day, dec.scale(), random);
         // 11-22: 樹域から 1 体も出せなかった小・中は、送ったと数えずに少し後で試し直す
         if (sent == 0 && dec.scale() != RaidScale.LARGE && com.yayuy.overgrownvegetation.front.FrontRaids.retryEmpty(memory, b, day, sent)) {
+            memory.restoreSaving(b, saveStart0);
             lastNote = String.format(java.util.Locale.ROOT, "拠点 #%d: 樹域から出せる部隊が無く、%.2f 日後に試し直す", b.id(), b.nextWaveDay() - day);
             d.note(lastNote);
             return true;
