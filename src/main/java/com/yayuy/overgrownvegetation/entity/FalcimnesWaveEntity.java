@@ -69,9 +69,9 @@ public class FalcimnesWaveEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_WIDTH, 3.0F);
-        builder.define(DATA_LIFE, 16);
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_WIDTH, 3.0F);
+        this.entityData.define(DATA_LIFE, 16);
     }
 
     /** 三日月の横幅(ブロック)。 */

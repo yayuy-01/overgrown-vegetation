@@ -35,7 +35,7 @@ public class ParasitizedIronGolem extends AbstractParasitizedMonster {
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.FOLLOW_RANGE, 35.0D)
-                .add(PortAttributes.STEP_HEIGHT.get(), 1.0D);
+                .add(PortAttributes.STEP_HEIGHT.get(), PortAttributes.stepHeightBase(1.0D));
     }
 
     @Override
@@ -64,7 +64,14 @@ public class ParasitizedIronGolem extends AbstractParasitizedMonster {
         playSound(SoundEvents.IRON_GOLEM_STEP, 1.0F, 1.0F);
     }
 
+    // 【1.20.1】playAttackSound は 1.20.5 で足された口(Mob#doHurtTarget が当たったときに呼ぶ)。1.20.1 は doHurtTarget で鳴らす
     @Override
+    public boolean doHurtTarget(net.minecraft.world.entity.Entity target) {
+        boolean hit = super.doHurtTarget(target);
+        if (hit) playAttackSound();
+        return hit;
+    }
+
     public void playAttackSound() {
         playSound(SoundEvents.IRON_GOLEM_ATTACK, 1.0F, 1.0F);
     }

@@ -332,14 +332,14 @@ public class RootedParasitized extends Monster implements ParasitizedMob, GeoEnt
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(ACTION, ACTION_NONE);
-        builder.define(AIM_YAW, 0.0F);
-        builder.define(SEED, SEED_NONE);
-        builder.define(JAW_LEFT, JAW_REST_LEFT);
-        builder.define(JAW_FRONT, JAW_REST_FRONT);
-        builder.define(JAW_SCALE, 1.0F);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(ACTION, ACTION_NONE);
+        this.entityData.define(AIM_YAW, 0.0F);
+        this.entityData.define(SEED, SEED_NONE);
+        this.entityData.define(JAW_LEFT, JAW_REST_LEFT);
+        this.entityData.define(JAW_FRONT, JAW_REST_FRONT);
+        this.entityData.define(JAW_SCALE, 1.0F);
     }
 
     public int action() {

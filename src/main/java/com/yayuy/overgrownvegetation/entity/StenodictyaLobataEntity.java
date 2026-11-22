@@ -178,9 +178,9 @@ public class StenodictyaLobataEntity extends SkyFlyer implements GeoEntity, Para
     }
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_EMERGING, false);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_EMERGING, false);
     }
 
     /** 梢の繭から出た: 繭の升(葉のすぐ下)にぶら下がった姿で始め、emerge を流す間は飛び立たない。 */

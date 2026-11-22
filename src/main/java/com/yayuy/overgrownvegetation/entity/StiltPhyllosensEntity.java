@@ -97,13 +97,13 @@ public class StiltPhyllosensEntity extends Monster implements GeoEntity, Parasit
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_GAIT, new CompoundTag());
-        builder.define(DATA_HEAD, new org.joml.Vector3f());
-        builder.define(DATA_LOOK, new org.joml.Vector3f());
-        builder.define(DATA_NECK, 1000);
-        builder.define(DATA_MODE, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_GAIT, new CompoundTag());
+        this.entityData.define(DATA_HEAD, new org.joml.Vector3f());
+        this.entityData.define(DATA_LOOK, new org.joml.Vector3f());
+        this.entityData.define(DATA_NECK, 1000);
+        this.entityData.define(DATA_MODE, 0);
     }
 
     public StiltPhyllosensGaze gaze() {

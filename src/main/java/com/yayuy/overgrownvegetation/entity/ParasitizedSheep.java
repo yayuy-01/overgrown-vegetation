@@ -45,9 +45,9 @@ public class ParasitizedSheep extends AbstractParasitizedMonster {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(COLOR, (byte) 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(COLOR, (byte) 0);
     }
 
     public DyeColor getColor() {

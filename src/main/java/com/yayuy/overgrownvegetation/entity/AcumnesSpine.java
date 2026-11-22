@@ -67,8 +67,8 @@ public class AcumnesSpine extends ThrowableProjectile {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_KIND, (byte) SNIPE);
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_KIND, (byte) SNIPE);
     }
 
     public int kind() {
@@ -76,8 +76,8 @@ public class AcumnesSpine extends ThrowableProjectile {
     }
 
     @Override
-    protected double getDefaultGravity() {
-        return 0.0D;
+    protected float getGravity() {   // 【1.20.1】getDefaultGravity は無い。投げ物の重さは getGravity(float)
+        return (float) (0.0D);
     }
 
     @Override
@@ -124,7 +124,7 @@ public class AcumnesSpine extends ThrowableProjectile {
         target.hurt(src, this.damage);
         if (k == PIN && !blocked && target instanceof LivingEntity le && le.isAlive()) {
             // 地面に縫い止める: 動けず跳べない(属性を 0 に)。今の勢いも止める
-            le.addEffect(new MobEffectInstance(ModMobEffects.ACUMNES_PINNED, this.pinTicks, 0, false, false, false), this.getOwner());
+            le.addEffect(new MobEffectInstance(ModMobEffects.ACUMNES_PINNED.get(), this.pinTicks, 0, false, false, false), this.getOwner());
             le.setDeltaMovement(0.0D, Math.min(0.0D, le.getDeltaMovement().y), 0.0D);
             le.hurtMarked = true;
             server.playSound(null, le.getX(), le.getY(), le.getZ(), SoundEvents.TRIDENT_HIT_GROUND, SoundSource.HOSTILE, 1.4F, 0.5F);

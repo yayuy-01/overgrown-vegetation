@@ -238,7 +238,7 @@ public class G1StrikeGoal extends Goal {
      * 踏み込まない 1 撃は向きを見ない(追いながらだと体の向きが遅れて当たらなくなる)。
      */
     private boolean canHit(LivingEntity target) {
-        if (!mob.getAttackBoundingBoxForG1().inflate(REACH_SLACK, 0.0D, REACH_SLACK).intersects(target.getHitbox())) {
+        if (!mob.getAttackBoundingBoxForG1().inflate(REACH_SLACK, 0.0D, REACH_SLACK).intersects(target.getBoundingBox())) {
             return false;
         }
         if (!lunging) {

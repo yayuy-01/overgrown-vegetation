@@ -74,22 +74,22 @@ public class BlightFernEntity extends PathfinderMob implements GeoEntity {
         super(type, level);
         this.setPersistenceRequired();
         // 水を避けない: 沈んで水底を歩き、水の中でも根付く(2026-10-24 追記 18【決定】。前は浮いて岸へ戻っていた)
-        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.PathType.WATER, 0.0F);
-        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.PathType.WATER_BORDER, 0.0F);
+        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.WATER, 0.0F);
+        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.WATER_BORDER, 0.0F);
         applyStepHeight();
     }
 
     /** 段差 1 ブロックは歩いて登る(穴につっかえないように。2026-10-24 追記 18【決定】)。セーブの属性で戻らないよう読み込みの後にも。 */
     private void applyStepHeight() {
         net.minecraft.world.entity.ai.attributes.AttributeInstance step = this.getAttribute(PortAttributes.STEP_HEIGHT.get());
-        if (step != null) step.setBaseValue(1.0D);
+        if (step != null) step.setBaseValue(PortAttributes.stepHeightBase(1.0D));   // 【1.20.1】Forge の足し分(1.0 − 0.6)
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_SPREAD_FINISHED, false);
-        builder.define(DATA_ROOTING, false);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_SPREAD_FINISHED, false);
+        this.entityData.define(DATA_ROOTING, false);
     }
 
     public boolean isRooting() {

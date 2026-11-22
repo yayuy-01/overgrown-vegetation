@@ -144,12 +144,12 @@ public class ArboraEntity extends Monster implements GeoEntity, ParasitizedMob, 
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ANCHOR, (byte) SurfaceNode.NONE);
-        builder.define(DATA_FORWARD, new Vector3f(0.0F, 0.0F, 1.0F));
-        builder.define(DATA_ACTION, (byte) ACT_NONE);
-        builder.define(DATA_SPEED, 0.0F);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ANCHOR, (byte) SurfaceNode.NONE);
+        this.entityData.define(DATA_FORWARD, new Vector3f(0.0F, 0.0F, 1.0F));
+        this.entityData.define(DATA_ACTION, (byte) ACT_NONE);
+        this.entityData.define(DATA_SPEED, 0.0F);
     }
 
     @Override

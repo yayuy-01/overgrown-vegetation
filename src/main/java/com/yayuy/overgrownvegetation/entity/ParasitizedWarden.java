@@ -36,7 +36,7 @@ public class ParasitizedWarden extends AbstractParasitizedMonster {
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.3D)
                 .add(Attributes.FOLLOW_RANGE, 35.0D)
-                .add(PortAttributes.STEP_HEIGHT.get(), 1.0D);
+                .add(PortAttributes.STEP_HEIGHT.get(), PortAttributes.stepHeightBase(1.0D));
     }
 
     @Override

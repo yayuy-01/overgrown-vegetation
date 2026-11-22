@@ -331,11 +331,11 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_MOTION, (byte) MOTION_HOLD);
-        builder.define(DATA_SKILL, S_NONE);
-        builder.define(DATA_AIM_TARGET, -1);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_MOTION, (byte) MOTION_HOLD);
+        this.entityData.define(DATA_SKILL, S_NONE);
+        this.entityData.define(DATA_AIM_TARGET, -1);
     }
 
     /**
@@ -349,9 +349,10 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
     }
 
     @Override
-    public net.minecraft.world.entity.EntityDimensions getDefaultDimensions(net.minecraft.world.entity.Pose pose) {
-        net.minecraft.world.entity.EntityDimensions d = super.getDefaultDimensions(pose);
-        return divingBody(skill()) ? net.minecraft.world.entity.EntityDimensions.scalable(d.width(), DIVE_BODY_H).withEyeHeight(1.0F) : d;
+    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+        // 【1.20.1】getDefaultDimensions は無い。getDimensions(体格を掛けた後)で縮める。目の高さ 1.0 は 1.20.1 では OvEntityType の割合(2.5 × 1.4 / 3.0)になる
+        net.minecraft.world.entity.EntityDimensions d = super.getDimensions(pose);
+        return divingBody(skill()) ? net.minecraft.world.entity.EntityDimensions.scalable(d.width, DIVE_BODY_H * this.getScale()) : d;
     }
 
     @Override
@@ -696,7 +697,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
                 setOwnMotion(back.x, 0.25D, back.z);
                 // 解くと脚が垂れて芯が 3.0 に戻るので、頭の上も空いてから(軒下で戻ると屋根に埋まる)
                 boolean room = this.level().noCollision(this, net.minecraft.world.entity.EntityDimensions.scalable(this.getBbWidth(),
-                        super.getDefaultDimensions(this.getPose()).height()).makeBoundingBox(this.position()));
+                        this.getType().getDimensions().height).makeBoundingBox(this.position()));
                 if (room && (this.skillTicks >= 8 && clearBelow(DIVE_END_CLEAR) || this.skillTicks >= DIVE_AWAY_MAX) || this.skillTicks >= DIVE_AWAY_MAX * 3) {
                     setSkill(S_DIVE_END, 0);
                 }
@@ -763,7 +764,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         float dmg = pin ? PIN_DAMAGE : (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE);
         this.level().addFreshEntity(new AcumnesSpine(this.level(), this, pin ? AcumnesSpine.PIN : AcumnesSpine.SNIPE, tip,
                 dir.scale(pin ? PIN_SPEED : SNIPE_SPEED), dmg, PIN_TICKS));
-        this.level().playSound(null, tip.x, tip.y, tip.z, net.minecraft.sounds.SoundEvents.TRIDENT_THROW.value(), net.minecraft.sounds.SoundSource.HOSTILE,
+        this.level().playSound(null, tip.x, tip.y, tip.z, net.minecraft.sounds.SoundEvents.TRIDENT_THROW, net.minecraft.sounds.SoundSource.HOSTILE,
                 1.6F, pin ? 0.45F : 0.6F);
     }
 
@@ -777,7 +778,7 @@ public class AcumnesEntity extends SkyFlyer implements GeoEntity, ParasitizedMob
         Vec3 dir = aim.normalize().yRot((float) Math.toRadians(-SCATTER_FAN[i]));   // 正 = 右へ(yRot は反時計回り)
         dir = dir.add((this.random.nextDouble() - 0.5D) * 0.06D, (this.random.nextDouble() - 0.5D) * 0.06D, (this.random.nextDouble() - 0.5D) * 0.06D).normalize();
         sl.addFreshEntity(new AcumnesSpine(sl, this, AcumnesSpine.SCATTER, muzzle, dir.scale(SCATTER_SPEED), SCATTER_DAMAGE, 0));
-        if (i == 0) sl.playSound(null, muzzle.x, muzzle.y, muzzle.z, net.minecraft.sounds.SoundEvents.TRIDENT_THROW.value(),
+        if (i == 0) sl.playSound(null, muzzle.x, muzzle.y, muzzle.z, net.minecraft.sounds.SoundEvents.TRIDENT_THROW,
                 net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.4F);
     }
 

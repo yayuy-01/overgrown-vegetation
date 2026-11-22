@@ -217,7 +217,7 @@ public class GregariaEntity extends SmallCrawler implements GeoEntity, Parasitiz
         net.minecraft.world.entity.LivingEntity t = this.biteTarget;
         if (t != null && this.biteTick < BITE_HIT_T) faceTowards(t);   // 前触れの間も口先を相手へ向け続ける
         if (this.biteTick < BITE_HIT_T && (t == null || !t.isAlive() || t.distanceToSqr(this) > BITE_GIVE_UP * BITE_GIVE_UP)) {
-            this.stopTriggeredAnim("bite", "bite");   // 前触れの間に離れた: 隙を飛ばしてやめる
+            this.stopTriggeredAnimation("bite", "bite");   // 前触れの間に離れた: 隙を飛ばしてやめる
             this.biteTick = -1;
             this.biteTarget = null;
             biteCancels++;

@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -68,8 +68,8 @@ public abstract class SmallCrawler extends Monster {
     protected SmallCrawler(EntityType<? extends SmallCrawler> type, Level level) {
         super(type, level);
         this.moveControl = new CrawlerMoveControl(this);
-        this.setPathfindingMalus(PathType.WATER, -1.0F);
-        this.setPathfindingMalus(PathType.WATER_BORDER, 4.0F);
+        this.setPathfindingMalus(BlockPathTypes.WATER, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.WATER_BORDER, 4.0F);
     }
 
     // ------------------------------------------------------------------ 種が決める値

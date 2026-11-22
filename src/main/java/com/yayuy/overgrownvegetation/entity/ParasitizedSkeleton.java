@@ -52,8 +52,8 @@ public class ParasitizedSkeleton extends AbstractParasitizedMonster {
     @Nullable
     @Override
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType spawnType,
-                                        @Nullable SpawnGroupData data) {
-        SpawnGroupData out = super.finalizeSpawn(level, difficulty, spawnType, data);
+                                        @Nullable SpawnGroupData data, @Nullable net.minecraft.nbt.CompoundTag spawnTag) {
+        SpawnGroupData out = super.finalizeSpawn(level, difficulty, spawnType, data, spawnTag);
         if (getMainHandItem().isEmpty()) {
             setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         }

@@ -105,9 +105,9 @@ public class PhalangiotarbusEntity extends CrawlerCritter {
     // ------------------------------------------------------------------ 跳び
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_LEAP, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_LEAP, 0);
     }
 
     @Override

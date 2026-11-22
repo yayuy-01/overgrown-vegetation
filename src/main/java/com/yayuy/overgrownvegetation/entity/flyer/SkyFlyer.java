@@ -322,9 +322,9 @@ public abstract class SkyFlyer extends Monster {
     // ------------------------------------------------------------------ 状態
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_STATE, (byte) 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_STATE, (byte) 0);
     }
 
     /** 今の動き(サーバーは本当の値、クライアントは送られた値)。 */
@@ -480,9 +480,9 @@ public abstract class SkyFlyer extends Monster {
 
     @Nullable
     @Override
-    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason, @Nullable SpawnGroupData data) {
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason, @Nullable SpawnGroupData data, @Nullable CompoundTag spawnTag) {
         this.setPersistenceRequired();   // 段 1 は自然湧きしない: 卵・コマンドで出したものは消さない
-        return super.finalizeSpawn(level, difficulty, reason, data);
+        return super.finalizeSpawn(level, difficulty, reason, data, spawnTag);
     }
 
     // ------------------------------------------------------------------ サーバーの判断
@@ -1076,9 +1076,9 @@ public abstract class SkyFlyer extends Monster {
         super.readAdditionalSaveData(tag);
         if (tag.hasUUID("FlockId")) this.flockId = tag.getUUID("FlockId");
         if (tag.contains("FlockSlot")) this.savedSlot = tag.getInt("FlockSlot");
-        NbtUtils.readBlockPos(tag, "FlockHome").ifPresent(p -> this.home = p);
+        if (tag.contains("FlockHome", net.minecraft.nbt.Tag.TAG_COMPOUND)) this.home = NbtUtils.readBlockPos(tag.getCompound("FlockHome"));   // 【1.20.1】BlockPos は {X,Y,Z} の箱
         if (tag.contains("FlockLayer")) this.layer = tag.getDouble("FlockLayer");
-        NbtUtils.readBlockPos(tag, "Perch").ifPresent(p -> this.perch = p);
+        if (tag.contains("Perch", net.minecraft.nbt.Tag.TAG_COMPOUND)) this.perch = NbtUtils.readBlockPos(tag.getCompound("Perch"));   // 【1.20.1】BlockPos は {X,Y,Z} の箱
         if (tag.getInt("FlyMode") == MODE_PERCHED && this.perch != null) this.mode = MODE_PERCHED;
         this.body.heading = this.getYRot();
     }

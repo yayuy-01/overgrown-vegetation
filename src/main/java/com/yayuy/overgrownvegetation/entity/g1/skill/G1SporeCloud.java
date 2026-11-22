@@ -100,10 +100,10 @@ public class G1SporeCloud extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(RADIUS, 2.0F);
-        builder.define(HAZE, false);
-        builder.define(DURATION, 60);
+    protected void defineSynchedData() {
+        this.entityData.define(RADIUS, 2.0F);
+        this.entityData.define(HAZE, false);
+        this.entityData.define(DURATION, 60);
     }
 
     public float radius() {

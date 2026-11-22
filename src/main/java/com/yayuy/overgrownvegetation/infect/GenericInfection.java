@@ -162,7 +162,7 @@ public final class GenericInfection {
         // 感染の後始末: 暴露量・感染・逃げる向きを消し、弱りの修飾を外す(変わった Mob は植物側なので、もう測らない)
         if (OvAttach.hasData(mob, ModAttachments.SPORE_EXPOSURE)) OvAttach.getData(mob, ModAttachments.SPORE_EXPOSURE).reset();
         AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null) speed.removeModifier(MobInfection.WEAKNESS_ID);
+        if (speed != null) OvModifiers.remove(speed, MobInfection.WEAKNESS_ID);
         applyHealth(mob, g.boss);
         mob.clearFire();
         GenericInfectionAi.forgetOwner(mob);
@@ -176,8 +176,8 @@ public final class GenericInfection {
     static void applyHealth(Mob mob, boolean boss) {
         AttributeInstance max = mob.getAttribute(Attributes.MAX_HEALTH);
         if (max != null) {
-            max.removeModifier(SporeExposureTracker.SPORE_SCAR_ID);
-            max.removeModifier(BOSS_HEALTH_ID);
+            OvModifiers.remove(max, SporeExposureTracker.SPORE_SCAR_ID);
+            OvModifiers.remove(max, BOSS_HEALTH_ID);
             if (boss && spec().bossMaxHealthFactor() < 1.0D) {
                 max.addPermanentModifier(OvModifiers.create(BOSS_HEALTH_ID, spec().bossMaxHealthFactor() - 1.0D,
                         AttributeModifier.Operation.MULTIPLY_TOTAL));
@@ -191,8 +191,8 @@ public final class GenericInfection {
         if (!isTurned(entity)) return false;
         OvAttach.getData(entity, ModAttachments.GENERIC_INFECTED).clear();
         AttributeInstance max = entity.getAttribute(Attributes.MAX_HEALTH);
-        if (max != null && max.getModifier(BOSS_HEALTH_ID) != null) {
-            max.removeModifier(BOSS_HEALTH_ID);
+        if (max != null && OvModifiers.get(max, BOSS_HEALTH_ID) != null) {
+            OvModifiers.remove(max, BOSS_HEALTH_ID);
             entity.setHealth(entity.getMaxHealth());
         }
         if (entity instanceof Mob mob) GenericInfectionAi.uninstall(mob);
@@ -300,7 +300,7 @@ public final class GenericInfection {
      * (飛び道具なら撃った Mob)。自分で自分を傷付けるのは止めない。
      */
     @SubscribeEvent
-    public static void onIncomingDamage(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+    public static void onIncomingDamage(net.minecraftforge.event.entity.living.LivingAttackEvent event) {   // 【1.20.1】LivingIncomingDamageEvent の代わり(hurt の入り口。取り消すと当たらない)
         LivingEntity victim = event.getEntity();
         if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof LivingEntity attacker) || attacker == victim) return;
         boolean victimTurned = isTurned(victim), attackerTurned = isTurned(attacker);
@@ -330,7 +330,7 @@ public final class GenericInfection {
     }
 
     private static void guardTarget(LivingChangeTargetEvent event) {
-        LivingEntity target = event.getNewAboutToBeSetTarget();
+        LivingEntity target = event.getNewTarget();
         if (target == null) return;
         LivingEntity self = event.getEntity();
         boolean selfTurned = isTurned(self), targetTurned = isTurned(target);

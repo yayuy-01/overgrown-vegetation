@@ -71,8 +71,8 @@ public class G1SeedPod extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(FUSE, FUSE_TICKS);
+    protected void defineSynchedData() {
+        this.entityData.define(FUSE, FUSE_TICKS);
     }
 
     public int fuse() {

@@ -25,7 +25,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -83,8 +83,8 @@ public abstract class LongBodyRunner extends Monster {
         super(type, level);
         this.moveControl = new TankMoveControl();
         this.lookControl = new TankLookControl();
-        this.setPathfindingMalus(PathType.WATER, -1.0F);
-        this.setPathfindingMalus(PathType.LEAVES, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.WATER, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.LEAVES, -1.0F);
         this.getNavigation().setCanFloat(false);
     }
 
@@ -149,10 +149,10 @@ public abstract class LongBodyRunner extends Monster {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_TURN, 0.0F);
-        builder.define(DATA_BEND, 0L);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_TURN, 0.0F);
+        this.entityData.define(DATA_BEND, 0L);
     }
 
     /** うろつく・プレイヤーを見る・見回すだけ(段 1)。標的の Goal は種が足す。 */
@@ -464,7 +464,7 @@ public abstract class LongBodyRunner extends Monster {
                 BlockPos pos = f.blockPosition();
                 BlockState state = f.level().getBlockState(pos);
                 VoxelShape shape = state.getCollisionShape(f.level(), pos, CollisionContext.of(f));
-                if (dy > (double) f.maxUpStep() && dx * dx + dz * dz < (double) Math.max(1.0F, f.getBbWidth())
+                if (dy > (double) f.getStepHeight() && dx * dx + dz * dz < (double) Math.max(1.0F, f.getBbWidth())
                         || !shape.isEmpty() && f.getY() < shape.max(Direction.Axis.Y) + (double) pos.getY()
                         && !state.is(BlockTags.DOORS) && !state.is(BlockTags.FENCES)) {
                     f.getJumpControl().jump();

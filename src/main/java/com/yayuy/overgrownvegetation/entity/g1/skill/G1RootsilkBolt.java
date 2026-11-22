@@ -67,8 +67,8 @@ public class G1RootsilkBolt extends ThrowableItemProjectile {
     }
 
     @Override
-    protected double getDefaultGravity() {
-        return GRAVITY;
+    protected float getGravity() {   // 【1.20.1】getDefaultGravity は無い。投げ物の重さは getGravity(float)
+        return (float) (GRAVITY);
     }
 
     @Override

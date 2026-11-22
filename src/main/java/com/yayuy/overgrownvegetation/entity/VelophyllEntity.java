@@ -244,10 +244,10 @@ public class VelophyllEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     // ------------------------------------------------------------------ 爆撃
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_DIVE, (byte) DIVE_NONE);
-        builder.define(DATA_DIVE_TARGET, -1);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_DIVE, (byte) DIVE_NONE);
+        this.entityData.define(DATA_DIVE_TARGET, -1);
     }
 
     /** 急降下の段(描画も読む)。 */

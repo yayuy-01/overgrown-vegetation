@@ -23,7 +23,7 @@ public final class HitPartEvents {
 
     @SubscribeEvent
     public static void onCriticalHit(CriticalHitEvent event) {
-        if (!(event.getTarget() instanceof HitPart) || event.isCriticalHit()) {
+        if (!(event.getTarget() instanceof HitPart) || event.isVanillaCritical() || event.getResult() == net.minecraftforge.eventbus.api.Event.Result.ALLOW) {   // 【1.20.1】会心は Result.ALLOW で付ける
             return;
         }
         Player p = event.getEntity();
@@ -36,8 +36,8 @@ public final class HitPartEvents {
                 && !p.isPassenger()
                 && !p.isSprinting();
         if (crit) {
-            event.setCriticalHit(true);
-            event.setDamageMultiplier(1.5F);
+            event.setResult(net.minecraftforge.eventbus.api.Event.Result.ALLOW);
+            event.setDamageModifier(1.5F);
         }
     }
 }

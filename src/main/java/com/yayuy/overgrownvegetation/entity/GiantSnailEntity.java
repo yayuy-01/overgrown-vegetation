@@ -60,10 +60,10 @@ public class GiantSnailEntity extends CrawlerCritter {
     }
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_RETRACTED, false);
-        builder.define(DATA_EMERGING, false);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_RETRACTED, false);
+        this.entityData.define(DATA_EMERGING, false);
     }
 
     /** 頭を出している途中か(両側。retract_out の 28 tick)。 */

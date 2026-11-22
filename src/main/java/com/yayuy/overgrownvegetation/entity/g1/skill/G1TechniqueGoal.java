@@ -167,6 +167,6 @@ public abstract class G1TechniqueGoal extends Goal {
 
     /** 保存した冷却の残りを戻す(読み込み)。冷却の長さで頭打ち。 */
     public void setCooldownLeft(long ticks) {
-        readyAt = mob.level().getGameTime() + Mth.clamp(ticks, 0L, (long) cooldown());
+        readyAt = mob.level().getGameTime() + Math.max(0L, Math.min(ticks, (long) cooldown()));
     }
 }

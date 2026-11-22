@@ -277,7 +277,7 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
         super(type, level);
         this.xpReward = MobStats.xpReward(ID, 30);
         // 段 C(11-15): 水も越えてくる。経路は水を通ってよい(重み WATER_MALUS)・水面に浮く(土台は水を通らない作り。この種だけ変える)
-        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.PathType.WATER, WATER_MALUS);
+        this.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.WATER, WATER_MALUS);
         this.getNavigation().setCanFloat(true);
     }
 
@@ -286,13 +286,13 @@ public class VenamnesEntity extends LongBodyRunner implements GeoEntity, Parasit
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ACTION, ACT_NONE);
-        builder.define(DATA_SEQ, 0);
-        builder.define(DATA_NIP, NIP_NONE);
-        builder.define(DATA_CAUTION, 0.5F);
-        builder.define(DATA_PROWL, PROWL_NONE);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ACTION, ACT_NONE);
+        this.entityData.define(DATA_SEQ, 0);
+        this.entityData.define(DATA_NIP, NIP_NONE);
+        this.entityData.define(DATA_CAUTION, 0.5F);
+        this.entityData.define(DATA_PROWL, PROWL_NONE);
     }
 
     /** うろつく・見回すに、追う(技を選ぶ)Goal と標的の Goal を足す(標的はファルキムネスと同じ: 殴られたら反撃・プレイヤー・グループの外の生き物)。 */

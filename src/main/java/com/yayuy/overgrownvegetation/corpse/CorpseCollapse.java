@@ -55,7 +55,7 @@ public final class CorpseCollapse {
             // 弓を持ったまま死体になり、起き上がった G1 も持つ(11-05 ユーザー「弓は持ったまま叩く」)。元の Mob のドロップは G1Infection#onLivingDrops で全部止める
             net.minecraft.world.item.ItemStack held = mob.getMainHandItem();
             if (!held.isEmpty()) {
-                t.put("Held", held.save(entity.registryAccess()));
+                t.put("Held", held.save(new net.minecraft.nbt.CompoundTag()));
             }
         }
         entity.getPersistentData().put(TAG, t);
@@ -145,7 +145,7 @@ public final class CorpseCollapse {
                         be.setWoolColor(t.getInt("Color"));
                     }
                     if (t.contains("Held")) {
-                        be.setHeldItem(net.minecraft.world.item.ItemStack.parseOptional(level.registryAccess(), t.getCompound("Held")));
+                        be.setHeldItem(net.minecraft.world.item.ItemStack.of(t.getCompound("Held")));
                     }
                     // ずれは足元に置けたときだけ(よそのマスへ移したら、そのマスの真ん中に置く。ずれたまま描くと隣の物にめり込むので)
                     boolean here = pos.equals(origin);

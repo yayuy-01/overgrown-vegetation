@@ -124,10 +124,10 @@ public abstract class LizardRunner extends LongBodyRunner {
     // ------------------------------------------------------------------ 登録
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_PAUSED, false);
-        builder.define(DATA_RUN, false);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_PAUSED, false);
+        this.entityData.define(DATA_RUN, false);
     }
 
     @Override

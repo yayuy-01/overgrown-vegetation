@@ -205,9 +205,9 @@ public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_MOOD, (byte) MOOD_CRUISE);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_MOOD, (byte) MOOD_CRUISE);
     }
 
     /** 今の動き(描画も読む)。 */

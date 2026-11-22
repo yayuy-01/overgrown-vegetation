@@ -44,7 +44,7 @@ public final class G1Tangle {
         if (target.level().isClientSide() || ticks <= 0 || !target.isAlive()) return;
         target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, SLOW_AMPLIFIER));
         AttributeInstance jump = target.getAttribute(PortAttributes.JUMP_STRENGTH.get());
-        if (jump != null && !jump.hasModifier(NO_JUMP_ID)) {
+        if (jump != null && !OvModifiers.has(jump, NO_JUMP_ID)) {
             jump.addTransientModifier(OvModifiers.create(NO_JUMP_ID, -1.0D, AttributeModifier.Operation.MULTIPLY_TOTAL));
         }
         long until = target.level().getGameTime() + ticks;
@@ -61,7 +61,7 @@ public final class G1Tangle {
     public static void release(LivingEntity target) {
         TANGLED.remove(target);
         AttributeInstance jump = target.getAttribute(PortAttributes.JUMP_STRENGTH.get());
-        if (jump != null) jump.removeModifier(NO_JUMP_ID);
+        if (jump != null) OvModifiers.remove(jump, NO_JUMP_ID);
     }
 
     @SubscribeEvent
@@ -74,7 +74,7 @@ public final class G1Tangle {
             if (target == null) continue;
             if (target.isRemoved() || !target.isAlive() || target.level().getGameTime() >= e.getValue()) {
                 AttributeInstance jump = target.getAttribute(PortAttributes.JUMP_STRENGTH.get());
-                if (jump != null) jump.removeModifier(NO_JUMP_ID);
+                if (jump != null) OvModifiers.remove(jump, NO_JUMP_ID);
                 it.remove();
             }
         }

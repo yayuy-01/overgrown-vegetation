@@ -194,11 +194,11 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
 
     // ------------------------------------------------------------------ 同期データ
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(RISING, 0);
-        builder.define(ACTION, ACTION_NONE);
-        builder.define(OMEN, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(RISING, 0);
+        this.entityData.define(ACTION, ACTION_NONE);
+        this.entityData.define(OMEN, 0);
     }
 
     // ------------------------------------------------------------------ 司令塔(2026-11-13、第 1 段)
@@ -222,8 +222,7 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
             net.minecraft.world.item.ItemStack s = getItemBySlot(slot);
             if (s.isEmpty() || getEquipmentDropChance(slot) <= 1.0F) continue;
-            if (net.minecraft.world.item.enchantment.EnchantmentHelper.has(s,
-                    net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP)) continue;
+            if (net.minecraft.world.item.enchantment.EnchantmentHelper.hasVanishingCurse(s)) continue;   // 【1.20.1】PREVENT_EQUIPMENT_DROP の効果は消滅の呪いだけ
             spawnAtLocation(s);
             setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
         }
@@ -268,6 +267,29 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     /** 前兆が始まってからの tick(クライアント。描画の間を埋める)。 */
     public float omenClientTicks(float partialTick) {
         return omenClientTicks + partialTick;
+    }
+
+    /**
+     * 【1.20.1】1.20.5 の {@code Mob#getAttackBoundingBox} と {@code isWithinMeleeAttackRange}(箱が重なるか)を写した物。
+     * 1.20.1 のバニラの間合いは距離の 2 乗(幅 × 2 の 2 乗 + 相手の幅)なので、本流と同じ間合いにするためここで持つ。
+     */
+    protected net.minecraft.world.phys.AABB getAttackBoundingBox() {
+        net.minecraft.world.entity.Entity vehicle = this.getVehicle();
+        net.minecraft.world.phys.AABB own = this.getBoundingBox();
+        net.minecraft.world.phys.AABB box = own;
+        if (vehicle != null) {
+            net.minecraft.world.phys.AABB v = vehicle.getBoundingBox();
+            box = new net.minecraft.world.phys.AABB(Math.min(own.minX, v.minX), own.minY, Math.min(own.minZ, v.minZ),
+                    Math.max(own.maxX, v.maxX), own.maxY, Math.max(own.maxZ, v.maxZ));
+        }
+        return box.inflate(DEFAULT_ATTACK_REACH, 0.0D, DEFAULT_ATTACK_REACH);
+    }
+
+    private static final double DEFAULT_ATTACK_REACH = Math.sqrt(2.04F) - 0.6F;
+
+    @Override
+    public boolean isWithinMeleeAttackRange(net.minecraft.world.entity.LivingEntity target) {
+        return getAttackBoundingBox().intersects(target.getBoundingBox());
     }
 
     /** 間合いの箱(バニラの {@code getAttackBoundingBox}。エンダーマンは長い腕で広げる)。{@link G1StrikeGoal} の当たりの判定が使う。 */
@@ -445,7 +467,33 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
      * 鳴き声・被弾・死の声(バニラはどれも {@code makeSound} を通る)を、宿主のバニラの声のまま「声帯が植物につぶされた声」にして鳴らす
      * (2026-11-14 ユーザー決定: 版 2 つぶれ。{@link com.yayuy.overgrownvegetation.voice.G1Voice})。
      */
+    // 【1.20.1】makeSound は 1.20.5 で足された口。1.20.1 は鳴き声・被弾・死の声を playSound(音, 大きさ, 高さ) で直に鳴らすので、その 3 つをここで拾って makeSound へ回す
+    private boolean ov$voice;
+
     @Override
+    public void playAmbientSound() {
+        makeSound(getAmbientSound());
+    }
+
+    @Override
+    protected void playHurtSound(net.minecraft.world.damagesource.DamageSource source) {
+        this.ov$voice = true;
+        try {
+            super.playHurtSound(source);
+        } finally {
+            this.ov$voice = false;
+        }
+    }
+
+    @Override
+    public void playSound(net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
+        if (sound != null && (this.ov$voice || isDeadOrDying() && sound == getDeathSound())) {
+            makeSound(sound);
+            return;
+        }
+        super.playSound(sound, volume, pitch);
+    }
+
     public void makeSound(@Nullable net.minecraft.sounds.SoundEvent sound) {
         if (sound != null) {
             com.yayuy.overgrownvegetation.voice.G1Voice.play(this, species(), sound, getSoundVolume(), getVoicePitch());

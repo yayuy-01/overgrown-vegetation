@@ -124,9 +124,9 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     private int actSeq;
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ACT, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ACT, 0);
     }
 
     /**
@@ -234,7 +234,7 @@ public class PilimnesEntity extends LizardRunner implements GeoEntity, Parasitiz
     }
 
     private void playShot(float pitch) {
-        this.level().playSound(null, this.getX(), this.getY() + 2.0D, this.getZ(), net.minecraft.sounds.SoundEvents.TRIDENT_THROW.value(),
+        this.level().playSound(null, this.getX(), this.getY() + 2.0D, this.getZ(), net.minecraft.sounds.SoundEvents.TRIDENT_THROW,
                 net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, pitch);
     }
 

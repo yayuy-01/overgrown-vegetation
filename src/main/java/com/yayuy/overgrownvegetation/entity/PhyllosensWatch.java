@@ -458,7 +458,7 @@ public final class PhyllosensWatch {
     private void markIfSeen(long now) {
         Player t = this.target;
         if (!this.visible || t == null || this.seenSince < 0L || now - this.seenSince < MARK_DELAY) return;
-        boolean had = t.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH);
+        boolean had = t.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH.get());
         PhyllosensWatchEffect.mark(t);
         if (!this.markSent && t == this.gazeTo && this.gazeTo != null) {
             this.markSent = true;

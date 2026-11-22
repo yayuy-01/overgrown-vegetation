@@ -6,7 +6,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -32,6 +32,14 @@ import org.jetbrains.annotations.Nullable;
  * 着いた後は真っすぐな体が入るかを見る(だから柵の手前から体長より短く跳ぶと、腹が柵に掛かって選ばれない)。
  */
 public final class LeapPlanner {
+
+    /** 【1.20.1】1.20.5 の {@code CollisionGetter#noBlockCollision} の代わり(ブロックの当たりだけを見る。1.20.1 の noCollision は実体と世界の境も見るので使わない)。 */
+    static boolean noBlockCollision(Level level, @Nullable Mob mob, AABB box) {
+        for (VoxelShape shape : level.getBlockCollisions(mob, box)) {
+            if (!shape.isEmpty()) return false;
+        }
+        return true;
+    }
 
     private LeapPlanner() {
     }
@@ -101,7 +109,7 @@ public final class LeapPlanner {
             if (maxY > 1.0D || st.is(BlockTags.LEAVES)) continue;
             double y = by + maxY;
             if (y > top + 1e-6 || y < bottom - 1e-6) continue;
-            if (!level.noBlockCollision(mob, coreBox(mob, x, y, z))) continue;
+            if (!LeapPlanner.noBlockCollision(level, mob, coreBox(mob, x, y, z))) continue;
             if (Double.isNaN(best) || Math.abs(y - prefer) < Math.abs(best - prefer)) best = y;
         }
         return best;
@@ -111,7 +119,7 @@ public final class LeapPlanner {
     public static boolean walkable(Mob mob, Vec3 feet) {
         BlockPos pos = BlockPos.containing(feet.x, feet.y + 0.5D, feet.z);   // 半ブロックの上に立つときも、立つ空きマスを指す
         if (!mob.level().getFluidState(pos).isEmpty() || !mob.level().getFluidState(pos.below()).isEmpty()) return false;
-        PathType t = WalkNodeEvaluator.getPathTypeStatic(mob, pos);
+        BlockPathTypes t = WalkNodeEvaluator.getBlockPathTypeStatic(mob.level(), pos.mutable());
         // 水辺(WATER_BORDER)などの罰が正のものは下りてよい。火・溶岩・サボテン・粉雪・水そのもの・足場の無い所は下りない
         return switch (t) {
             case WALKABLE, WALKABLE_DOOR, WATER_BORDER -> true;
@@ -130,7 +138,7 @@ public final class LeapPlanner {
         double[] along = bodyPoints(spec, sc);
         for (int i = 0; i < along.length; i++) {
             double x = feet.x + fx * along[i], z = feet.z + fz * along[i];
-            if (!level.noBlockCollision(mob, bodyBox(mob, spec, x, feet.y, z))) return false;
+            if (!LeapPlanner.noBlockCollision(level, mob, bodyBox(mob, spec, x, feet.y, z))) return false;
             if (i == 0 || i == along.length - 1) {
                 if (!groundBelow(mob, x, feet.y, z, 2.5D)) return false;
             }
@@ -159,7 +167,7 @@ public final class LeapPlanner {
                 double x = c.x + fx * along[j], z = c.z + fz * along[j];
                 double y = plan.heightAt(sj);
                 AABB box = Math.abs(along[j]) < 1.0E-6D ? coreBox(mob, x, y, z) : bodyBox(mob, spec, x, y, z);
-                if (!level.noBlockCollision(mob, box)) return false;
+                if (!LeapPlanner.noBlockCollision(level, mob, box)) return false;
             }
         }
         return true;
@@ -186,7 +194,7 @@ public final class LeapPlanner {
         double h = Math.max(mob.getBbHeight(), BOX_LIFT + 0.2D + BODY_BOX_H * sc);
         AABB box = new AABB(Math.min(a.x, b.x) - reach, Math.min(a.y, b.y) + BOX_LIFT, Math.min(a.z, b.z) - reach,
                 Math.max(a.x, b.x) + reach, top + h, Math.max(a.z, b.z) + reach);
-        return mob.level().noBlockCollision(mob, box);
+        return noBlockCollision(mob.level(), mob, box);
     }
 
     private static double[] bodyPointsOf(LeapSpec spec, double sc) {

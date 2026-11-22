@@ -71,7 +71,7 @@ public final class StiltSight {
 
     /** ガラス・板ガラス・柵・鉄格子(見通せる)。 */
     public static boolean seeThrough(BlockState s) {
-        return s.is(net.minecraftforge.common.Tags.Blocks.GLASS_BLOCKS) || s.is(net.minecraftforge.common.Tags.Blocks.GLASS_PANES)
+        return s.is(net.minecraftforge.common.Tags.Blocks.GLASS) || s.is(net.minecraftforge.common.Tags.Blocks.GLASS_PANES)
                 || s.is(BlockTags.FENCES) || s.is(BlockTags.FENCE_GATES) || s.getBlock() instanceof IronBarsBlock || s.is(Blocks.IRON_BARS);
     }
 }

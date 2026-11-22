@@ -136,7 +136,7 @@ public final class GenericInfectionAi {
         if (mob instanceof TamableAnimal tame) {
             tame.setOrderedToSit(false);
             tame.setInSittingPose(false);
-            tame.setTame(false, false);
+            tame.setTame(false);   // 【1.20.1】引数 1 つ(狼は飼い慣らしを解くと最大体力 8 に戻る)
             tame.setOwnerUUID(null);
         } else if (mob instanceof AbstractHorse horse) {
             horse.setTamed(false);

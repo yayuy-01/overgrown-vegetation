@@ -322,7 +322,7 @@ public final class FootPlanter {
     private static double probe(Level level, double x, double z, double top, double bottom) {
         Vec3 a = new Vec3(x, top, z), b = new Vec3(x, bottom, z);
         BlockHitResult hit = level.clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                (net.minecraft.world.entity.Entity) null));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return Double.NEGATIVE_INFINITY;
         }

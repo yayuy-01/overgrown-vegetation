@@ -70,8 +70,8 @@ public class PilimnesSpine extends ThrowableProjectile {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_KIND, (byte) FLICK);
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_KIND, (byte) FLICK);
     }
 
     public int kind() {
@@ -79,8 +79,8 @@ public class PilimnesSpine extends ThrowableProjectile {
     }
 
     @Override
-    protected double getDefaultGravity() {
-        return kind() == RAIN ? RAIN_GRAVITY : 0.0D;
+    protected float getGravity() {   // 【1.20.1】getDefaultGravity は無い。投げ物の重さは getGravity(float)
+        return (float) (kind() == RAIN ? RAIN_GRAVITY : 0.0D);
     }
 
     /**

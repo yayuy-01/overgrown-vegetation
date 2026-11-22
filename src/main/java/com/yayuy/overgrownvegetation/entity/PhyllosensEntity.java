@@ -118,12 +118,12 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_STATE, 0);
-        builder.define(DATA_NECK, new Vector3f());
-        builder.define(DATA_LOOK, new Vector3f(0, 21, 4));
-        builder.define(DATA_PACK, 180 << 20);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_STATE, 0);
+        this.entityData.define(DATA_NECK, new Vector3f());
+        this.entityData.define(DATA_LOOK, new Vector3f(0, 21, 4));
+        this.entityData.define(DATA_PACK, 180 << 20);
     }
 
     public PhyllosensWatch watch() {
@@ -173,7 +173,7 @@ public class PhyllosensEntity extends Monster implements GeoEntity, ParasitizedM
     /** 板根を叩かれた: 板根の体力だけ減らす(本体へは入れない)。根元から胞子を吹く。 */
     private boolean hurtPlate(int i, DamageSource source, float amount) {
         if (this.plateHp[i] <= 0.0F || this.plateInvul[i] > 0) return false;
-        float dmg = CombatRules.getDamageAfterAbsorb(this, amount, source, PLATE_ARMOR, 0.0F);
+        float dmg = CombatRules.getDamageAfterAbsorb(amount, PLATE_ARMOR, 0.0F);
         this.plateHp[i] = Math.max(0.0F, this.plateHp[i] - dmg);
         this.plateInvul[i] = PLATE_INVUL;
         if (this.level() instanceof ServerLevel sl) {

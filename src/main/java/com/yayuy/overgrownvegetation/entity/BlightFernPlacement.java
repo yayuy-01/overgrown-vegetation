@@ -60,7 +60,7 @@ public final class BlightFernPlacement {
                 && !com.yayuy.overgrownvegetation.data.DesignData.spawns().fernNaturalSpawn) {
             return null;
         }
-        BlightFernEntity entity = type.create(level, null, pos, reason, false, false);
+        BlightFernEntity entity = type.create(level, null, null, pos, reason, false, false);
         if (entity == null) {
             return null;
         }

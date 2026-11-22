@@ -126,9 +126,9 @@ public class RootGuardian extends Monster implements ParasitizedMob, GeoEntity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(ACTION, ACTION_NONE);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(ACTION, ACTION_NONE);
     }
 
     public int action() {

@@ -213,10 +213,10 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     private boolean releasing;
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ACT, 0);
-        builder.define(DATA_GUARD, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ACT, 0);
+        this.entityData.define(DATA_GUARD, 0);
     }
 
     /**
@@ -465,10 +465,12 @@ public class ClipeimnesEntity extends LongBodyRunner implements GeoEntity, Paras
     }
 
     /** 抱えた相手は鉤の輪の中(前 {@link ClipeimnesHuntGoal#HOLD_FORWARD})に地面へ立たせる。 */
+    // 【1.20.1】乗せる位置は positionRider で決める(1.20.5 の getPassengerAttachmentPoint の代わり。足もとを地面の高さに合わせる)
     @Override
-    protected net.minecraft.world.phys.Vec3 getPassengerAttachmentPoint(net.minecraft.world.entity.Entity passenger, net.minecraft.world.entity.EntityDimensions dimensions, float partialTick) {
-        double up = passenger.getVehicleAttachmentPoint(this).y;
-        return new net.minecraft.world.phys.Vec3(0.0D, up, ClipeimnesHuntGoal.HOLD_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+    protected void positionRider(net.minecraft.world.entity.Entity passenger, net.minecraft.world.entity.Entity.MoveFunction move) {
+        if (!this.hasPassenger(passenger)) return;
+        net.minecraft.world.phys.Vec3 off = new net.minecraft.world.phys.Vec3(0.0D, 0.0D, ClipeimnesHuntGoal.HOLD_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+        move.accept(passenger, this.getX() + off.x, this.getY() + off.y, this.getZ() + off.z);
     }
 
     /** 放した相手は抱えていた所に残す(バニラは芯の箱の上 = 背中に立たせることがある。サルティムネスと同じ)。 */

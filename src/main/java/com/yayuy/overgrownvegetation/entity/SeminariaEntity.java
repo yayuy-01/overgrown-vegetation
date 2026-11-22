@@ -305,10 +305,10 @@ public class SeminariaEntity extends SkyFlyer implements GeoEntity, ParasitizedM
     // ------------------------------------------------------------------ 風に揉まれる層
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_WIND, 0.0F);
-        builder.define(DATA_SOW, (byte) 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_WIND, 0.0F);
+        this.entityData.define(DATA_SOW, (byte) 0);
     }
 
     @Override

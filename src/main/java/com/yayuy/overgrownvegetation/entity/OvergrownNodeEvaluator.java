@@ -178,7 +178,7 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
 
     /**
      * この MOD の葉({@link com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock} とそれを継ぐ木生シダ・シギラリアの葉)を、バニラの葉と同じく
-     * {@link net.minecraft.world.level.pathfinder.PathType#LEAVES} として返す(11-08 夜、ユーザー「葉のタグを直す」)。
+     * {@link net.minecraft.world.level.pathfinder.BlockPathTypes#LEAVES} として返す(11-08 夜、ユーザー「葉のタグを直す」)。
      *
      * <p>バニラは {@code LeavesBlock} だけを葉と見るので、この MOD の葉は「通れない固いブロック」({@code BLOCKED})だった。
      * そのため葉を押し分ける荒い個体のファルキムネス(葉の重みを 2.0 にしている)も、経路の上では MOD の葉を回り込んでいた。
@@ -187,11 +187,11 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
      * 足場としての扱い(下が葉なら歩ける)は BLOCKED と同じ。
      */
     @Override
-    public net.minecraft.world.level.pathfinder.PathType getPathType(net.minecraft.world.level.pathfinder.PathfindingContext context, int x, int y, int z) {
-        net.minecraft.world.level.pathfinder.PathType type = super.getPathType(context, x, y, z);
-        if (type == net.minecraft.world.level.pathfinder.PathType.BLOCKED
+    public net.minecraft.world.level.pathfinder.BlockPathTypes getBlockPathType(net.minecraft.world.level.BlockGetter context, int x, int y, int z) {
+        net.minecraft.world.level.pathfinder.BlockPathTypes type = super.getBlockPathType(context, x, y, z);
+        if (type == net.minecraft.world.level.pathfinder.BlockPathTypes.BLOCKED
                 && context.getBlockState(this.leafScratch.set(x, y, z)).getBlock() instanceof com.yayuy.overgrownvegetation.block.OvergrownLeavesBlock) {
-            return net.minecraft.world.level.pathfinder.PathType.LEAVES;
+            return net.minecraft.world.level.pathfinder.BlockPathTypes.LEAVES;
         }
         return type;
     }
@@ -308,7 +308,7 @@ public class OvergrownNodeEvaluator extends WalkNodeEvaluator {
         double centerX = from.x + this.riseCenterOffset;
         double centerZ = from.z + this.riseCenterOffset;
         AABB rise = new AABB(centerX - half, bottom, centerZ - half, centerX + half, top, centerZ + half);
-        boolean clear = this.currentContext.level().noCollision(this.mob, rise);
+        boolean clear = this.level.noCollision(this.mob, rise);
         if (this.riseCount < this.riseFloors.length) {
             this.riseFloors[this.riseCount] = toFloor;
             this.riseAnswers[this.riseCount] = clear;

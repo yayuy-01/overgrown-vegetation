@@ -124,9 +124,9 @@ public abstract class CrawlerCritter extends SmallCrawler implements GeoEntity, 
     }
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ECO_ACT, (byte) 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ECO_ACT, (byte) 0);
     }
 
     @Override

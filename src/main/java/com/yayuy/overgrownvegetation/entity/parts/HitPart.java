@@ -45,7 +45,7 @@ public final class HitPart extends PartEntity<Mob> {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+    protected void defineSynchedData() {
     }
 
     @Override
@@ -83,11 +83,12 @@ public final class HitPart extends PartEntity<Mob> {
     // (火の矢は当たりが弾かれたとき、当たる前に読んだ残りへ書き戻すので、読むのも本体から)。
     // Entity のコンストラクタの中(親がまだ無い)では何もしない。
 
+    // 【1.20.1】igniteForTicks は無い。火を付ける口は setSecondsOnFire(中で自分の remainingFireTicks を直に読むので、本体へ回す)
     @Override
-    public void igniteForTicks(int ticks) {
+    public void setSecondsOnFire(int seconds) {
         Mob parent = this.getParent();
         if (parent != null) {
-            parent.igniteForTicks(ticks);
+            parent.setSecondsOnFire(seconds);
         }
     }
 

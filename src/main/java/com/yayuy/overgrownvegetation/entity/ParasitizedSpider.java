@@ -43,7 +43,7 @@ public class ParasitizedSpider extends AbstractParasitizedMonster {
     /** 毒が効かない(バニラのクモと同じ)。 */
     @Override
     public boolean canBeAffected(MobEffectInstance effect) {
-        return !effect.is(MobEffects.POISON) && super.canBeAffected(effect);
+        return effect.getEffect() != MobEffects.POISON && super.canBeAffected(effect);
     }
 
     /** クモの巣で遅くならない(バニラのクモと同じ)。 */

@@ -48,7 +48,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.PathFinder;
-import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -105,7 +105,7 @@ import java.util.UUID;
  * 鎌が前に出ていないのに当たる)。tick は {@link #TRANSITION_TICKS}(動作の切り替えの補間)+ アニメの秒 × 20。
  *
  * <h2>掴んだ獲物は「乗せる」</h2>
- * <p>獲物はこの Mob に<b>乗客として乗せて</b>顎の前へ置く({@link #getPassengerAttachmentPoint})。
+ * <p>獲物はこの Mob に<b>乗客として乗せて</b>顎の前へ置く({@link #positionRider})。
  * プレイヤーの位置はクライアントが決めるので、毎 tick テレポートさせるとガタつく —— 乗り物なら
  * バニラの同期がそのまま使える。自分から降りられず別の乗り物にも乗れないよう {@link Events#onMount} で止め
  * (ログアウトでは先に離す —— {@link Events#onLogout})、
@@ -631,8 +631,8 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         this.xpReward = MobStats.xpReward("falcimnes", 40);
         this.moveControl = new TankMoveControl(this);
         this.lookControl = new TankLookControl(this);
-        this.setPathfindingMalus(PathType.WATER, -1.0F);
-        this.setPathfindingMalus(PathType.LEAVES, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.WATER, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.LEAVES, -1.0F);
         this.getNavigation().setCanFloat(false);
         // 森の中を動く型 ② の段 1(11-08): 叩ける部位。id は本体の続き番号にする(エンダードラゴンと同じ。クライアントの部位と揃える)
         FalcimnesPartTrack track = FalcimnesPartTrack.get();
@@ -1300,21 +1300,21 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ACTION, ACT_NONE);
-        builder.define(DATA_SEQ, 0);
-        builder.define(DATA_SLASH_TICKS, 10);
-        builder.define(DATA_TURN, 0.0F);
-        builder.define(DATA_DODGE_HI, false);
-        builder.define(DATA_IDLE_KIND, IDLE_LOOK_R);
-        builder.define(DATA_ACTION_TIME, 0);
-        builder.define(DATA_BEND, 0L);
-        builder.define(DATA_TERRAIN, 0);
-        builder.define(DATA_SHAPE, 0);
-        builder.define(DATA_CAUTION, 0.5F);
-        builder.define(DATA_AGGRESSION, 0.5F);
-        builder.define(DATA_FLANK, 0.5F);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ACTION, ACT_NONE);
+        this.entityData.define(DATA_SEQ, 0);
+        this.entityData.define(DATA_SLASH_TICKS, 10);
+        this.entityData.define(DATA_TURN, 0.0F);
+        this.entityData.define(DATA_DODGE_HI, false);
+        this.entityData.define(DATA_IDLE_KIND, IDLE_LOOK_R);
+        this.entityData.define(DATA_ACTION_TIME, 0);
+        this.entityData.define(DATA_BEND, 0L);
+        this.entityData.define(DATA_TERRAIN, 0);
+        this.entityData.define(DATA_SHAPE, 0);
+        this.entityData.define(DATA_CAUTION, 0.5F);
+        this.entityData.define(DATA_AGGRESSION, 0.5F);
+        this.entityData.define(DATA_FLANK, 0.5F);
     }
 
     // ------------------------------------------------------------------ 個体の性格(段 3)
@@ -1369,7 +1369,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
             ev.setLongBody(mine);
         }
         this.leafPusher = o > LEAF_PUSH_MIN;
-        this.setPathfindingMalus(PathType.LEAVES, this.leafPusher ? LEAF_PUSH_MALUS : -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.LEAVES, this.leafPusher ? LEAF_PUSH_MALUS : -1.0F);
     }
 
     /** 技の重みの性格の掛け数。 */
@@ -2689,11 +2689,14 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
         }
     }
 
+    // 【1.20.1】乗せる位置は positionRider で決める(1.20.5 の getPassengerAttachmentPoint の代わり。本流は乗り手の getVehicleAttachmentPoint を足して引くので、残るのは PREY_UP − 獲物の高さの半分)
     @Override
-    protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float partialTick) {
+    protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+        if (!this.hasPassenger(passenger)) return;
         double s = this.bodyScale();
-        double up = PREY_UP * s - passenger.getBbHeight() * 0.5D + passenger.getVehicleAttachmentPoint(this).y;
-        return new Vec3(0.0D, up, PREY_FORWARD * s).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+        double up = PREY_UP * s - passenger.getBbHeight() * 0.5D;
+        Vec3 off = new Vec3(0.0D, up, PREY_FORWARD * s).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+        move.accept(passenger, this.getX() + off.x, this.getY() + off.y, this.getZ() + off.z);
     }
 
     /** 掴まれている獲物に操縦させない(ゾンビを掴むとゾンビがこちらを歩かせてしまう)。 */
@@ -2979,7 +2982,7 @@ public class FalcimnesEntity extends Monster implements GeoEntity, ParasitizedMo
                 BlockState state = f.level().getBlockState(pos);
                 // 段 3: この個体の当たりで見る(葉を押し分ける荒い個体は、葉の中で段と見て跳ねていた)
                 VoxelShape shape = state.getCollisionShape(f.level(), pos, net.minecraft.world.phys.shapes.CollisionContext.of(f));
-                if (dy > (double) f.maxUpStep() && dx * dx + dz * dz < (double) Math.max(1.0F, f.getBbWidth())
+                if (dy > (double) f.getStepHeight() && dx * dx + dz * dz < (double) Math.max(1.0F, f.getBbWidth())
                         || !shape.isEmpty() && f.getY() < shape.max(Direction.Axis.Y) + (double) pos.getY()
                         && !state.is(BlockTags.DOORS) && !state.is(BlockTags.FENCES)) {
                     f.getJumpControl().jump();

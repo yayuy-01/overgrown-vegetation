@@ -101,9 +101,9 @@ public class HiveNodeEntity extends PathfinderMob
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_RITUAL_YAW, Float.NaN);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_RITUAL_YAW, Float.NaN);
     }
 
     /**
@@ -184,11 +184,9 @@ public class HiveNodeEntity extends PathfinderMob
      * {@link BlightFernEntity#getDefaultDimensions} と同じ手で打ち消す。
      */
     @Override
-    protected EntityDimensions getDefaultDimensions(Pose pose) {
-        float scale = this.getScale();
-        float inverse = scale > 0.0F ? 1.0F / scale : 1.0F;
-        return EntityDimensions.scalable(MobStats.width("hive_node", 3.0F) * inverse,
-                MobStats.height("hive_node", 3.0F) * inverse);
+    public EntityDimensions getDimensions(Pose pose) {
+        // 【1.20.1】1.20.1 は getDimensions が体格を掛けるので、上書きして掛けない形にする(本流は getDefaultDimensions で 1/体格 を掛けて打ち消す)
+        return EntityDimensions.scalable(MobStats.width("hive_node", 3.0F), MobStats.height("hive_node", 3.0F));
     }
 
     /** 光源ブロックを置く位置 = 体の中心のマス(足元の 1 つ上)。 */

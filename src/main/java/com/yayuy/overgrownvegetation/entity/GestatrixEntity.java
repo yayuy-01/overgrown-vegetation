@@ -195,11 +195,11 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(STATE, ROAM);
-        builder.define(SACS, 4);
-        builder.define(NURSE, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(STATE, ROAM);
+        this.entityData.define(SACS, 4);
+        this.entityData.define(NURSE, 0);
     }
 
     @Override
@@ -492,7 +492,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
             if (g == null) continue;
             double a = getRandom().nextDouble() * Math.PI * 2.0D;
             g.moveTo(getX() + Math.cos(a) * 0.4D, getY() + getBbHeight() * 0.8D, getZ() + Math.sin(a) * 0.4D, getRandom().nextFloat() * 360.0F, 0.0F);
-            net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(g, level, level.getCurrentDifficultyAt(g.blockPosition()), MobSpawnType.BREEDING, null);
+            net.minecraftforge.event.ForgeEventFactory.onFinalizeSpawn(g, level, level.getCurrentDifficultyAt(g.blockPosition()), MobSpawnType.BREEDING, null, null);
             g.setDeltaMovement(Math.cos(a) * 0.35D, 0.3D, Math.sin(a) * 0.35D); // 背から散らす
             g.getPersistentData().putUUID(MOTHER_KEY, getUUID());
             if (level.addFreshEntity(g)) brood.add(g.getUUID()); // 群れ(CrawlerPack)には、グレガリアが近くの仲間と自分で入る
@@ -615,7 +615,7 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
         if (mob == null) return;
         Vec3 at = p != null ? Vec3.atBottomCenterOf(p) : position();
         mob.moveTo(at.x, at.y, at.z, getRandom().nextFloat() * 360.0F, 0.0F);
-        net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null);
+        net.minecraftforge.event.ForgeEventFactory.onFinalizeSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null, null);
         level.addFreshEntity(mob);
         com.yayuy.overgrownvegetation.director.BaseRaids.onNurseryHatched(level, mob);
     }

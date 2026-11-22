@@ -134,10 +134,10 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(ACTION, ACTION_NONE);
-        builder.define(SLOT, 1);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(ACTION, ACTION_NONE);
+        this.entityData.define(SLOT, 1);
     }
 
     public int action() {
@@ -341,7 +341,7 @@ public class NurseryParasitized extends Monster implements ParasitizedMob, GeoEn
         if (mob == null) return;
         Vec3 at = p != null ? Vec3.atBottomCenterOf(p) : position();
         mob.moveTo(at.x, at.y, at.z, random.nextFloat() * 360.0F, 0.0F);
-        net.neoforged.neoforge.event.EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null);
+        net.minecraftforge.event.ForgeEventFactory.onFinalizeSpawn(mob, level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.SPAWNER, null, null);
         com.yayuy.overgrownvegetation.director.ForestEconomy.markPaid(mob, hatchPaid);
         hatchPaid = 0.0D;
         level.addFreshEntity(mob);

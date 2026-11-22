@@ -92,18 +92,18 @@ public class G1MilkPuddle extends Entity {
     public static int stripBuffs(LivingEntity e) {
         if (!e.isAlive() || SporeExposureTracker.isPlantSide(e)) return 0;
         if (e instanceof Player p && (p.isCreative() || p.isSpectator())) return 0;
-        List<Holder<MobEffect>> good = new ArrayList<>();
+        List<MobEffect> good = new ArrayList<>();
         for (MobEffectInstance i : e.getActiveEffects()) {
-            if (i.getEffect().value().getCategory() == MobEffectCategory.BENEFICIAL) good.add(i.getEffect());
+            if (i.getEffect().getCategory() == MobEffectCategory.BENEFICIAL) good.add(i.getEffect());
         }
-        for (Holder<MobEffect> h : good) e.removeEffect(h);
+        for (MobEffect h : good) e.removeEffect(h);
         return good.size();
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(RADIUS, 1.0F);
-        builder.define(DURATION, 120);
+    protected void defineSynchedData() {
+        this.entityData.define(RADIUS, 1.0F);
+        this.entityData.define(DURATION, 120);
     }
 
     public float radius() {

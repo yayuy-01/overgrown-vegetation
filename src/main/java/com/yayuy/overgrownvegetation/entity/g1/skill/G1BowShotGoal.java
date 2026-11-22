@@ -124,7 +124,7 @@ public class G1BowShotGoal extends G1TechniqueGoal {
             level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), ModSounds.G1_SAC_SWELL.get(), SoundSource.HOSTILE, 0.8F, 0.6F);
         } else if (stageIndex == 0 && tickInStage == 13) {
             // 蔓の弦を引く
-            level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), SoundEvents.CROSSBOW_LOADING_MIDDLE.value(), SoundSource.HOSTILE, 0.7F, 0.6F);
+            level.playSound(null, mob.getX(), mob.getY() + 1.2D, mob.getZ(), SoundEvents.CROSSBOW_LOADING_MIDDLE, SoundSource.HOSTILE, 0.7F, 0.6F);
         } else if (stageIndex == 1 && tickInStage == 1) {
             shoot(level);
         }

@@ -122,14 +122,14 @@ public class FalcimnesRiftEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_LENGTH, 8.0F);
-        builder.define(DATA_WIDTH, 1.5F);
-        builder.define(DATA_SPEED, 1.2F);
-        builder.define(DATA_DELAY, 12);
-        builder.define(DATA_BAND, 8);
-        builder.define(DATA_HEIGHT, 3.0F);
-        builder.define(DATA_BURST, false);
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_LENGTH, 8.0F);
+        this.entityData.define(DATA_WIDTH, 1.5F);
+        this.entityData.define(DATA_SPEED, 1.2F);
+        this.entityData.define(DATA_DELAY, 12);
+        this.entityData.define(DATA_BAND, 8);
+        this.entityData.define(DATA_HEIGHT, 3.0F);
+        this.entityData.define(DATA_BURST, false);
     }
 
     public float length() {

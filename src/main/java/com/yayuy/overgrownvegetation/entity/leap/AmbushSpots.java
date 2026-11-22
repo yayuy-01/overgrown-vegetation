@@ -84,7 +84,7 @@ public final class AmbushSpots {
             int open = 0, road = 0;
             for (int k = 1; k <= 7; k++) {
                 double px = x + fx * (front + k), pz = z + fz * (front + k);
-                if (level.noBlockCollision(mob, LeapPlanner.coreBox(mob, px, y, pz)) && LeapPlanner.groundBelow(mob, px, y, pz, 1.5D)) {
+                if (LeapPlanner.noBlockCollision(level, mob, LeapPlanner.coreBox(mob, px, y, pz)) && LeapPlanner.groundBelow(mob, px, y, pz, 1.5D)) {
                     open++;
                     if (level.getBlockState(BlockPos.containing(px, y - 0.5D, pz)).is(ModTags.ROAD_BLOCKS)) road++;
                 }

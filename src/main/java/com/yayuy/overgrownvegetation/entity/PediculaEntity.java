@@ -182,9 +182,9 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_FLOAT, (byte) FLOAT);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_FLOAT, (byte) FLOAT);
     }
 
     /** 浮きの層に流すもの({@link #FLOAT}・{@link #RISE}・{@link #SINK})。サーバーが上下の速さから決めて送る。 */
@@ -253,7 +253,7 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
     }
 
     @Override
-    public boolean canBeLeashed() {
+    public boolean canBeLeashed(net.minecraft.world.entity.player.Player player) {
         return false;
     }
 
@@ -269,9 +269,9 @@ public class PediculaEntity extends Monster implements GeoEntity, ParasitizedMob
 
     @Nullable
     @Override
-    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason, @Nullable SpawnGroupData data) {
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType reason, @Nullable SpawnGroupData data, @Nullable CompoundTag spawnTag) {
         this.setPersistenceRequired();   // 段 1 は自然湧きしない: 卵・コマンドで出したものは消さない(読み込みの境で去るのは別)
-        return super.finalizeSpawn(level, difficulty, reason, data);
+        return super.finalizeSpawn(level, difficulty, reason, data, spawnTag);
     }
 
     // ------------------------------------------------------------------ サーバーの判断

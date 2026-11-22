@@ -200,9 +200,9 @@ public class StrobilaEntity extends SmallCrawler implements GeoEntity, Parasitiz
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_THROW_PHASE, PHASE_NONE);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_THROW_PHASE, PHASE_NONE);
     }
 
     @Override

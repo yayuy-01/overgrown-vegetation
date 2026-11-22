@@ -363,7 +363,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
                 .add(Attributes.MOVEMENT_SPEED, d.speed)
                 .add(Attributes.FOLLOW_RANGE, 35.0D);
         if (d == G1Developed.BABY_ZOMBIE) {
-            b.add(PortAttributes.STEP_HEIGHT.get(), BABY_STEP_HEIGHT); // (b) 柵・塀を四つ足でよじ登る(1.5 ブロック【決定 11-09】)
+            b.add(PortAttributes.STEP_HEIGHT.get(), PortAttributes.stepHeightBase(BABY_STEP_HEIGHT)); // (b) 柵・塀を四つ足でよじ登る(1.5 ブロック【決定 11-09】)
         }
         return b;
     }
@@ -627,7 +627,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     public net.minecraft.world.phys.Vec3 handleRelativeFrictionAndCalculateMovement(net.minecraft.world.phys.Vec3 deltaMovement, float friction) {
         net.minecraft.world.phys.Vec3 v = super.handleRelativeFrictionAndCalculateMovement(deltaMovement, friction);
         if (climbing && !perched && !com.yayuy.overgrownvegetation.corruption.cliff.RootClimb.touching(this)) { // 絡む根の上はクモも根の速さ(植物側の倍率。11-20 崖の汚染)
-            double rise = getGravity() + CLIMB_SPEED / 0.98D;
+            double rise = getAttributeValue(net.minecraftforge.common.ForgeMod.ENTITY_GRAVITY.get()) + CLIMB_SPEED / 0.98D;
             if (v.y > rise) v = new net.minecraft.world.phys.Vec3(v.x, rise, v.z);
         }
         return v;
@@ -643,7 +643,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     /** クモ: 毒が効かない(段階 0・バニラのクモと同じ)。 */
     @Override
     public boolean canBeAffected(net.minecraft.world.effect.MobEffectInstance effect) {
-        if (dev() == G1Developed.SPIDER && effect.is(net.minecraft.world.effect.MobEffects.POISON)) return false;
+        if (dev() == G1Developed.SPIDER && effect.getEffect() == net.minecraft.world.effect.MobEffects.POISON) return false;
         return super.canBeAffected(effect);
     }
 
@@ -834,7 +834,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         anchorLeft = ticks;
         this.entityData.set(ANCHORED, true);
         AttributeInstance kb = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-        if (kb != null && !kb.hasModifier(ANCHOR_KNOCKBACK_ID)) {
+        if (kb != null && !OvModifiers.has(kb, ANCHOR_KNOCKBACK_ID)) {
             kb.addTransientModifier(OvModifiers.create(ANCHOR_KNOCKBACK_ID, 1.0D, AttributeModifier.Operation.ADDITION));
         }
     }
@@ -847,7 +847,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
     private void endAnchor() {
         this.entityData.set(ANCHORED, false);
         AttributeInstance kb = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-        if (kb != null) kb.removeModifier(ANCHOR_KNOCKBACK_ID);
+        if (kb != null) OvModifiers.remove(kb, ANCHOR_KNOCKBACK_ID);
         anchorReadyAt = level().getGameTime() + G1RootAnchorGoal.COOLDOWN;
         holdAction(G1Move.ROOT_RELEASE, G1RootAnchorGoal.RELEASE_TICKS);
         level().playSound(null, getX(), getY(), getZ(), ModSounds.G1_ROOT_BREAK.get(), SoundSource.HOSTILE, 0.7F, 0.8F);
@@ -1189,12 +1189,12 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
 
     // ------------------------------------------------------------------ 能力の第 2 回(牛・羊・鶏)の口
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(FLUFF, FLUFF_MAX);
-        builder.define(PODS, 100);
-        builder.define(ANCHORED, false);
-        builder.define(CARRIED, java.util.Optional.empty());
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(FLUFF, FLUFF_MAX);
+        this.entityData.define(PODS, 100);
+        this.entityData.define(ANCHORED, false);
+        this.entityData.define(CARRIED, java.util.Optional.empty());
     }
 
     /** 羊の綿毛の段(0〜{@link #FLUFF_MAX})。 */
@@ -1278,7 +1278,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
             if (level() instanceof ServerLevel) {
                 shear();
                 gameEvent(net.minecraft.world.level.gameevent.GameEvent.SHEAR, player);
-                stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+                stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(hand));
             }
             return net.minecraft.world.InteractionResult.sidedSuccess(level().isClientSide());
         }
@@ -1357,7 +1357,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         if (isWithinMeleeAttackRange(target)) return true;
         double lunge = dev().lunge;
         if (lunge <= 0.0D) return false;
-        if (!getAttackBoundingBox().inflate(lunge, 0.0D, lunge).intersects(target.getHitbox())) return false;
+        if (!getAttackBoundingBox().inflate(lunge, 0.0D, lunge).intersects(target.getBoundingBox())) return false;
         if (Math.abs(target.getY() - getY()) > LUNGE_STEP_MAX) return false;
         double dx = target.getX() - getX();
         double dz = target.getZ() - getZ();
@@ -1768,10 +1768,10 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
      * 豚の背の乗り手の高さ = 豚の胴の上面(モデルの 14 単位 = {@value #PIG_BACK_HEIGHT} ブロック。当たり判定の天辺 1.0 より少し下)。
      * 乗り手の側はアニメ ride が root を 4.5 単位下げて、またがる・張り付く(11-13。それまでは乗る姿勢が無く、0.3 下げて立たせていた)。
      */
+    // 【1.20.1】1.20.5 の getPassengerAttachmentPoint の代わりに、乗り手の高さ(getPassengersRidingOffset)を変える
     @Override
-    protected net.minecraft.world.phys.Vec3 getPassengerAttachmentPoint(Entity passenger, net.minecraft.world.entity.EntityDimensions dimensions, float partialTick) {
-        net.minecraft.world.phys.Vec3 p = super.getPassengerAttachmentPoint(passenger, dimensions, partialTick);
-        return dev() == G1Developed.PIG ? new net.minecraft.world.phys.Vec3(p.x, PIG_BACK_HEIGHT, p.z) : p;
+    public double getPassengersRidingOffset() {
+        return dev() == G1Developed.PIG ? PIG_BACK_HEIGHT : super.getPassengersRidingOffset();
     }
 
     /** 乗り手(小さな G1)に豚を操らせない(豚の AI が運ぶ)。 */
@@ -1786,7 +1786,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         super.addPassenger(passenger);
         if (!level().isClientSide() && dev() == G1Developed.PIG) {
             AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
-            if (speed != null && !speed.hasModifier(CARRY_SPEED_ID)) {
+            if (speed != null && !OvModifiers.has(speed, CARRY_SPEED_ID)) {
                 speed.addTransientModifier(OvModifiers.create(CARRY_SPEED_ID, CARRY_SPEED_BONUS, AttributeModifier.Operation.MULTIPLY_BASE));
             }
         }
@@ -1797,7 +1797,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
         super.removePassenger(passenger);
         if (!level().isClientSide() && !isVehicle()) {
             AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
-            if (speed != null) speed.removeModifier(CARRY_SPEED_ID);
+            if (speed != null) OvModifiers.remove(speed, CARRY_SPEED_ID);
         }
     }
 
@@ -1964,7 +1964,7 @@ public class DevelopedParasitized extends AbstractParasitizedMonster {
             setFluff(tag.getInt("Fluff"));
         }
         if (tag.contains("FluffRegrowIn")) {
-            fluffRegrowAt = level().getGameTime() + net.minecraft.util.Mth.clamp(tag.getLong("FluffRegrowIn"), 0L, (long) FLUFF_REGROW_TICKS);
+            fluffRegrowAt = level().getGameTime() + Math.max(0L, Math.min(tag.getLong("FluffRegrowIn"), (long) FLUFF_REGROW_TICKS));
         }
         if (tag.contains("LooseIn")) {
             for (G1TechniqueGoal g : techniques()) {

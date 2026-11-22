@@ -242,10 +242,10 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     // ------------------------------------------------------------------ 登録
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_LEAP, 0);
-        builder.define(DATA_ACT, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_LEAP, 0);
+        this.entityData.define(DATA_ACT, 0);
     }
 
     /**
@@ -448,10 +448,12 @@ public class SaltimnesEntity extends LongBodyRunner implements GeoEntity, Parasi
     // --- 押さえ込んだ相手を乗せる(ファルキムネスの掴みと同じ作り)
 
     /** 押さえ込んだ相手は首の下(前 {@link SaltimnesHuntGoal#PIN_FORWARD})に地面へ立たせる。 */
+    // 【1.20.1】乗せる位置は positionRider で決める(1.20.5 の getPassengerAttachmentPoint の代わり。足もとを地面の高さに合わせる)
     @Override
-    protected Vec3 getPassengerAttachmentPoint(Entity passenger, net.minecraft.world.entity.EntityDimensions dimensions, float partialTick) {
-        double up = passenger.getVehicleAttachmentPoint(this).y;
-        return new Vec3(0.0D, up, SaltimnesHuntGoal.PIN_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+    protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+        if (!this.hasPassenger(passenger)) return;
+        Vec3 off = new Vec3(0.0D, 0.0D, SaltimnesHuntGoal.PIN_FORWARD * this.getScale()).yRot(-this.getYRot() * Mth.DEG_TO_RAD);
+        move.accept(passenger, this.getX() + off.x, this.getY() + off.y, this.getZ() + off.z);
     }
 
     /**
