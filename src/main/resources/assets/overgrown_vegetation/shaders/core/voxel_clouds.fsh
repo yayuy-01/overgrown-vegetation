@@ -218,7 +218,10 @@ void main() {
     bool farRing = ovInfo.a < 0.42;
     bool giant = ovInfo.a > 0.58 && ovInfo.a < 0.9;
     bool storm = ovInfo.a >= 0.9 || (ovInfo.a > 0.72 && ovInfo.a < 0.9) || ovInfo.a < 0.22;
-    if (Far.w > 0.5 && ovInfo.a > 0.42 && ovInfo.a < 0.72
+    // 11-23: floor columns of the near window that reach into a storm are drawn as the storm (client/sky/VoxelClouds.java
+    // stormColumnTags: 0.91 storm, 0.976 nest, 0.851 giant), but they are still floor and leave the far ring's hole to the far window.
+    bool floorInStorm = (ovInfo.a > 0.905 && ovInfo.a < 0.915) || (ovInfo.a > 0.966 && ovInfo.a < 0.979) || (ovInfo.a > 0.845 && ovInfo.a < 0.857);
+    if (Far.w > 0.5 && ((ovInfo.a > 0.42 && ovInfo.a < 0.72) || floorInStorm)
             && (ovPos.x < FarHole.x || ovPos.z < FarHole.y || ovPos.x > FarHole.z || ovPos.z > FarHole.w)) {
         discard;
     }

@@ -107,6 +107,16 @@ public final class VoxelClouds implements CloudRenderer {
     private static final float FAR_STORM_TAG = 0.15F;
     /** 嵐の巣の雲(11-18): 積乱雲と同じ扱いで、シェーダーが暗い嵐の雲の色にする(近く 0.95・遠景 0.19)。 */
     private static final float NEST_TAG = 0.95F;
+    /**
+     * 近くの窓の床の柱のうち積乱雲に食い込んだもの(11-23。{@link #stormColumnTags}): シェーダーは積乱雲・嵐の巣・巨大な雲として塗るが、
+     * 雲の海の床と同じく遠景の穴の外では捨てる(voxel_clouds.fsh の FarHole)。8 ビットで 232・249・217 になり、ほかの印とぶつからない。
+     */
+    private static final float FLOOR_STORM_TAG = 0.91F;
+    private static final float FLOOR_NEST_TAG = 0.976F;
+    private static final float FLOOR_GIANT_TAG = 0.851F;
+    /** 遠景の窓の同じ柱(積乱雲 0.165 = 42・嵐の巣 0.2 = 51)。どの床の印も奥行きは寄せない(voxel_clouds.vsh。寄せると積乱雲の面と同じ所で再び取り合う)。 */
+    private static final float FAR_FLOOR_STORM_TAG = 0.165F;
+    private static final float FAR_FLOOR_NEST_TAG = 0.2F;
     private static final float FAR_NEST_TAG = 0.19F;
     /** 積乱雲を形にするタイルの大きさ(ブロック)。 */
     static final int TILE = 768;
@@ -1002,12 +1012,12 @@ public final class VoxelClouds implements CloudRenderer {
         ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 21);
         BufferBuilder b = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         int quads = 0;
-        quads += farGrid(b, storms, threshold, coverage, style, w, Math.floorDiv(holeX - FAR_MID, cell1), Math.floorDiv(holeZ - FAR_MID, cell1), 2 * FAR_MID / cell1,
+        quads += farGrid(b, storms, mine, threshold, coverage, style, w, Math.floorDiv(holeX - FAR_MID, cell1), Math.floorDiv(holeZ - FAR_MID, cell1), 2 * FAR_MID / cell1,
                 cell1, Math.floorDiv(holeX - FAR_HOLE, cell1), Math.floorDiv(holeZ - FAR_HOLE, cell1), 2 * FAR_HOLE / cell1);
-        quads += farGrid(b, storms, threshold, coverage, style, w, Math.floorDiv(holeX - FAR_RANGE, cell2), Math.floorDiv(holeZ - FAR_RANGE, cell2), 2 * FAR_RANGE / cell2,
+        quads += farGrid(b, storms, mine, threshold, coverage, style, w, Math.floorDiv(holeX - FAR_RANGE, cell2), Math.floorDiv(holeZ - FAR_RANGE, cell2), 2 * FAR_RANGE / cell2,
                 cell2, Math.floorDiv(holeX - FAR_MID, cell2), Math.floorDiv(holeZ - FAR_MID, cell2), 2 * FAR_MID / cell2);
         if (outer) {
-            quads += farGrid(b, outerStorms, threshold, coverage, style, w, Math.floorDiv(holeX - FAR3_RANGE, FAR_CELL_3), Math.floorDiv(holeZ - FAR3_RANGE, FAR_CELL_3),
+            quads += farGrid(b, outerStorms, mine, threshold, coverage, style, w, Math.floorDiv(holeX - FAR3_RANGE, FAR_CELL_3), Math.floorDiv(holeZ - FAR3_RANGE, FAR_CELL_3),
                     2 * FAR3_RANGE / FAR_CELL_3, FAR_CELL_3, Math.floorDiv(holeX - FAR_RANGE, FAR_CELL_3), Math.floorDiv(holeZ - FAR_RANGE, FAR_CELL_3),
                     2 * FAR_RANGE / FAR_CELL_3);
         }
@@ -1030,7 +1040,7 @@ public final class VoxelClouds implements CloudRenderer {
     }
 
     /** 遠景の雲の海の格子 1 段(遠いほど切れ目と谷を閉じる)。 */
-    private static int farGrid(BufferBuilder b, List<CloudField.Storm> storms, float threshold, float coverage, int style, Window w,
+    private static int farGrid(BufferBuilder b, List<CloudField.Storm> storms, List<CloudField.Storm> meshStorms, float threshold, float coverage, int style, Window w,
                                int gx0, int gz0, int n, int size, int skipX, int skipZ, int skipN) {
         int[] bottom = new int[n * n];
         int[] top = new int[n * n];
@@ -1050,7 +1060,9 @@ public final class VoxelClouds implements CloudRenderer {
         float offZ = gz0 * (float) size - w.originZ * (float) CloudField.CELL_XZ;
         // 11-18 試し: 地上からも遠景を出すとき(SkyDev.farLow)は下面も作る(無いと、下から見て横の面だけが細い線に見えた)。
         SkyDev.heap(bottom, top, n, size, gx0, gz0, coverage);
-        return layer(b, bottom, top, n, n, offX, offZ, FAR_SEA_TAG, size, SkyDev.farLow > 0.0F);
+        // 積乱雲に食い込んだ柱は遠景の積乱雲の印で(この窓が形にする積乱雲だけ。{@link #stormColumnTags})。
+        float[] tags = stormColumnTags(bottom, top, n, gx0, gz0, size, meshStorms, FAR_FLOOR_STORM_TAG, FAR_FLOOR_NEST_TAG, FAR_FLOOR_STORM_TAG);
+        return layer(b, bottom, top, n, n, offX, offZ, FAR_SEA_TAG, size, SkyDev.farLow > 0.0F, tags);
     }
 
     /** 遠景の格子の四角 1 つ(柱 ti..ti+GRID_TILE, tj..tj+GRID_TILE)。 */
@@ -1196,7 +1208,8 @@ public final class VoxelClouds implements CloudRenderer {
                     top[k] = c.present() ? c.top() - CloudField.LOW_BASE : 0;
                 }
             }
-            quads = layer(b, bottom, top, size, size, 0.0F, 0.0F, LOW_TAG, CloudField.CELL_XZ);
+            quads = layer(b, bottom, top, size, size, 0.0F, 0.0F, LOW_TAG, CloudField.CELL_XZ, true,
+                    stormColumnTags(bottom, top, size, w.originX, w.originZ, CloudField.CELL_XZ, floorStorms, FLOOR_STORM_TAG, FLOOR_NEST_TAG, FLOOR_GIANT_TAG));
         }
         int floorQuads = quads;
         quads += stormTiles(b, meshStorms, w, voxel);
@@ -1280,7 +1293,9 @@ public final class VoxelClouds implements CloudRenderer {
         float offX = gx0 * (float) size - w.originX * (float) CloudField.CELL_XZ;
         float offZ = gz0 * (float) size - w.originZ * (float) CloudField.CELL_XZ;
         SkyDev.heap(bottom, top, n, size, gx0, gz0, coverage);
-        int quads = layer(b, bottom, top, n, n, offX, offZ, SEA_TAG, size);
+        // 積乱雲に食い込んだ柱は積乱雲の印で({@link #stormColumnTags}。遠景の窓の積乱雲に食い込んだ所も。穴の外はシェーダーが床と同じく捨てる)。
+        int quads = layer(b, bottom, top, n, n, offX, offZ, SEA_TAG, size, true,
+                stormColumnTags(bottom, top, n, gx0, gz0, size, storms, FLOOR_STORM_TAG, FLOOR_NEST_TAG, FLOOR_GIANT_TAG));
         if (!anyFine) {
             return quads;
         }
@@ -1324,7 +1339,8 @@ public final class VoxelClouds implements CloudRenderer {
                 }
                 float fox = cx0 * (float) CloudField.CELL_XZ - w.originX * (float) CloudField.CELL_XZ;
                 float foz = cz0 * (float) CloudField.CELL_XZ - w.originZ * (float) CloudField.CELL_XZ;
-                quads += layer(b, fb, ft, fn, fn, fox, foz, SEA_TAG, CloudField.CELL_XZ);
+                quads += layer(b, fb, ft, fn, fn, fox, foz, SEA_TAG, CloudField.CELL_XZ, true,
+                        stormColumnTags(fb, ft, fn, cx0, cz0, CloudField.CELL_XZ, storms, FLOOR_STORM_TAG, FLOOR_NEST_TAG, FLOOR_GIANT_TAG));
             }
         }
         return quads;
@@ -1722,11 +1738,70 @@ public final class VoxelClouds implements CloudRenderer {
      * tag = 頂点の色の a(下の層か積乱雲か)。
      */
     private static int layer(BufferBuilder b, int[] bottom, int[] top, int n, int m, float offX, float offZ, float tag, int s) {
-        return layer(b, bottom, top, n, m, offX, offZ, tag, s, true);
+        return layer(b, bottom, top, n, m, offX, offZ, tag, s, true, null);
     }
 
-    /** bottoms = false なら下面を作らない(遠景はカメラが雲より上にあるときだけ描くので、雲の海の下面は見えない)。 */
-    private static int layer(BufferBuilder b, int[] bottom, int[] top, int n, int m, float offX, float offZ, float tag, int s, boolean bottoms) {
+    /*
+     * 積乱雲に食い込んだ床の柱(2026-11-23、ユーザー「雷雲の中に白い雲が混ざってるのは何」→「積乱雲の色に寄せる」):
+     * 積乱雲・嵐の巣のまわりは床の柱が盛り上がり、その角が積乱雲の箱の外へ少しはみ出して、暗い雷雲の中に白い欠片として見えた。
+     * 柱の天辺のすぐ下が積乱雲の塊の中にある柱は、その積乱雲の印(色の a)で塗る(シェーダーが積乱雲として陰を付ける)。
+     * 台の下に残す薄い床(天辺が CELL_Y 以下。11-12)は床のまま。
+     */
+    /** 柱ごとの印(積乱雲に食い込んだ柱だけ積乱雲の印、ほかは NaN = 床の印)。積乱雲が無ければ null。gx0・gz0 = 柱の番号の原点(場の座標 / size)。 */
+    private static float[] stormColumnTags(int[] bottom, int[] top, int n, int gx0, int gz0, int size, List<CloudField.Storm> storms,
+                                           float stormTag, float nestTag, float giantTag) {
+        if (storms.isEmpty()) {
+            return null;
+        }
+        float[] tags = null;
+        for (CloudField.Storm s : storms) {
+            List<CloudField.Puff> pp = CloudField.puffs(s, peakLevel());
+            if (pp.isEmpty()) {
+                continue;
+            }
+            double bx0 = Double.MAX_VALUE;
+            double bz0 = Double.MAX_VALUE;
+            double bx1 = -Double.MAX_VALUE;
+            double bz1 = -Double.MAX_VALUE;
+            for (CloudField.Puff p : pp) {
+                double r = p.r() * 1.2;
+                bx0 = Math.min(bx0, p.x() - r);
+                bx1 = Math.max(bx1, p.x() + r);
+                bz0 = Math.min(bz0, p.z() - r);
+                bz1 = Math.max(bz1, p.z() + r);
+            }
+            float t = CloudField.nestStorm(s) ? nestTag : (s.giant() ? giantTag : stormTag);
+            int i0 = Math.max(0, Mth.floor(bx0 / size) - gx0);
+            int i1 = Math.min(n - 1, Mth.floor(bx1 / size) - gx0);
+            int j0 = Math.max(0, Mth.floor(bz0 / size) - gz0);
+            int j1 = Math.min(n - 1, Mth.floor(bz1 / size) - gz0);
+            for (int j = j0; j <= j1; j++) {
+                for (int i = i0; i <= i1; i++) {
+                    int k = j * n + i;
+                    if (top[k] <= CloudField.CELL_Y || bottom[k] >= top[k] || (tags != null && !Float.isNaN(tags[k]))) {
+                        continue;
+                    }
+                    double x = (gx0 + i + 0.5) * size;
+                    double z = (gz0 + j + 0.5) * size;
+                    if (CloudField.inside(pp, x, CloudField.LOW_BASE + top[k] - 2.0, z)) {
+                        if (tags == null) {
+                            tags = new float[n * n];
+                            java.util.Arrays.fill(tags, Float.NaN);
+                        }
+                        tags[k] = t;
+                    }
+                }
+            }
+        }
+        return tags;
+    }
+
+    /**
+     * bottoms = false なら下面を作らない(遠景はカメラが雲より上にあるときだけ描くので、雲の海の下面は見えない)。
+     * tags = 柱ごとの印({@link #stormColumnTags}。null か NaN の柱は tag)。
+     */
+    private static int layer(BufferBuilder b, int[] bottom, int[] top, int n, int m, float offX, float offZ, float baseTag, int s, boolean bottoms,
+                             float[] tags) {
         int quads = 0;
         float layer = CloudField.LOW_TOP - CloudField.LOW_BASE;
         for (int j = 0; j < m; j++) {
@@ -1737,6 +1812,7 @@ public final class VoxelClouds implements CloudRenderer {
                 if (y0 >= y1) {
                     continue;
                 }
+                float tag = tags != null && !Float.isNaN(tags[k]) ? tags[k] : baseTag;
                 // 角は番号から同じ式で(隣の柱と少しでもずれると、平らな雲の海にすき間の線が格子に見えた)。
                 float x0 = (float) (offX + (double) i * s);
                 float x1 = (float) (offX + (double) (i + 1) * s);
@@ -1751,8 +1827,9 @@ public final class VoxelClouds implements CloudRenderer {
                     }
                 }
                 float thin = Math.max(1.0F - Mth.clamp((y1 - y0) / 24.0F, 0.0F, 1.0F), open * 0.15F);
-                float h0 = y0 / layer;
-                float h1 = y1 / layer;
+                boolean asStorm = tag != baseTag;
+                float h0 = shadeAt(y0, layer, asStorm);
+                float h1 = shadeAt(y1, layer, asStorm);
                 // 下面(辺: 北・東・南・西)・上面(辺: 南・東・北・西)。出っ張った辺 = 隣の柱がその高さのすぐ上下とも空いている。
                 int downBits = (colEmpty2(bottom, top, n, m, i, j - 1, y0 - 1, y0) ? 1 : 0) | (colEmpty2(bottom, top, n, m, i + 1, j, y0 - 1, y0) ? 2 : 0)
                         | (colEmpty2(bottom, top, n, m, i, j + 1, y0 - 1, y0) ? 4 : 0) | (colEmpty2(bottom, top, n, m, i - 1, j, y0 - 1, y0) ? 8 : 0);
@@ -1775,13 +1852,13 @@ public final class VoxelClouds implements CloudRenderer {
                         nt = top[nj * n + ni];
                     }
                     if (nb >= nt) {
-                        quads += side(b, d, thin, tag, layer, x0, x1, z0, z1, y0, y1, bottom, top, n, m, i, j);
+                        quads += side(b, d, thin, tag, asStorm, layer, x0, x1, z0, z1, y0, y1, bottom, top, n, m, i, j);
                     } else {
                         if (y0 < nb) {
-                            quads += side(b, d, thin, tag, layer, x0, x1, z0, z1, y0, Math.min(y1, nb), bottom, top, n, m, i, j);
+                            quads += side(b, d, thin, tag, asStorm, layer, x0, x1, z0, z1, y0, Math.min(y1, nb), bottom, top, n, m, i, j);
                         }
                         if (y1 > nt) {
-                            quads += side(b, d, thin, tag, layer, x0, x1, z0, z1, Math.max(y0, nt), y1, bottom, top, n, m, i, j);
+                            quads += side(b, d, thin, tag, asStorm, layer, x0, x1, z0, z1, Math.max(y0, nt), y1, bottom, top, n, m, i, j);
                         }
                     }
                 }
@@ -1794,13 +1871,13 @@ public final class VoxelClouds implements CloudRenderer {
      * 柱の横の面 1 枚(d: 0 北・1 南・2 西・3 東、高さ ya〜yb)。辺の順は 下・(頂点の順で)横・上・横。出っ張った辺: 下は自分の柱と向かいの柱が ya のすぐ下で空、
      * 上は yb のすぐ上で空、横はその向きの隣の柱と斜めの柱が真ん中の高さで空。
      */
-    private static int side(BufferBuilder b, int d, float thin, float tag, float layer, float x0, float x1, float z0, float z1, int ya, int yb,
+    private static int side(BufferBuilder b, int d, float thin, float tag, boolean asStorm, float layer, float x0, float x1, float z0, float z1, int ya, int yb,
                             int[] bottom, int[] top, int n, int m, int i, int j) {
         if (yb <= ya) {
             return 0;
         }
-        float ha = ya / layer;
-        float hb = yb / layer;
+        float ha = shadeAt(ya, layer, asStorm);
+        float hb = shadeAt(yb, layer, asStorm);
         int fi = d == 2 ? -1 : d == 3 ? 1 : 0;
         int fj = d == 0 ? -1 : d == 1 ? 1 : 0;
         int mid = (ya + yb) / 2;
@@ -1819,6 +1896,18 @@ public final class VoxelClouds implements CloudRenderer {
             default -> quad(b, 5, thin, tag, bits, x1, ya, z1, ha, x1, ya, z0, ha, x1, yb, z0, hb, x1, yb, z1, hb);
         }
         return 1;
+    }
+
+    /**
+     * 頂点の色の g。床 = 層の中の高さ。積乱雲に食い込んだ柱(11-23)= 積乱雲の箱と同じ焼いた明るさ({@link #tileMesh} の式。真上のかぶさりは
+     * 測らず、雲の台の近くのふつうの値 0.85 を掛ける)。床の高さのままだと積乱雲の色の中で明るさが食い違い、細い明るい線に見えた。
+     */
+    private static float shadeAt(int y, float layer, boolean asStorm) {
+        if (!asStorm) {
+            return y / layer;
+        }
+        float hf = Mth.clamp(y / 400.0F, 0.0F, 1.0F);
+        return (0.5F + 0.5F * (float) Math.pow(hf, 0.6)) * 0.85F;
     }
 
     /** 柱 (i, j) が高さ y(その 1 ブロック)を埋めているか(格子の外は空)。 */
