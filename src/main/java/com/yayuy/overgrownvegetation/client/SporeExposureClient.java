@@ -145,8 +145,9 @@ public final class SporeExposureClient {
     /** GUI の層の登録(MOD バス)。 */
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Layers {
+        // 1.20.1: 受け手のメソッドの名前はクラスごとに変える(Forge の EventBus は「クラスの単純名_メソッド名_イベントの単純名」で包みを作って使い回すので、同じパッケージの同じ名前の入れ子のクラスがぶつかり、前の受け手が 2 回呼ばれる)
         @SubscribeEvent
-        public static void onRegisterGuiLayers(RegisterGuiOverlaysEvent event) {
+        public static void onSporeExposureClientLayers(RegisterGuiOverlaysEvent event) {
             // 1.20.1: 1.21 の CAMERA_OVERLAYS(ビネット・望遠鏡・かぼちゃ・凍え・ポータル)の後 = PORTAL の後
             event.registerAbove(VanillaGuiOverlay.PORTAL.id(), "spore_exposure_haze",
                     SporeExposureClient::render);

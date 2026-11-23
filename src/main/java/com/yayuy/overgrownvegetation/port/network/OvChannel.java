@@ -49,26 +49,51 @@ public final class OvChannel {
     private static final TreeSet<String> VERSIONS = new TreeSet<>();
     private static volatile String protocol = "none";
 
-    public static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(PortConst.id("main"))
-            .networkProtocolVersion(() -> protocol)
-            .clientAcceptedVersions(v -> v.equals(protocol))
-            .serverAcceptedVersions(v -> v.equals(protocol))
-            .simpleChannel();
+    /**
+     * 通信路。{@link #build} で 1 回だけ作る(2026-11-23 統合 I)。Forge 1.20.1 の {@code NetworkInstance} は版を<b>作ったときに 1 回だけ読む</b>
+     * ({@code networkProtocolVersion.get()})ので、クラスの読み込みで作ると全部の {@code registrar("版")} の前の "none" を名乗り、
+     * 受ける側の判定(つないだ版)と合わずにワールドへ入れなかった。
+     */
+    private static volatile SimpleChannel channel;
 
-    static {
-        CHANNEL.messageBuilder(Packet.class, 0)
+    /** {@code PortSetup} が起動のときに呼ぶ(今は何もしない。通信路は {@link #build} で作る)。 */
+    public static void init() {
+    }
+
+    /** {@code RegisterPayloadHandlersEvent} を投げ終えた後に {@code PortSetup} が 1 回呼ぶ(Forge が通信路の登録を締める前)。 */
+    public static synchronized void build() {
+        if (channel != null) {
+            return;
+        }
+        String fixed = protocol;
+        SimpleChannel c = NetworkRegistry.ChannelBuilder
+                .named(PortConst.id("main"))
+                .networkProtocolVersion(() -> fixed)
+                .clientAcceptedVersions(fixed::equals)
+                .serverAcceptedVersions(fixed::equals)
+                .simpleChannel();
+        c.messageBuilder(Packet.class, 0)
                 .encoder(Packet::write)
                 .decoder(Packet::read)
                 .consumerMainThread(OvChannel::receive)
                 .add();
+        channel = c;
+        PortConst.LOGGER.info("[port] network channel {} version {}", PortConst.id("main"), fixed);
     }
 
-    /** {@code PortSetup} が起動のときに呼ぶ(クラスを読み込ませるだけ)。 */
-    public static void init() {
+    /** 通信路(作る前に送ろうとしたら落とす)。 */
+    public static SimpleChannel channel() {
+        SimpleChannel c = channel;
+        if (c == null) {
+            throw new IllegalStateException("OvChannel is not built yet (RegisterPayloadHandlersEvent has not been posted)");
+        }
+        return c;
     }
 
     static synchronized void addVersion(String v) {
+        if (channel != null) {
+            throw new IllegalStateException("registrar(\"" + v + "\") after the channel was built");
+        }
         VERSIONS.add(v);
         protocol = String.join("|", VERSIONS);
     }
@@ -88,7 +113,7 @@ public final class OvChannel {
     }
 
     static void sendToServer(CustomPacketPayload payload) {
-        CHANNEL.sendToServer(wrap(payload));
+        channel().sendToServer(wrap(payload));
     }
 
     // ── 運ぶ物 ──

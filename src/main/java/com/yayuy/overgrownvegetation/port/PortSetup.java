@@ -30,6 +30,11 @@ public final class PortSetup {
             com.yayuy.overgrownvegetation.port.dev.AutoQuit.init();
         }
         // NeoForge の RegisterPayloadHandlersEvent の代わり。@EventBusSubscriber の受け手がつながった後(共通の準備)に 1 回投げる
-        modBus.addListener((FMLCommonSetupEvent e) -> modBus.post(new RegisterPayloadHandlersEvent()));
+        // 2026-11-23 統合 I: 投げ終えてから通信路を作る(Forge 1.20.1 は通信路の版を作ったときに読む)。メインのスレッドで(登録簿は HashMap)。
+        // enqueueWork は共通の準備の後・Forge が通信路の登録を締める(NETWORK_LOCK)前に回る
+        modBus.addListener((FMLCommonSetupEvent e) -> e.enqueueWork(() -> {
+            modBus.post(new RegisterPayloadHandlersEvent());
+            OvChannel.build();
+        }));
     }
 }

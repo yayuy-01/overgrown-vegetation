@@ -8,7 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * 【1.20.1 だけの物・互換の層】NeoForge 1.21 の {@code net.neoforged.neoforge.network.PacketDistributor}(static の送り方)と同じ名前・同じ引数。
- * 中身は Forge の SimpleChannel({@link OvChannel#CHANNEL})と Forge の {@code PacketDistributor}。
+ * 中身は Forge の SimpleChannel({@link OvChannel#channel()})と Forge の {@code PacketDistributor}。
  */
 public final class PacketDistributor {
 
@@ -58,9 +58,9 @@ public final class PacketDistributor {
     }
 
     private static void send(net.minecraftforge.network.PacketDistributor.PacketTarget target, CustomPacketPayload payload, CustomPacketPayload... more) {
-        OvChannel.CHANNEL.send(target, OvChannel.wrap(payload));
+        OvChannel.channel().send(target, OvChannel.wrap(payload));
         for (CustomPacketPayload p : more) {
-            OvChannel.CHANNEL.send(target, OvChannel.wrap(p));
+            OvChannel.channel().send(target, OvChannel.wrap(p));
         }
     }
 }

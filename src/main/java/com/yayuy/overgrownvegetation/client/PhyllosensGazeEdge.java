@@ -183,8 +183,9 @@ public final class PhyllosensGazeEdge {
     /** GUI の層の登録(MOD バス)。 */
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Layers {
+        // 1.20.1: 受け手のメソッドの名前はクラスごとに変える(Forge の EventBus は「クラスの単純名_メソッド名_イベントの単純名」で包みを作って使い回すので、同じパッケージの同じ名前の入れ子のクラスがぶつかり、前の受け手が 2 回呼ばれる)
         @SubscribeEvent
-        public static void onRegisterGuiLayers(RegisterGuiOverlaysEvent event) {
+        public static void onPhyllosensGazeEdgeLayers(RegisterGuiOverlaysEvent event) {
             // 照準のすぐ下 = 画面の効果(CAMERA_OVERLAYS の上に足される暴露量のもや など)より上、照準・ホットバーより下。
             // CAMERA_OVERLAYS の上に足すと、もやとの順が登録の順(決まらない)で入れ替わり、もやが目より上に来ることがあった(11-14)
             // 1.20.1: ホットバーは照準より先に描かれる(1.21 は後)。もや(PORTAL の上)より上・ホットバーと照準より下 = ホットバーのすぐ下

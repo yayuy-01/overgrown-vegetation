@@ -111,8 +111,9 @@ public class CorruptedCorpseRenderer extends GeoBlockRenderer<CorruptedCorpseBlo
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static final class AfterBlockEntities {
 
+        // 1.20.1: 受け手のメソッドの名前はクラスごとに変える(Forge の EventBus は「クラスの単純名_メソッド名_イベントの単純名」で包みを作って使い回すので、同じパッケージの同じ名前の入れ子のクラスがぶつかり、前の受け手が 2 回呼ばれる)
         @SubscribeEvent
-        public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        public static void onCorruptedCorpseRendererAfterBlockEntities(RenderLevelStageEvent event) {
             if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
                 return;
             }

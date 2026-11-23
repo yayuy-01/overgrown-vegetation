@@ -31,8 +31,9 @@ public final class OrganReview2GameTests {
 
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registration {
+        // 1.20.1: 受け手のメソッドの名前はクラスごとに変える(Forge の EventBus は「クラスの単純名_メソッド名_イベントの単純名」で包みを作って使い回すので、同じパッケージの同じ名前の入れ子のクラスがぶつかり、前の受け手が 2 回呼ばれる)
         @SubscribeEvent
-        public static void onRegisterGameTests(RegisterGameTestsEvent event) {
+        public static void onOrganReview2GameTests(RegisterGameTestsEvent event) {
             event.register(OrganReview2GameTests.class);
         }
 
