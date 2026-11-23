@@ -550,9 +550,15 @@ final class MistView {
         boolean caveFog = caveK > 0.001F && !cloudPass;
         float k = hazeK(forest, reach) + airK;
         // 印(胞子の霞 k と空気遠近)。どちらも無ければ NaN。
-        float mark = encodeMark(k, aerial, p.aerialStart());
+        // 2026-11-23(1.20.1 の Embeddium で地面が全部霧の色になった件の本流側の直し): 印を読めるのは上書きの fog.glsl と、
+        // Sodium 0.8 に差し込んだ block_layer_opaque.fsh だけ。SodiumTerrain.unsupported() の間(Sodium 0.8 以外・Embeddium・
+        // -Dov.sodium.shaders=false・差し込みの失敗・Iris のシェーダーパック)は地形を描くシェーダーが印をそのまま距離として読み、
+        // 地形が全部霧の色に沈む(Mob だけ見える)。その間は印を入れず、ふつうの霧の距離にする(森の霞・空気遠近は止まり、
+        // 森の中は near〜far の線形の霧だけになる)。Sodium の無いバニラの描画では unsupported() は false(fog.glsl が読める)。
+        boolean noMark = com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.unsupported();
+        float mark = noMark ? Float.NaN : encodeMark(k, aerial, p.aerialStart());
         // 雲を描く間に戻す霧の始まり(空気遠近を除いた印か、印の無い始まり。beginClouds)。
-        float markNoAerial = encodeMark(k, 0.0F, 0.0F);
+        float markNoAerial = noMark ? Float.NaN : encodeMark(k, 0.0F, 0.0F);
         float cloudStart = !Float.isNaN(markNoAerial) ? markNoAerial : near;
         if (aerial > 0.0F && !Float.isNaN(mark)) {
             surfaceEnd = far;
