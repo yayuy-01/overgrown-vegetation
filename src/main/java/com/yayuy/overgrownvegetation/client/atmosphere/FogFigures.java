@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -499,42 +500,55 @@ public final class FogFigures {
         private int vertices;
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer addVertex(float x, float y, float z) {
-            this.quads.add(x);
-            this.quads.add(y);
-            this.quads.add(z);
+        public com.mojang.blaze3d.vertex.VertexConsumer vertex(double x, double y, double z) {
+            this.quads.add((float) x);
+            this.quads.add((float) y);
+            this.quads.add((float) z);
             this.vertices++;
             return this;
         }
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer setColor(int red, int green, int blue, int alpha) {
+        public com.mojang.blaze3d.vertex.VertexConsumer color(int red, int green, int blue, int alpha) {
             return this;
         }
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer setUv(float u, float v) {
+        public com.mojang.blaze3d.vertex.VertexConsumer uv(float u, float v) {
             return this;
         }
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer setUv1(int u, int v) {
+        public com.mojang.blaze3d.vertex.VertexConsumer overlayCoords(int u, int v) {
             return this;
         }
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer setUv2(int u, int v) {
+        public com.mojang.blaze3d.vertex.VertexConsumer uv2(int u, int v) {
             return this;
         }
 
         @Override
-        public com.mojang.blaze3d.vertex.VertexConsumer setNormal(float x, float y, float z) {
+        public com.mojang.blaze3d.vertex.VertexConsumer normal(float x, float y, float z) {
             if (this.vertices % 4 == 0 && this.vertices > 0 && this.normals.size() < this.vertices / 4 * 3) {
                 this.normals.add(x);
                 this.normals.add(y);
                 this.normals.add(z);
             }
             return this;
+        }
+
+        // 1.20.1: 頂点の終わりと既定の色(1.21 には無い)。形を取るだけなので何もしない。
+        @Override
+        public void endVertex() {
+        }
+
+        @Override
+        public void defaultColor(int red, int green, int blue, int alpha) {
+        }
+
+        @Override
+        public void unsetDefaultColor() {
         }
 
         float[] triangles() {
@@ -662,20 +676,20 @@ public final class FogFigures {
             }
         }
         float[] t = f.tris;
-        Matrix4f modelView = new Matrix4f(event.getModelViewMatrix());
+        Matrix4f modelView = new Matrix4f(PortRender.modelView(event));
         Matrix4f projection = new Matrix4f(event.getProjectionMatrix());
         RenderSystem.enableDepthTest();
         RenderSystem.disableCull();
         // 1 回目: 奥行きだけを書く。2 回目: 奥行きが同じ所(いちばん手前の面)だけに色を重ねる。重なった手足が二重に濃くならない。
         for (int pass = 0; pass < 2; pass++) {
-            BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder builder = PortRender.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
             for (int i = 0; i < t.length; i += 3) {
                 float x = t[i];
                 float y = t[i + 1];
                 float z = t[i + 2];
-                builder.addVertex(ox + x * cos + z * sin, oy + y, oz - x * sin + z * cos).setColor(p.red() * bright, p.green() * bright, p.blue() * bright, alpha);
+                builder.vertex(ox + x * cos + z * sin, oy + y, oz - x * sin + z * cos).color(p.red() * bright, p.green() * bright, p.blue() * bright, alpha).endVertex();
             }
-            MeshData mesh = builder.build();
+            BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
             if (mesh == null) {
                 break;
             }
@@ -691,7 +705,7 @@ public final class FogFigures {
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
             }
-            shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
+            PortRender.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
             shader.apply();
             BufferUploader.draw(mesh);
             shader.clear();

@@ -109,7 +109,7 @@ final class SporeDrift {
             return;
         }
         WeatherLookEye.Params p = WeatherLook.storm();
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float gate = p.f("driftAlpha") * shown * (1.0F - DenseFog.amount()) * (1.0F - ForestPresence.underground()) * (1.0F - 0.9F * ForestPresence.fogForest());
         if (gate <= 0.004F) {
             return;

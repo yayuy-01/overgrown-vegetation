@@ -304,7 +304,7 @@ final class CaveShafts {
         }
         long t0 = System.nanoTime();
         AtmosphereEye.CaveShaftsParams p = DesignData.atmosphere().caveShafts();
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = SunLight.lightDirection(level, partialTick);
         float day = SunLight.lightStrength(level, sun, partialTick);
         SunLight.airColor(level, sun, partialTick, RGB);

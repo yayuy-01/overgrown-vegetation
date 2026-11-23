@@ -124,7 +124,7 @@ final class StElmo {
             return;
         }
         WeatherLookEye.Params p = WeatherLook.storm();
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         Vec3 eye = event.getCamera().getPosition();
         Vector3f left = event.getCamera().getLeftVector();
         Vector3f up = event.getCamera().getUpVector();
@@ -223,7 +223,7 @@ final class StElmo {
             return;
         }
         WeatherLookEye.Params p = WeatherLook.storm();
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float night = SunLight.night(level, partial);
         float gate = p.f("elmoAlpha") * amount * Mth.lerp(night, p.f("elmoDay"), 1.0F) * (1.0F - ForestPresence.underground()) * (1.0F - 0.7F * DenseFog.amount());
         if (gate <= 0.004F) {

@@ -1,11 +1,11 @@
 package com.yayuy.overgrownvegetation.client.sky;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -76,8 +76,8 @@ public final class VoxelClouds implements CloudRenderer {
         int quads;
         long seed = CloudField.seed();
         com.yayuy.overgrownvegetation.sky.CloudShape shape = com.yayuy.overgrownvegetation.sky.CloudShape.current();
-        ByteBufferBuilder bytes;
-        MeshData mesh;
+        BufferBuilder bytes;
+        BufferBuilder.RenderedBuffer mesh;
         /** 遠景の窓: 番号と穴の真ん中(場の座標、ブロック)。近くの窓: 作ったときの遠景の番号(0 = 遠景なし)。 */
         long id;
         int holeX;
@@ -230,7 +230,10 @@ public final class VoxelClouds implements CloudRenderer {
     private static volatile boolean activeCache;
 
     @SubscribeEvent
-    public static void onRenderFrame(net.neoforged.neoforge.client.event.RenderFrameEvent.Pre event) {
+    public static void onRenderFrame(net.minecraftforge.event.TickEvent.RenderTickEvent event) {
+        if (event.phase != net.minecraftforge.event.TickEvent.Phase.START) {
+            return; // 1.20.1: RenderFrameEvent.Pre の代わり
+        }
         activeCache = computeActive();
         HighSky.refresh();
     }
@@ -350,11 +353,11 @@ public final class VoxelClouds implements CloudRenderer {
             return;
         }
         Vec3 cam = event.getCamera().getPosition();
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         try {
             // 雲の海の下の霞の床(改善 ①、{@link HazeFloor})。遠くの雲より先に、背景として。
-            HazeFloor.draw(level, partialTick, event.getModelViewMatrix(), event.getProjectionMatrix(), cam.x, cam.y, cam.z);
-            draw(level, partialTick, event.getModelViewMatrix(), event.getProjectionMatrix(), cam.x, cam.y, cam.z, true);
+            HazeFloor.draw(level, partialTick, PortRender.modelView(event), event.getProjectionMatrix(), cam.x, cam.y, cam.z);
+            draw(level, partialTick, PortRender.modelView(event), event.getProjectionMatrix(), cam.x, cam.y, cam.z, true);
         } catch (RuntimeException e) {
             broken = true;
             OvergrownVegetation.LOGGER.error("ボクセルの雲(遠く)で例外が出たので、このセッションではバニラの雲に戻す", e);
@@ -952,7 +955,7 @@ public final class VoxelClouds implements CloudRenderer {
             }
         } finally {
             if (w.bytes != null) {
-                w.bytes.close();
+                PortRender.releaseBuilder(w.bytes);
                 w.bytes = null;
             }
         }
@@ -999,8 +1002,8 @@ public final class VoxelClouds implements CloudRenderer {
         w.originZ = (holeZ - FAR_RANGE) / CloudField.CELL_XZ;
         w.coverage = coverage;
         float threshold = CloudField.threshold(coverage);
-        ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 21);
-        BufferBuilder b = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        BufferBuilder bytes = PortRender.acquireBuilder(1 << 21);
+        BufferBuilder b = PortRender.begin(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         int quads = 0;
         quads += farGrid(b, storms, threshold, coverage, style, w, Math.floorDiv(holeX - FAR_MID, cell1), Math.floorDiv(holeZ - FAR_MID, cell1), 2 * FAR_MID / cell1,
                 cell1, Math.floorDiv(holeX - FAR_HOLE, cell1), Math.floorDiv(holeZ - FAR_HOLE, cell1), 2 * FAR_HOLE / cell1);
@@ -1019,10 +1022,10 @@ public final class VoxelClouds implements CloudRenderer {
                     (System.nanoTime() - started) / 1000000L, (CPU.getCurrentThreadCpuTime() - cpu0) / 1000000L);
         }
         w.quads = quads;
-        w.mesh = quads > 0 ? b.build() : null;
+        w.mesh = quads > 0 ? b.endOrDiscardIfEmpty() : null;
         if (w.mesh == null) {
             w.quads = 0;
-            bytes.close();
+            PortRender.releaseBuilder(bytes);
         } else {
             w.bytes = bytes;
         }
@@ -1114,7 +1117,7 @@ public final class VoxelClouds implements CloudRenderer {
             }
         } finally {
             if (w.bytes != null) {
-                w.bytes.close();
+                PortRender.releaseBuilder(w.bytes);
                 w.bytes = null;
             }
         }
@@ -1142,10 +1145,10 @@ public final class VoxelClouds implements CloudRenderer {
 
     private static void close(Window w) {
         if (w.mesh != null) {
-            w.mesh.close();
+            w.mesh.release();
         }
         if (w.bytes != null) {
-            w.bytes.close();
+            PortRender.releaseBuilder(w.bytes);
         }
     }
 
@@ -1167,8 +1170,8 @@ public final class VoxelClouds implements CloudRenderer {
         w.style = style;
         w.farId = farId;
         float threshold = CloudField.threshold(coverage);
-        ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 20);
-        BufferBuilder b = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        BufferBuilder bytes = PortRender.acquireBuilder(1 << 20);
+        BufferBuilder b = PortRender.begin(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         int quads;
         if (style >= CloudField.STYLE_VALLEY) {
             // 雲の海の地形(谷の並び方。既定): 窓の真ん中のまわり FLOOR_RANGE を FLOOR_CELL の柱でひと続きに(元の版の seaMesh/floorGrid と同じ)。
@@ -1205,10 +1208,10 @@ public final class VoxelClouds implements CloudRenderer {
             OvergrownVegetation.LOGGER.info("VoxelClouds 近くを作った 面 {}(床 {}) 積乱雲 {} 箱 {} {} ms(CPU {} ms)", quads, floorQuads, meshStorms.size(), voxel,
                     (System.nanoTime() - started) / 1000000L, (CPU.getCurrentThreadCpuTime() - cpu0) / 1000000L);
         }
-        w.mesh = quads > 0 ? b.build() : null;
+        w.mesh = quads > 0 ? b.endOrDiscardIfEmpty() : null;
         if (w.mesh == null) {
             w.quads = 0;
-            bytes.close();
+            PortRender.releaseBuilder(bytes);
         } else {
             w.bytes = bytes;
         }
@@ -1846,10 +1849,10 @@ public final class VoxelClouds implements CloudRenderer {
                              float cx, float cy, float cz, float ch, float dx, float dy, float dz, float dh) {
         // 半目盛り足す(色は float から 8 ビットへ切り捨てで写るので、ちょうどの値だと 1 つ下になり、向きと印が崩れた)。
         float r = (face * 16 + (bits & 15) + 0.5F) / 255.0F;
-        b.addVertex(ax, ay, az).setUv(0.0F, 0.0F).setColor(r, ah, thin, tag);
-        b.addVertex(bx, by, bz).setUv(1.0F, 0.0F).setColor(r, bh, thin, tag);
-        b.addVertex(cx, cy, cz).setUv(1.0F, 1.0F).setColor(r, ch, thin, tag);
-        b.addVertex(dx, dy, dz).setUv(0.0F, 1.0F).setColor(r, dh, thin, tag);
+        b.vertex(ax, ay, az).uv(0.0F, 0.0F).color(r, ah, thin, tag).endVertex();
+        b.vertex(bx, by, bz).uv(1.0F, 0.0F).color(r, bh, thin, tag).endVertex();
+        b.vertex(cx, cy, cz).uv(1.0F, 1.0F).color(r, ch, thin, tag).endVertex();
+        b.vertex(dx, dy, dz).uv(0.0F, 1.0F).color(r, dh, thin, tag).endVertex();
     }
 
 }

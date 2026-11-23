@@ -295,7 +295,7 @@ final class CanopyDapple {
         if (PATCHES.isEmpty() || level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         float day = SunLight.daylight(level, sun, partialTick);
         float intensity = DesignData.atmosphere().intensity() * ForestPresence.openCover()
@@ -437,14 +437,14 @@ final class CanopyDapple {
             float sZ = (float) sz * k;
             if (havePrev) {
                 // 左の縁 → 中心、中心 → 右の縁 の 2 枚。
-                c.addVertex(pX - pSX, pY - pSY, pZ - pSZ).setColor(r, g, b, 0.0F);
-                c.addVertex(cX - sX, cY - sY, cZ - sZ).setColor(r, g, b, 0.0F);
-                c.addVertex(cX, cY, cZ).setColor(r, g, b, a);
-                c.addVertex(pX, pY, pZ).setColor(r, g, b, pA);
-                c.addVertex(pX, pY, pZ).setColor(r, g, b, pA);
-                c.addVertex(cX, cY, cZ).setColor(r, g, b, a);
-                c.addVertex(cX + sX, cY + sY, cZ + sZ).setColor(r, g, b, 0.0F);
-                c.addVertex(pX + pSX, pY + pSY, pZ + pSZ).setColor(r, g, b, 0.0F);
+                c.vertex(pX - pSX, pY - pSY, pZ - pSZ).color(r, g, b, 0.0F).endVertex();
+                c.vertex(cX - sX, cY - sY, cZ - sZ).color(r, g, b, 0.0F).endVertex();
+                c.vertex(cX, cY, cZ).color(r, g, b, a).endVertex();
+                c.vertex(pX, pY, pZ).color(r, g, b, pA).endVertex();
+                c.vertex(pX, pY, pZ).color(r, g, b, pA).endVertex();
+                c.vertex(cX, cY, cZ).color(r, g, b, a).endVertex();
+                c.vertex(cX + sX, cY + sY, cZ + sZ).color(r, g, b, 0.0F).endVertex();
+                c.vertex(pX + pSX, pY + pSY, pZ + pSZ).color(r, g, b, 0.0F).endVertex();
             }
             pX = cX;
             pY = cY;
@@ -476,15 +476,15 @@ final class CanopyDapple {
             float ox1 = u1 * ax - v1 * az;
             float oz1 = u1 * az + v1 * ax;
             if (sharp > 0.01F) {
-                c.addVertex(x, y, z).setColor(r, g, b, alpha);
-                c.addVertex(x + ox0 * sharp, y, z + oz0 * sharp).setColor(r, g, b, alpha);
-                c.addVertex(x + ox1 * sharp, y, z + oz1 * sharp).setColor(r, g, b, alpha);
-                c.addVertex(x, y, z).setColor(r, g, b, alpha);
+                c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
+                c.vertex(x + ox0 * sharp, y, z + oz0 * sharp).color(r, g, b, alpha).endVertex();
+                c.vertex(x + ox1 * sharp, y, z + oz1 * sharp).color(r, g, b, alpha).endVertex();
+                c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
             }
-            c.addVertex(x + ox0 * sharp, y, z + oz0 * sharp).setColor(r, g, b, alpha);
-            c.addVertex(x + ox0, y, z + oz0).setColor(r, g, b, 0.0F);
-            c.addVertex(x + ox1, y, z + oz1).setColor(r, g, b, 0.0F);
-            c.addVertex(x + ox1 * sharp, y, z + oz1 * sharp).setColor(r, g, b, alpha);
+            c.vertex(x + ox0 * sharp, y, z + oz0 * sharp).color(r, g, b, alpha).endVertex();
+            c.vertex(x + ox0, y, z + oz0).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x + ox1, y, z + oz1).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x + ox1 * sharp, y, z + oz1 * sharp).color(r, g, b, alpha).endVertex();
         }
     }
 

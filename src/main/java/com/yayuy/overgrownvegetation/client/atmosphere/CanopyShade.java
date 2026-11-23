@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -119,7 +121,7 @@ final class CanopyShade {
         if (CELLS.isEmpty() || level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         float amount = SunLight.daylight(level, sun, partialTick) * Math.min(1.0F, DesignData.atmosphere().intensity())
                 * ForestPresence.openCover();
@@ -159,7 +161,7 @@ final class CanopyShade {
 
     /** 影の濃さ {@code s}(0〜1)の頂点。色ごとに 1 − 濃さ × (1 − 影の色)。 */
     private static void vertex(VertexConsumer c, float x, float y, float z, float s, float kr, float kg, float kb) {
-        c.addVertex(x, y, z).setColor(1.0F - s * kr, 1.0F - s * kg, 1.0F - s * kb, 1.0F);
+        c.vertex(x, y, z).color(1.0F - s * kr, 1.0F - s * kg, 1.0F - s * kb, 1.0F).endVertex();
     }
 
     /** 角を囲む 4 マス((x + ox, z + oz) から 2×2)のうち、同じ高さのマスの濃さの平均。まだ見ていない・日が当たるマスは影なし。 */
@@ -215,11 +217,11 @@ final class CanopyShade {
                     false,
                     false,
                     RenderType.CompositeState.builder()
-                            .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
+                            .setShaderState(PortRender.Shards.POSITION_COLOR_SHADER)
                             .setTransparencyState(multiply)
-                            .setCullState(RenderStateShard.NO_CULL)
-                            .setLayeringState(RenderStateShard.VIEW_OFFSET_Z_LAYERING)
-                            .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                            .setCullState(PortRender.Shards.NO_CULL)
+                            .setLayeringState(PortRender.Shards.VIEW_OFFSET_Z_LAYERING)
+                            .setWriteMaskState(PortRender.Shards.COLOR_WRITE)
                             .createCompositeState(false));
         }
         return renderType;

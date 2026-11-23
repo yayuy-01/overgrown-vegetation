@@ -179,7 +179,7 @@ final class FogHalos {
         if (list.length == 0 || amount <= 0.01F || level == null) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float night = SunLight.night(level, partial);
         float base = amount * Mth.lerp(night, DAY, NIGHT);
         float k = DenseFog.hazeK();
@@ -232,10 +232,10 @@ final class FogHalos {
             double a1 = (i + 1) * Math.PI * 2.0 / n;
             float c0 = (float) Math.cos(a0) * radius, s0 = (float) Math.sin(a0) * radius;
             float c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
-            c.addVertex((float) (x + ux * c0 + vx * s0), (float) (y + vy * s0), (float) (z + uz * c0 + vz * s0)).setColor(r, g, b, 0.0F);
-            c.addVertex((float) (x + ux * c1 + vx * s1), (float) (y + vy * s1), (float) (z + uz * c1 + vz * s1)).setColor(r, g, b, 0.0F);
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
+            c.vertex((float) (x + ux * c0 + vx * s0), (float) (y + vy * s0), (float) (z + uz * c0 + vz * s0)).color(r, g, b, 0.0F).endVertex();
+            c.vertex((float) (x + ux * c1 + vx * s1), (float) (y + vy * s1), (float) (z + uz * c1 + vz * s1)).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
         }
     }
 

@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -171,7 +172,7 @@ final class DuskMotes {
         }
         AtmosphereTable.DuskParams p = DesignData.atmosphere().dusk();
         ensureGl(slots);
-        float partialTick = mc.isPaused() ? 0.0F : event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = mc.isPaused() ? 0.0F : event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         Vector3f left = event.getCamera().getLeftVector();
         Vector3f up = event.getCamera().getUpVector();
@@ -200,7 +201,7 @@ final class DuskMotes {
 
         MistFog.setParticleUniforms(shader, cam);
         vbo.bind();
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, event.getModelViewMatrix(), event.getProjectionMatrix(), mc.getWindow());
+        PortRender.setDefaultUniforms(shader, VertexFormat.Mode.QUADS, PortRender.modelView(event), event.getProjectionMatrix(), mc.getWindow());
         shader.apply();
         MistFog.bindParticleMap(shader);
         if (locShader != shader) {
@@ -271,13 +272,13 @@ final class DuskMotes {
             vbo.close();
         }
         builtSlots = slots;
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        BufferBuilder builder = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
         for (int slot = 0; slot < slots; slot++) {
             for (int corner = 0; corner < 4; corner++) {
-                builder.addVertex(slot, corner, 0.0F);
+                builder.vertex(slot, corner, 0.0F).endVertex();
             }
         }
-        MeshData mesh = builder.buildOrThrow();
+        BufferBuilder.RenderedBuffer mesh = builder.end();
         vbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
         vbo.bind();
         vbo.upload(mesh);

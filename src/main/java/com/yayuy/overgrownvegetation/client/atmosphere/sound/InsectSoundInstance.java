@@ -49,7 +49,7 @@ final class InsectSoundInstance extends AbstractTickableSoundInstance {
     public WeighedSoundEvents resolve(SoundManager manager) {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, this.voice.kind);
         // 線形に減って 0 になる距離は種類ごと(ForestInsectSound の Caller#range、コオロギ 32。仮決め。鳴らす距離の上限より少し遠く)。
-        this.sound = new Sound(id, ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, this.voice.range);
+        this.sound = new Sound(id.toString(), ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, this.voice.range);
         return new WeighedSoundEvents(id, null);
     }
 

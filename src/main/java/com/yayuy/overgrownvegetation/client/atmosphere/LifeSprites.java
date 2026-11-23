@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,15 @@ final class LifeSprites {
 
     private static final int RIM = 8;
     private static BufferBuilder builder;
+    /** 1.20.1: 自分だけの器(Tesselator の 1 つの器は begin から end まで他の演出と取り合えない。1.21 は毎回新しい器)。 */
+    private static BufferBuilder own;
+
+    private static BufferBuilder own() {
+        if (own == null) {
+            own = new BufferBuilder(1 << 15);
+        }
+        return own;
+    }
     private static Matrix4f modelView;
     private static Matrix4f projection;
     private static Vec3 cam;
@@ -40,8 +50,8 @@ final class LifeSprites {
     /** additive = 足し算で重ねる(光る粒。夜の光る藻 {@link GlowAlgae})。 */
     static void begin(RenderLevelStageEvent event, boolean add) {
         additive = add;
-        builder = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        modelView = new Matrix4f(event.getModelViewMatrix());
+        builder = PortRender.begin(own(), VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        modelView = new Matrix4f(PortRender.modelView(event));
         projection = new Matrix4f(event.getProjectionMatrix());
         cam = event.getCamera().getPosition();
         any = false;
@@ -62,11 +72,11 @@ final class LifeSprites {
         if (builder == null) {
             return;
         }
-        MeshData mesh = builder.build();
+        BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         builder = null;
         if (mesh == null || !any) {
             if (mesh != null) {
-                mesh.close();
+                mesh.release();
             }
             return;
         }
@@ -81,9 +91,9 @@ final class LifeSprites {
         RenderSystem.disableCull();
         ShaderInstance shader = GameRenderer.getPositionColorShader();
         if (shader == null) {
-            mesh.close();
+            mesh.release();
         } else {
-            shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
+            PortRender.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
             shader.apply();
             BufferUploader.draw(mesh);
             shader.clear();
@@ -105,7 +115,7 @@ final class LifeSprites {
         float dz = (float) (z - cam.z);
         // この描き方(POSITION_COLOR)は霧を受けないので、森の中の霞の分だけ薄める(霞の中で粒だけ浮かないように、11-01)。
         float hazed = noFog ? a : a * (1.0F - MistView.fogAmount(Mth.sqrt(dx * dx + dy * dy + dz * dz)));
-        builder.addVertex(dx, dy, dz).setColor(r, g, b, hazed);
+        builder.vertex(dx, dy, dz).color(r, g, b, hazed).endVertex();
     }
 
     /** カメラを向いたぼけた円(真ん中が {@code alpha}、ふちが 0)。left・up はカメラの左と上の向き。 */

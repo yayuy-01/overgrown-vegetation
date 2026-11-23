@@ -233,7 +233,7 @@ public final class WaterCaustics {
             Minecraft mc = Minecraft.getInstance();
             Map m = broken || !enabled ? null : shown;
             AtmosphereWater.CausticsParams p = DesignData.atmosphere().caustics();
-            float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float partialTick = event.getPartialTick();
             boolean submerged = event.getCamera().getFluidInCamera() == FogType.WATER;
             float strength = 0.0F;
             Vec3 sun = null;

@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -124,7 +126,7 @@ public final class MistMarch {
         ShaderInstance composite = ModShaders.mistComposite();
         Vec3 cam = event.getCamera().getPosition();
         MistFog.setUniforms(march, cam);
-        Matrix4f inv = new Matrix4f(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert();
+        Matrix4f inv = new Matrix4f(event.getProjectionMatrix()).mul(PortRender.modelView(event)).invert();
         march.safeGetUniform("InvViewProj").set(inv);
         march.setSampler("DepthTex", depthCopy.getDepthTextureId());
         march.setSampler("OvFogMap", MistMap.textureId());
@@ -134,7 +136,7 @@ public final class MistMarch {
         float noiseScale = mp.noiseScale();
         march.safeGetUniform("MarchA").set((float) mp.steps(), mp.distance(), mp.fadeFrom(), mp.noise());
         march.safeGetUniform("MarchB").set(noiseScale, mp.sunScatter(), mp.scatterG(), 0.0F);
-        float t = (float) (Atmosphere.time(event.getPartialTick().getGameTimeDeltaPartialTick(false)) / 20.0);
+        float t = (float) (Atmosphere.time(event.getPartialTick()) / 20.0);
         march.safeGetUniform("MarchC").set((float) wrap((cam.x - MistFog.driftX()) / noiseScale, 64.0),
                 (float) wrap(cam.y / noiseScale + t * 0.02, 64.0), (float) wrap((cam.z - MistFog.driftZ()) / noiseScale, 64.0), 0.0F);
         float[] sa = CanopySunMap.SPORE_SUN_A;
@@ -163,7 +165,7 @@ public final class MistMarch {
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         if (Minecraft.useShaderTransparency()) {
-            RenderStateShard.WEATHER_TARGET.setupRenderState();
+            PortRender.Shards.WEATHER_TARGET.setupRenderState();
         }
 
         if (timed) {
@@ -175,12 +177,12 @@ public final class MistMarch {
 
     private static void quad(ShaderInstance shader) {
         RenderSystem.setShader(() -> shader);
-        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        buffer.addVertex(-1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, 1.0F, 0.0F);
-        buffer.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
+        BufferBuilder buffer = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        buffer.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        buffer.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(buffer.end());
     }
 
     private static double wrap(double v, double period) {

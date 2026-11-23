@@ -19,7 +19,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
+import net.minecraftforge.client.event.TextureStitchEvent;
 
 import java.util.Map;
 
@@ -64,7 +64,7 @@ public final class OreSparkle {
         }
 
         @SubscribeEvent
-        public static void onStitched(TextureAtlasStitchedEvent event) {
+        public static void onStitched(TextureStitchEvent.Post event) {
             TextureAtlas atlas = event.getAtlas();
             if (!atlas.location().equals(TextureAtlas.LOCATION_BLOCKS)) {
                 return;
@@ -87,7 +87,10 @@ public final class OreSparkle {
 
     private static void build(TextureAtlas atlas) {
         close();
-        Map<ResourceLocation, TextureAtlasSprite> all = atlas.getTextures();
+        Map<ResourceLocation, TextureAtlasSprite> all = new java.util.HashMap<>(); // 1.20.1: getTextures() の代わり
+        for (ResourceLocation loc : atlas.getTextureLocations()) {
+            all.put(loc, atlas.getSprite(loc));
+        }
         // アトラスの大きさ: 絵の幅 ÷ (u1 − u0)。
         TextureAtlasSprite any = null;
         for (TextureAtlasSprite s : all.values()) {
@@ -219,7 +222,7 @@ public final class OreSparkle {
         }
         Minecraft mc = Minecraft.getInstance();
         Vec3 cam = event.getCamera().getPosition();
-        float time = mc.level == null ? 0.0F : (float) ((mc.level.getGameTime() % 24000L + event.getPartialTick().getGameTimeDeltaPartialTick(false)) / 20.0);
+        float time = mc.level == null ? 0.0F : (float) ((mc.level.getGameTime() % 24000L + event.getPartialTick()) / 20.0);
         shader.setSampler("OvOreMask", mask.getId());
         shader.safeGetUniform("OvOre").set(p.strength(), time, (float) atlasWidth, (float) atlasHeight);
         shader.safeGetUniform("OvOreB").set((float) (cam.x - Math.floor(cam.x / 64.0) * 64.0), (float) (cam.y - Math.floor(cam.y / 64.0) * 64.0),

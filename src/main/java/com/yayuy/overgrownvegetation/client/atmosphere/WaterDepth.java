@@ -337,7 +337,7 @@ final class WaterDepth {
             }
             Minecraft mc = Minecraft.getInstance();
             Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
-            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float pt = mc.getPartialTick();
             float seconds = (float) ((Atmosphere.time(pt) / 20.0) % 600.0);
             shader.setSampler("OvDepthMap", texture.getId());
             shader.safeGetUniform("OvDepthA").set((float) (m.originX - cam.x), (float) (m.originZ - cam.z), (float) SIZE, 1.0F);

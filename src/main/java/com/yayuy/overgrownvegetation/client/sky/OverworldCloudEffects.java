@@ -27,8 +27,9 @@ public final class OverworldCloudEffects extends DimensionSpecialEffects.Overwor
 
     @Override
     public boolean renderClouds(ClientLevel level, int ticks, float partialTick, PoseStack poseStack, double camX, double camY, double camZ,
-                                Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
-        return CloudRenderers.current().render(level, partialTick, modelViewMatrix, projectionMatrix, camX, camY, camZ);
+                                Matrix4f projectionMatrix) {
+        // 1.20.1: カメラの回転は poseStack に入って来る(1.21 は modelViewMatrix で別に来て、poseStack は単位行列)。
+        return CloudRenderers.current().render(level, partialTick, new Matrix4f(poseStack.last().pose()), projectionMatrix, camX, camY, camZ);
     }
 
     /**
@@ -36,7 +37,7 @@ public final class OverworldCloudEffects extends DimensionSpecialEffects.Overwor
      * 背景は霧の色(雲の色)で塗られる({@link CloudInterior#onFogColor})。
      */
     @Override
-    public boolean renderSky(ClientLevel level, int ticks, float partialTick, Matrix4f modelViewMatrix, Camera camera, Matrix4f projectionMatrix,
+    public boolean renderSky(ClientLevel level, int ticks, float partialTick, PoseStack poseStack, Camera camera, Matrix4f projectionMatrix,
                              boolean isFoggy, Runnable setupFog) {
         return CloudInterior.amount(partialTick) > HIDE_SKY;
     }

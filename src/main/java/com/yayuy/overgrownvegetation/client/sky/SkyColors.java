@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.sky;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -160,12 +162,12 @@ public final class SkyColors {
             RenderSystem.disableCull();
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
-            BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-            b.addVertex(-1.0F, -1.0F, 0.0F);
-            b.addVertex(1.0F, -1.0F, 0.0F);
-            b.addVertex(1.0F, 1.0F, 0.0F);
-            b.addVertex(-1.0F, 1.0F, 0.0F);
-            BufferUploader.drawWithShader(b.buildOrThrow());
+            BufferBuilder b = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+            b.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+            b.vertex(1.0F, -1.0F, 0.0F).endVertex();
+            b.vertex(1.0F, 1.0F, 0.0F).endVertex();
+            b.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+            BufferUploader.drawWithShader(b.end());
             RenderSystem.disableBlend();
             RenderSystem.enableCull();
             RenderSystem.enableDepthTest();

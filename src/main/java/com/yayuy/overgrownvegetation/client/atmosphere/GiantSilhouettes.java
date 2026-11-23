@@ -1,12 +1,12 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -1039,18 +1039,18 @@ final class GiantSilhouettes {
             if (mesh == null || mesh.quads == 0) {
                 continue;
             }
-            ByteBufferBuilder bytes = new ByteBufferBuilder(mesh.quads * 4 * DefaultVertexFormat.POSITION_COLOR.getVertexSize());
+            BufferBuilder bytes = PortRender.acquireBuilder(mesh.quads * 4 * DefaultVertexFormat.POSITION_COLOR.getVertexSize());
             try {
-                BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+                BufferBuilder builder = PortRender.begin(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
                 float[] p = mesh.positions;
                 for (int q = 0; q < mesh.quads; q++) {
                     int color = mesh.colors[q];
                     for (int k = 0; k < 4; k++) {
                         int at = (q * 4 + k) * 3;
-                        builder.addVertex(p[at], p[at + 1], p[at + 2]).setColor(color);
+                        builder.vertex(p[at], p[at + 1], p[at + 2]).color(color).endVertex();
                     }
                 }
-                MeshData data = builder.buildOrThrow();
+                BufferBuilder.RenderedBuffer data = builder.end();
                 if (t.vbo == null) {
                     t.vbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
                 }
@@ -1062,7 +1062,7 @@ final class GiantSilhouettes {
                 t.originZ = mesh.originZ;
                 t.quads = mesh.quads;
             } finally {
-                bytes.close();
+                PortRender.releaseBuilder(bytes);
             }
         }
     }
@@ -1168,11 +1168,11 @@ final class GiantSilhouettes {
         if (cutEnd >= farEnd - 4.0F) {
             return; // 霧が遠い(本物の木が描画距離の端まで見えている)ので入れ替える所が無い。
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         float brightness = level.getSkyDarken(partialTick);
         Camera camera = event.getCamera();
         Vec3 cam = camera.getPosition();
-        Matrix4f modelView = new Matrix4f(event.getModelViewMatrix()).scale(PULL);
+        Matrix4f modelView = new Matrix4f(PortRender.modelView(event)).scale(PULL);
         Matrix4f projection = event.getProjectionMatrix();
 
         RenderSystem.enableDepthTest();

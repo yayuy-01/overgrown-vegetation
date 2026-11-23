@@ -58,7 +58,7 @@ public final class RainLook {
     /** 白い水滴の粒の描き方(バニラの PARTICLE_SHEET_TRANSLUCENT と同じ手順で、シェーダーだけ {@code rain_white})。 */
     public static final ParticleRenderType WHITE_WATER = new ParticleRenderType() {
         @Override
-        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+        public void begin(BufferBuilder builder, TextureManager textureManager) {
             RenderSystem.depthMask(true);
             RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_PARTICLES);
             RenderSystem.enableBlend();
@@ -69,7 +69,13 @@ public final class RainLook {
             } else {
                 RenderSystem.setShader(GameRenderer::getParticleShader);
             }
-            return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        }
+
+        // 1.20.1: 描き終わりは型の側(1.21 は粒の機械がする)。バニラの PARTICLE_SHEET_TRANSLUCENT と同じ。
+        @Override
+        public void end(Tesselator tesselator) {
+            tesselator.end();
         }
 
         @Override
@@ -77,7 +83,7 @@ public final class RainLook {
             return "OVERGROWN_WHITE_WATER";
         }
 
-        @Override
+        // 1.20.1 の ParticleRenderType には無い(残しても呼ばれない)。
         public boolean isTranslucent() {
             return true;
         }
@@ -106,7 +112,7 @@ public final class RainLook {
         float g = 1.0F;
         float b = 1.0F;
         if (on && level != null) {
-            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float pt = mc.getPartialTick();
             SunLight.skyTint(level, SunLight.sunDirection(level, pt), pt, TINT);
             r = Mth.lerp(p.skyTintShare(), 1.0F, TINT[0]);
             g = Mth.lerp(p.skyTintShare(), 1.0F, TINT[1]);

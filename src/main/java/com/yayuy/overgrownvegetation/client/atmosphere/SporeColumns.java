@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -113,7 +115,7 @@ final class SporeColumns {
                 || !GiantTrees.fieldRunning() && devStrength < 0.0F) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 eye = event.getCamera().getPosition();
         double renderBlocks = mc.options.getEffectiveRenderDistance() * 16.0;
         // 雲より上にいる間は描かない(2026-11-18 ユーザー「雲より上にいる時、雲の下が緑に見える機能をなくしたい」: 雲の上から見下ろすと、柱が雲の下の
@@ -278,10 +280,10 @@ final class SporeColumns {
 
     private static void quad(VertexConsumer c, float[] a, float[] b, float[] d, float[] e, float[] rgb0, float[] rgb1,
                              float aa, float ab, float ad, float ae) {
-        c.addVertex(a[0], a[1], a[2]).setColor(rgb0[0], rgb0[1], rgb0[2], aa);
-        c.addVertex(b[0], b[1], b[2]).setColor(rgb0[0], rgb0[1], rgb0[2], ab);
-        c.addVertex(d[0], d[1], d[2]).setColor(rgb1[0], rgb1[1], rgb1[2], ad);
-        c.addVertex(e[0], e[1], e[2]).setColor(rgb1[0], rgb1[1], rgb1[2], ae);
+        c.vertex(a[0], a[1], a[2]).color(rgb0[0], rgb0[1], rgb0[2], aa).endVertex();
+        c.vertex(b[0], b[1], b[2]).color(rgb0[0], rgb0[1], rgb0[2], ab).endVertex();
+        c.vertex(d[0], d[1], d[2]).color(rgb1[0], rgb1[1], rgb1[2], ad).endVertex();
+        c.vertex(e[0], e[1], e[2]).color(rgb1[0], rgb1[1], rgb1[2], ae).endVertex();
     }
 
     private static float[] rel(Vec3 v, Vec3 eye) {
@@ -307,10 +309,10 @@ final class SporeColumns {
                     false,
                     true,
                     RenderType.CompositeState.builder()
-                            .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-                            .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                            .setCullState(RenderStateShard.NO_CULL)
-                            .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                            .setShaderState(PortRender.Shards.POSITION_COLOR_SHADER)
+                            .setTransparencyState(PortRender.Shards.TRANSLUCENT_TRANSPARENCY)
+                            .setCullState(PortRender.Shards.NO_CULL)
+                            .setWriteMaskState(PortRender.Shards.COLOR_WRITE)
                             .createCompositeState(false));
         }
         return renderType;

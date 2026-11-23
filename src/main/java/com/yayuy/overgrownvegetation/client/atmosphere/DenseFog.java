@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.AtmosphereEye;
@@ -175,7 +177,7 @@ public final class DenseFog {
         }
         try {
             AtmosphereEye.DenseFogParams p = DesignData.atmosphere().denseFog();
-            float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float partial = event.getPartialTick();
             com.mojang.blaze3d.pipeline.RenderTarget main = mc.getMainRenderTarget();
             int w = Math.max(1, main.width / 2);
             int h = Math.max(1, main.height / 2);
@@ -187,7 +189,7 @@ public final class DenseFog {
                 seaTarget.setFilterMode(org.lwjgl.opengl.GL11.GL_LINEAR);
             }
             Vec3 cam = event.getCamera().getPosition();
-            INV.set(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert();
+            INV.set(event.getProjectionMatrix()).mul(PortRender.modelView(event)).invert();
             float night = SunLight.night(level, partial);
             float bright = Mth.lerp(night, 1.0F, p.nightBrightness()) * (1.0F - 0.25F * level.getRainLevel(partial));
             Vec3 sun = SunLight.lightDirection(level, partial);
@@ -225,13 +227,12 @@ public final class DenseFog {
 
     private static void quad(net.minecraft.client.renderer.ShaderInstance shader) {
         com.mojang.blaze3d.systems.RenderSystem.setShader(() -> shader);
-        com.mojang.blaze3d.vertex.BufferBuilder buffer = com.mojang.blaze3d.vertex.Tesselator.getInstance()
-                .begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION);
-        buffer.addVertex(-1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, 1.0F, 0.0F);
-        buffer.addVertex(-1.0F, 1.0F, 0.0F);
-        com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.buildOrThrow());
+        com.mojang.blaze3d.vertex.BufferBuilder buffer = PortRender.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION);
+        buffer.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        buffer.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.end());
     }
 
     // ------------------------------------------------------------------ 霧の中の太陽(11-16 ユーザー「ぼかす」)
@@ -247,7 +248,7 @@ public final class DenseFog {
         if (a <= 0.01F || level == null) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         Vec3 sun = SunLight.lightDirection(level, partial);
         if (sun.y < -0.05) {
             return;
@@ -289,10 +290,10 @@ public final class DenseFog {
             double a1 = (i + 1) * Math.PI * 2.0 / n;
             float c0 = (float) Math.cos(a0) * radius, s0 = (float) Math.sin(a0) * radius;
             float c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
-            c.addVertex((float) (x + ux * c0 + vx * s0), (float) (y + vy * s0), (float) (z + uz * c0 + vz * s0)).setColor(r, g, b, 0.0F);
-            c.addVertex((float) (x + ux * c1 + vx * s1), (float) (y + vy * s1), (float) (z + uz * c1 + vz * s1)).setColor(r, g, b, 0.0F);
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
+            c.vertex((float) (x + ux * c0 + vx * s0), (float) (y + vy * s0), (float) (z + uz * c0 + vz * s0)).color(r, g, b, 0.0F).endVertex();
+            c.vertex((float) (x + ux * c1 + vx * s1), (float) (y + vy * s1), (float) (z + uz * c1 + vz * s1)).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
         }
     }
 

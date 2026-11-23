@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -422,7 +423,7 @@ public final class TrunkRivulets {
             return;
         }
         var look = com.yayuy.overgrownvegetation.data.DesignData.atmosphere().rainLook();
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         float skyDarken = level.getSkyDarken(partialTick);
         float grow = SunLight.smooth(puddle);
@@ -432,7 +433,7 @@ public final class TrunkRivulets {
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
         for (int pass = 0; pass < 2; pass++) {
-            BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder builder = PortRender.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
             for (Puddle p : PUDDLES) {
                 double y = p.y + 0.012 + pass * 0.004;
                 double dx = p.cx - cam.x;
@@ -469,7 +470,7 @@ public final class TrunkRivulets {
                 }
                 disc(builder, (float) dx, (float) dy, (float) dz, look.puddleRadius() * p.size * (0.55F + 0.45F * growOf(p, grow)), p.seed, r, g, b, alpha);
             }
-            MeshData mesh = builder.build();
+            BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
             if (mesh == null) {
                 continue;
             }
@@ -480,9 +481,9 @@ public final class TrunkRivulets {
             }
             ShaderInstance shader = GameRenderer.getPositionColorShader();
             if (shader == null) {
-                mesh.close();
+                mesh.release();
             } else {
-                shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, new Matrix4f(event.getModelViewMatrix()), new Matrix4f(event.getProjectionMatrix()),
+                PortRender.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, new Matrix4f(PortRender.modelView(event)), new Matrix4f(event.getProjectionMatrix()),
                         Minecraft.getInstance().getWindow());
                 shader.apply();
                 BufferUploader.draw(mesh);
@@ -506,15 +507,15 @@ public final class TrunkRivulets {
             float ex = (float) Math.cos(a) * rr;
             float ez = (float) Math.sin(a) * rr;
             if (i > 0) {
-                builder.addVertex(cx, cy, cz).setColor(r, g, b, alpha);
-                builder.addVertex(cx + ex * k, cy, cz + ez * k).setColor(r, g, b, alpha);
-                builder.addVertex(cx + prevX * k, cy, cz + prevZ * k).setColor(r, g, b, alpha);
-                builder.addVertex(cx + prevX * k, cy, cz + prevZ * k).setColor(r, g, b, alpha);
-                builder.addVertex(cx + ex * k, cy, cz + ez * k).setColor(r, g, b, alpha);
-                builder.addVertex(cx + ex, cy, cz + ez).setColor(r, g, b, 0.0F);
-                builder.addVertex(cx + prevX * k, cy, cz + prevZ * k).setColor(r, g, b, alpha);
-                builder.addVertex(cx + ex, cy, cz + ez).setColor(r, g, b, 0.0F);
-                builder.addVertex(cx + prevX, cy, cz + prevZ).setColor(r, g, b, 0.0F);
+                builder.vertex(cx, cy, cz).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + ex * k, cy, cz + ez * k).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + prevX * k, cy, cz + prevZ * k).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + prevX * k, cy, cz + prevZ * k).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + ex * k, cy, cz + ez * k).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + ex, cy, cz + ez).color(r, g, b, 0.0F).endVertex();
+                builder.vertex(cx + prevX * k, cy, cz + prevZ * k).color(r, g, b, alpha).endVertex();
+                builder.vertex(cx + ex, cy, cz + ez).color(r, g, b, 0.0F).endVertex();
+                builder.vertex(cx + prevX, cy, cz + prevZ).color(r, g, b, 0.0F).endVertex();
             }
             prevX = ex;
             prevZ = ez;
@@ -533,11 +534,11 @@ public final class TrunkRivulets {
         if (level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         double seconds = Atmosphere.time(partialTick) / 20.0;
         Vec3 cam = event.getCamera().getPosition();
         float skyDarken = level.getSkyDarken(partialTick);
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        BufferBuilder builder = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         BlockPos.MutableBlockPos lightPos = new BlockPos.MutableBlockPos();
         for (Streak s : STREAKS) {
             float nx = s.side.getStepX();
@@ -562,7 +563,7 @@ public final class TrunkRivulets {
             quad(builder, cam, cx, cz, tx, tz, fadeTop, fadeBottom, 1.0F, 1.0F, scroll, shade);
             quad(builder, cam, cx, cz, tx, tz, fadeBottom, s.bottom, 1.0F, 0.0F, scroll, shade);
         }
-        MeshData mesh = builder.build();
+        BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         if (mesh == null) {
             return;
         }
@@ -574,9 +575,9 @@ public final class TrunkRivulets {
         RenderSystem.setShaderTexture(0, TEXTURE);
         ShaderInstance shader = GameRenderer.getPositionTexColorShader();
         if (shader == null) {
-            mesh.close();
+            mesh.release();
         } else {
-            shader.setDefaultUniforms(VertexFormat.Mode.QUADS, new Matrix4f(event.getModelViewMatrix()), new Matrix4f(event.getProjectionMatrix()),
+            PortRender.setDefaultUniforms(shader, VertexFormat.Mode.QUADS, new Matrix4f(PortRender.modelView(event)), new Matrix4f(event.getProjectionMatrix()),
                     mc.getWindow());
             shader.apply();
             BufferUploader.draw(mesh);
@@ -608,7 +609,7 @@ public final class TrunkRivulets {
         float dz = (float) (z - cam.z);
         // この描き方は霧を受けないので、森の霞の分だけ薄める(LifeSprites と同じ)。
         float alpha = a * wet * (1.0F - MistView.fogAmount(Mth.sqrt(dx * dx + dy * dy + dz * dz)));
-        b.addVertex(dx, dy, dz).setUv(u, v).setColor(shade, shade, shade, alpha);
+        b.vertex(dx, dy, dz).uv(u, v).color(shade, shade, shade, alpha).endVertex();
     }
 
     private TrunkRivulets() {

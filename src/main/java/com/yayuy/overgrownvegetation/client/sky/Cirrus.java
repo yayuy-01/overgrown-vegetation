@@ -1,10 +1,10 @@
 package com.yayuy.overgrownvegetation.client.sky;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.client.atmosphere.SunLight;
@@ -205,27 +205,27 @@ public final class Cirrus {
 
     /** 板の格子(カメラのまわり、高さ 0。シェーダーで高さとカメラからの位置に直す)。 */
     private static void build() {
-        ByteBufferBuilder bytes = new ByteBufferBuilder(GRID * GRID * 4 * 12 + 64);
+        BufferBuilder bytes = PortRender.acquireBuilder(GRID * GRID * 4 * 12 + 64);
         try {
-            BufferBuilder b = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+            BufferBuilder b = PortRender.begin(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
             float step = RADIUS * 2.0F / GRID;
             for (int j = 0; j < GRID; j++) {
                 for (int i = 0; i < GRID; i++) {
                     float x0 = -RADIUS + i * step;
                     float z0 = -RADIUS + j * step;
-                    b.addVertex(x0, 0.0F, z0);
-                    b.addVertex(x0, 0.0F, z0 + step);
-                    b.addVertex(x0 + step, 0.0F, z0 + step);
-                    b.addVertex(x0 + step, 0.0F, z0);
+                    b.vertex(x0, 0.0F, z0).endVertex();
+                    b.vertex(x0, 0.0F, z0 + step).endVertex();
+                    b.vertex(x0 + step, 0.0F, z0 + step).endVertex();
+                    b.vertex(x0 + step, 0.0F, z0).endVertex();
                 }
             }
-            MeshData mesh = b.build();
+            BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
             vbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
             vbo.bind();
             vbo.upload(mesh);
             VertexBuffer.unbind();
         } finally {
-            bytes.close();
+            PortRender.releaseBuilder(bytes);
         }
     }
 

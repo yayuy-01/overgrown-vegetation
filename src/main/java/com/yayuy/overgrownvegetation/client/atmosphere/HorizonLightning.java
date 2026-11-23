@@ -264,7 +264,7 @@ final class HorizonLightning {
         if (v <= 0.0F) {
             return new float[]{0.0F, 0.0F, 0.0F, 0.0F};
         }
-        double t = lvl.getGameTime() + mc.getTimer().getGameTimeDeltaPartialTick(false);
+        double t = lvl.getGameTime() + mc.getPartialTick();
         double wx = f.fx + CloudField.offsetX(t);
         double wz = f.fz + CloudField.offsetZ(t);
         return new float[]{(float) (wx - camX), (float) (f.y - camY), (float) (wz - camZ), v * f.strength};

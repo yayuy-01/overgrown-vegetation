@@ -359,7 +359,7 @@ final class FallingLeaves {
                 this.renderRotatedQuad(buffer, camera, q, partialTicks);
                 return;
             }
-            this.getFacingCameraMode().setRotation(q, camera, partialTicks);
+            lookAt121(q, camera);
             q.rotateZ(Mth.lerp(partialTicks, this.oRoll, this.roll));
             float t = this.age + partialTicks;
             // 地面に着いた葉は傾けない。
@@ -367,6 +367,34 @@ final class FallingLeaves {
             q.rotateX(amp * Mth.sin(t * this.tiltSpeed + this.tiltPhase));
             q.rotateY(0.6F * amp * Mth.sin(t * this.tiltSpeed * 0.7F + this.tiltPhase * 2.0F));
             this.renderRotatedQuad(buffer, camera, q, partialTicks);
+        }
+
+        /** 1.20.1: 1.21 の FacingCameraMode.LOOKAT_XYZ(1.21 の Camera#rotation の式。1.20.1 の rotation() は Y に 180 度・X の向きが違う)。 */
+        private static void lookAt121(Quaternionf q, Camera camera) {
+            q.rotationYXZ((float) Math.PI - camera.getYRot() * ((float) Math.PI / 180.0F), -camera.getXRot() * ((float) Math.PI / 180.0F), 0.0F);
+        }
+
+        /** 1.20.1: 1.21 の SingleQuadParticle#renderRotatedQuad を写した物(角の順と絵の向きも 1.21 のまま)。 */
+        private void renderRotatedQuad(VertexConsumer buffer, Camera camera, Quaternionf q, float partialTicks) {
+            Vec3 c = camera.getPosition();
+            float x = (float) (Mth.lerp(partialTicks, this.xo, this.x) - c.x());
+            float y = (float) (Mth.lerp(partialTicks, this.yo, this.y) - c.y());
+            float z = (float) (Mth.lerp(partialTicks, this.zo, this.z) - c.z());
+            float size = this.getQuadSize(partialTicks);
+            float u0 = this.getU0();
+            float u1 = this.getU1();
+            float v0 = this.getV0();
+            float v1 = this.getV1();
+            int light = this.getLightColor(partialTicks);
+            quadVertex(buffer, q, x, y, z, 1.0F, -1.0F, size, u1, v1, light);
+            quadVertex(buffer, q, x, y, z, 1.0F, 1.0F, size, u1, v0, light);
+            quadVertex(buffer, q, x, y, z, -1.0F, 1.0F, size, u0, v0, light);
+            quadVertex(buffer, q, x, y, z, -1.0F, -1.0F, size, u0, v1, light);
+        }
+
+        private void quadVertex(VertexConsumer buffer, Quaternionf q, float x, float y, float z, float ox, float oy, float size, float u, float v, int light) {
+            org.joml.Vector3f p = new org.joml.Vector3f(ox, oy, 0.0F).rotate(q).mul(size).add(x, y, z);
+            buffer.vertex(p.x(), p.y(), p.z()).uv(u, v).color(this.rCol, this.gCol, this.bCol, this.alpha).uv2(light).endVertex();
         }
 
         @Override

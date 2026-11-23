@@ -1,9 +1,10 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -176,7 +177,7 @@ final class ArcusCloud {
                 }
             }
         }
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         int quads = 0;
         float x0 = -nx * CELL_X * 0.5F;
         for (int i = 0; i < nx; i++) {
@@ -200,7 +201,7 @@ final class ArcusCloud {
                 quads += side(b, bottom, top, nx, nz, i + 1, j, ya, yb, xb, zb, xb, za, 0.55F, g, tone);
             }
         }
-        MeshData mesh = b.build();
+        BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
         if (vbo == null) {
             vbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
         }
@@ -222,10 +223,10 @@ final class ArcusCloud {
 
     private static int face(BufferBuilder b, float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3,
                             float z3, float lit, float g, float tone) {
-        b.addVertex(x0, y0, z0).setColor(lit, g, tone, 1.0F);
-        b.addVertex(x1, y1, z1).setColor(lit, g, tone, 1.0F);
-        b.addVertex(x2, y2, z2).setColor(lit, g, tone, 1.0F);
-        b.addVertex(x3, y3, z3).setColor(lit, g, tone, 1.0F);
+        b.vertex(x0, y0, z0).color(lit, g, tone, 1.0F).endVertex();
+        b.vertex(x1, y1, z1).color(lit, g, tone, 1.0F).endVertex();
+        b.vertex(x2, y2, z2).color(lit, g, tone, 1.0F).endVertex();
+        b.vertex(x3, y3, z3).color(lit, g, tone, 1.0F).endVertex();
         return 1;
     }
 
@@ -272,7 +273,7 @@ final class ArcusCloud {
         if (vbo == null || builtQuads <= 0) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         double l = Double.isNaN(prevLead) ? lead : Mth.lerp(partial, prevLead, lead);
         // 枠の原点 = 前の縁の線の真ん中(カメラの真横を通る)。前の縁は風下(+dir)の側、後ろは風上。
@@ -300,7 +301,7 @@ final class ArcusCloud {
         float from = p.f("arcusFrom");
         shader.safeGetUniform("ArcFade").set(hide, p.f("arcusAlpha") * SunLight.smooth(present), from * 0.55F, from * 1.25F);
         vbo.bind();
-        vbo.drawWithShader(event.getModelViewMatrix(), event.getProjectionMatrix(), shader);
+        vbo.drawWithShader(PortRender.modelView(event), event.getProjectionMatrix(), shader);
         VertexBuffer.unbind();
         RenderSystem.enableCull();
     }

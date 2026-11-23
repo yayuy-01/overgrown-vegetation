@@ -337,7 +337,7 @@ final class LightShafts {
         if (intensity <= 0.0F) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = SunLight.lightDirection(level, partialTick);
         float day = SunLight.lightStrength(level, sun, partialTick);
         SunLight.airColor(level, sun, partialTick, RGB);
@@ -441,10 +441,10 @@ final class LightShafts {
 
     private static void quad(VertexConsumer c, float[] p0, int i0, float a0, float[] p1, int i1, float a1,
                              float[] p2, int i2, float a2, float[] p3, int i3, float a3) {
-        c.addVertex(p0[i0], p0[i0 + 1], p0[i0 + 2]).setColor(RGB[0], RGB[1], RGB[2], a0);
-        c.addVertex(p1[i1], p1[i1 + 1], p1[i1 + 2]).setColor(RGB[0], RGB[1], RGB[2], a1);
-        c.addVertex(p3[i3], p3[i3 + 1], p3[i3 + 2]).setColor(RGB[0], RGB[1], RGB[2], a3);
-        c.addVertex(p2[i2], p2[i2 + 1], p2[i2 + 2]).setColor(RGB[0], RGB[1], RGB[2], a2);
+        c.vertex(p0[i0], p0[i0 + 1], p0[i0 + 2]).color(RGB[0], RGB[1], RGB[2], a0).endVertex();
+        c.vertex(p1[i1], p1[i1 + 1], p1[i1 + 2]).color(RGB[0], RGB[1], RGB[2], a1).endVertex();
+        c.vertex(p3[i3], p3[i3 + 1], p3[i3 + 2]).color(RGB[0], RGB[1], RGB[2], a3).endVertex();
+        c.vertex(p2[i2], p2[i2 + 1], p2[i2 + 2]).color(RGB[0], RGB[1], RGB[2], a2).endVertex();
     }
 
     /**
@@ -473,10 +473,10 @@ final class LightShafts {
                 float y = (float) (h + 0.04 - eye.y);
                 float fx0 = (float) (x - eye.x);
                 float fz0 = (float) (z - eye.z);
-                c.addVertex(fx0, y, fz0).setColor(RGB[0], RGB[1], RGB[2], alpha * a00);
-                c.addVertex(fx0, y, fz0 + 1.0F).setColor(RGB[0], RGB[1], RGB[2], alpha * a01);
-                c.addVertex(fx0 + 1.0F, y, fz0 + 1.0F).setColor(RGB[0], RGB[1], RGB[2], alpha * a11);
-                c.addVertex(fx0 + 1.0F, y, fz0).setColor(RGB[0], RGB[1], RGB[2], alpha * a10);
+                c.vertex(fx0, y, fz0).color(RGB[0], RGB[1], RGB[2], alpha * a00).endVertex();
+                c.vertex(fx0, y, fz0 + 1.0F).color(RGB[0], RGB[1], RGB[2], alpha * a01).endVertex();
+                c.vertex(fx0 + 1.0F, y, fz0 + 1.0F).color(RGB[0], RGB[1], RGB[2], alpha * a11).endVertex();
+                c.vertex(fx0 + 1.0F, y, fz0).color(RGB[0], RGB[1], RGB[2], alpha * a10).endVertex();
             }
         }
     }

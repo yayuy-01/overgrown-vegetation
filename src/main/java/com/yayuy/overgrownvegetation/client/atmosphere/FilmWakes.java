@@ -284,7 +284,7 @@ public final class FilmWakes {
             }
             Minecraft mc = Minecraft.getInstance();
             Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
-            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float pt = mc.getPartialTick();
             shader.setSampler("OvWakeMap", texture.getId());
             shader.safeGetUniform("OvWakeA").set((float) (originX - cam.x), (float) (originZ - cam.z), (float) BLOCKS, 1.0F);
             shader.safeGetUniform("OvWakeB").set((float) ((now & 0xFFFF) + pt), (float) FilmTrails.LIFETIME, (float) PER, 0.0F);

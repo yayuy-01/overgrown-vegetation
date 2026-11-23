@@ -36,17 +36,22 @@ public class LeyPylonRenderer extends GeoBlockRenderer<LeyPylonBlockEntity> {
 
     @Override
     public void preRender(PoseStack poseStack, LeyPylonBlockEntity animatable, BakedGeoModel model, @Nullable MultiBufferSource bufferSource,
-                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         if (!isReRender) {
             LeyPylonModel.showBattery(model, animatable.getBlockState().hasProperty(LeyBatteryHolder.BATTERY)
                     && animatable.getBlockState().getValue(LeyBatteryHolder.BATTERY));
         }
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
+    /**
+     * 1.20.1: GeckoLib 4.8.4 の GeoBlockRenderer は render を生の BlockEntity で宣言していて、継いだ側で上書きできない(名前がぶつかる)。
+     * 本流の render(柱の模型の後に線)の代わりに、模型を描き終えて積みを戻した後に呼ばれる renderFinal で線を描く(積みはブロックの原点のまま)。
+     */
     @Override
-    public void render(LeyPylonBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int packedLight, int packedOverlay) {
-        super.render(be, partialTick, poseStack, buffers, packedLight, packedOverlay); // 柱の模型
+    public void renderFinal(PoseStack poseStack, LeyPylonBlockEntity be, BakedGeoModel model, MultiBufferSource buffers, @Nullable VertexConsumer buffer,
+                            float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        super.renderFinal(poseStack, be, model, buffers, buffer, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
         renderWires(be, poseStack, buffers);
     }
 
@@ -103,12 +108,13 @@ public class LeyPylonRenderer extends GeoBlockRenderer<LeyPylonBlockEntity> {
     }
 
     private static void vertex(VertexConsumer vc, PoseStack.Pose pose, BlockPos origin, Vec3 p, float u, float v, int light) {
-        vc.addVertex(pose, (float) (p.x - origin.getX()), (float) (p.y - origin.getY()), (float) (p.z - origin.getZ()))
-                .setColor(255, 255, 255, 255)
-                .setUv(u, v)
-                .setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(light)
-                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        vc.vertex(pose.pose(), (float) (p.x - origin.getX()), (float) (p.y - origin.getY()), (float) (p.z - origin.getZ()))
+                .color(255, 255, 255, 255)
+                .uv(u, v)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(light)
+                .normal(pose.normal(), 0.0F, 1.0F, 0.0F)
+                .endVertex();
     }
 
     @Override
@@ -121,8 +127,11 @@ public class LeyPylonRenderer extends GeoBlockRenderer<LeyPylonBlockEntity> {
         return 96;
     }
 
-    @Override
-    public AABB getRenderBoundingBox(LeyPylonBlockEntity be) {
+    /**
+     * 描く範囲。1.20.1 では描き手ではなくブロックエンティティの {@code getRenderBoundingBox()} が聞かれる(Forge の IForgeBlockEntity)。
+     * {@code LeyPylonBlockEntity} から呼んでもらう(G1 への頼み)。それまでは柱の 1 升の箱で、柱が画面の外だと線も消える。
+     */
+    public static AABB getRenderBoundingBox(LeyPylonBlockEntity be) {
         // 毎フレーム呼ばれるので、線 1 本ごとに箱を作らず、座標の端だけ数えて箱を 1 つ作る(11-22 見直し 15)
         BlockPos me = be.getBlockPos();
         int x0 = me.getX(), y0 = me.getY(), z0 = me.getZ(), x1 = x0, y1 = y0, z1 = z0;

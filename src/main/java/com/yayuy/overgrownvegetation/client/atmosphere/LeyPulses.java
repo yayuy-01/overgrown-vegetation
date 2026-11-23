@@ -52,7 +52,7 @@ final class LeyPulses {
         if (night <= 0.0F) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 eye = event.getCamera().getPosition();
         double reach = Math.min(p.distance(), mc.options.getEffectiveRenderDistance() * 16.0 - 8.0);
         double seconds = Atmosphere.time(partialTick) / 20.0;
@@ -156,10 +156,10 @@ final class LeyPulses {
                 float r0 = col[0];
                 float g0 = col[1];
                 float b0 = col[2];
-                c.addVertex((float) (prevX - hx - eye.x), (float) (prevY - eye.y), (float) (prevZ - hz - eye.z)).setColor(r0, g0, b0, prevA);
-                c.addVertex((float) (prevX + hx - eye.x), (float) (prevY - eye.y), (float) (prevZ + hz - eye.z)).setColor(r0, g0, b0, prevA);
-                c.addVertex((float) (x + hx - eye.x), (float) (y - eye.y), (float) (z + hz - eye.z)).setColor(r0, g0, b0, a);
-                c.addVertex((float) (x - hx - eye.x), (float) (y - eye.y), (float) (z - hz - eye.z)).setColor(r0, g0, b0, a);
+                c.vertex((float) (prevX - hx - eye.x), (float) (prevY - eye.y), (float) (prevZ - hz - eye.z)).color(r0, g0, b0, prevA).endVertex();
+                c.vertex((float) (prevX + hx - eye.x), (float) (prevY - eye.y), (float) (prevZ + hz - eye.z)).color(r0, g0, b0, prevA).endVertex();
+                c.vertex((float) (x + hx - eye.x), (float) (y - eye.y), (float) (z + hz - eye.z)).color(r0, g0, b0, a).endVertex();
+                c.vertex((float) (x - hx - eye.x), (float) (y - eye.y), (float) (z - hz - eye.z)).color(r0, g0, b0, a).endVertex();
             }
             if (ok) {
                 prevY = y;

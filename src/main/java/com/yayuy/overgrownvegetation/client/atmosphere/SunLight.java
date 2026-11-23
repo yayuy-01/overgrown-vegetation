@@ -227,7 +227,7 @@ public final class SunLight {
         backlightMillis = now;
         float target = 0.0F;
         if (level != null) {
-            float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float partialTick = event.getPartialTick();
             Vec3 sun = sunDirection(level, partialTick);
             Vector3f look = event.getCamera().getLookVector();
             float toward = look.x() * (float) sun.x + look.y() * (float) sun.y + look.z() * (float) sun.z;

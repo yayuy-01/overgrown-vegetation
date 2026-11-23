@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -118,7 +119,7 @@ public final class WaterMotes {
             return;
         }
         ensureGl(slots);
-        float partialTick = mc.isPaused() ? 0.0F : event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = mc.isPaused() ? 0.0F : event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         // 明るさ: 真上の水面のすぐ上の空の光 × 昼の強さ(夜は NIGHT まで)と、目の所のブロックの光の大きい方。
         // 目の所の空の光は水 1 ブロックごとに 1 減り、10 ブロック潜ると粒が黒い点になったので(11-13 の撮影)、水中の散った光として水面で測る。
@@ -155,7 +156,7 @@ public final class WaterMotes {
         RenderSystem.disableCull();
 
         vbo.bind();
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, event.getModelViewMatrix(), event.getProjectionMatrix(), mc.getWindow());
+        PortRender.setDefaultUniforms(shader, VertexFormat.Mode.QUADS, PortRender.modelView(event), event.getProjectionMatrix(), mc.getWindow());
         shader.apply();
         // 深さの地図は json に書かず、ここで場所を引いて 6 番に渡す(陸の胞子と同じやり方)。
         if (locShader != shader) {
@@ -199,13 +200,13 @@ public final class WaterMotes {
         }
         builtSlots = slots;
         // 枠ごとに 3 面 × 4 頂点(位置の x = 枠の番号、y = 面 × 4 + 角の番号)。
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        BufferBuilder builder = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
         for (int slot = 0; slot < slots; slot++) {
             for (int code = 0; code < 12; code++) {
-                builder.addVertex(slot, code, 0.0F);
+                builder.vertex(slot, code, 0.0F).endVertex();
             }
         }
-        MeshData mesh = builder.buildOrThrow();
+        BufferBuilder.RenderedBuffer mesh = builder.end();
         vbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
         vbo.bind();
         vbo.upload(mesh);

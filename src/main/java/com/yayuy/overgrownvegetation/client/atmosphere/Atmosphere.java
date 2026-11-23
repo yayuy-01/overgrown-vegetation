@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.client.shader.ShaderPacks;
@@ -238,15 +240,20 @@ public final class Atmosphere {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
             // 夜の光る藻({@link GlowAlgae})。水の半透明より先に描き、水面越しに透かす。潜っている間も描く(10-31 夜: 水の中で消えていた)。
             if (lvl != null && lvl == level && enabled(lvl) && !blinded(mc, event.getCamera())) {
-                guard("algae", () -> {
-                    LifeSprites.begin(event, true);
-                    try {
-                        GlowAlgae.render(lvl, event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getLeftVector(),
-                                event.getCamera().getUpVector());
-                    } finally {
-                        LifeSprites.end();
-                    }
-                });
+                boolean pushed = PortRender.pushStageModelView(event); // 1.20.1: 1.21 と同じ視点行列に
+                try {
+                    guard("algae", () -> {
+                        LifeSprites.begin(event, true);
+                        try {
+                            GlowAlgae.render(lvl, event.getPartialTick(), event.getCamera().getLeftVector(),
+                                    event.getCamera().getUpVector());
+                        } finally {
+                            LifeSprites.end();
+                        }
+                    });
+                } finally {
+                    PortRender.popStageModelView(pushed);
+                }
             }
             return;
         }
@@ -262,6 +269,15 @@ public final class Atmosphere {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || lvl == null || lvl != level || !enabled(lvl)) {
             return;
         }
+        boolean pushed = PortRender.pushStageModelView(event); // 1.20.1: この段の RenderSystem の視点行列を 1.21 と同じ(カメラの回転入り)に
+        try {
+            afterParticles(event, mc, lvl);
+        } finally {
+            PortRender.popStageModelView(pushed);
+        }
+    }
+
+    private static void afterParticles(RenderLevelStageEvent event, Minecraft mc, ClientLevel lvl) {
         Camera camera = event.getCamera();
         // 潜っている間は水中の光の筋({@link UnderwaterShafts})だけ。
         if (camera.getFluidInCamera() == FogType.WATER) {
@@ -289,7 +305,7 @@ public final class Atmosphere {
                 LifeSprites.beginGlowNoFog(event);
                 try {
                     net.minecraft.world.phys.Vec3 c = event.getCamera().getPosition();
-                    CaveGlowworms.render(event.getPartialTick().getGameTimeDeltaPartialTick(false), c.x, c.y, c.z, event.getCamera().getLeftVector(),
+                    CaveGlowworms.render(event.getPartialTick(), c.x, c.y, c.z, event.getCamera().getLeftVector(),
                             event.getCamera().getUpVector());
                 } finally {
                     LifeSprites.end();
@@ -301,7 +317,7 @@ public final class Atmosphere {
             guard("canopyglow", () -> {
                 LifeSprites.begin(event, true);
                 try {
-                    CanopyGnats.renderGlow(event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getPosition(),
+                    CanopyGnats.renderGlow(event.getPartialTick(), event.getCamera().getPosition(),
                             event.getCamera().getLeftVector(), event.getCamera().getUpVector());
                 } finally {
                     LifeSprites.end();
@@ -313,7 +329,7 @@ public final class Atmosphere {
             guard("fireflies", () -> {
                 LifeSprites.begin(event, true);
                 try {
-                    SmallCritters.renderGlow(lvl, event.getPartialTick().getGameTimeDeltaPartialTick(false), event.getCamera().getPosition(),
+                    SmallCritters.renderGlow(lvl, event.getPartialTick(), event.getCamera().getPosition(),
                             event.getCamera().getLeftVector(), event.getCamera().getUpVector());
                 } finally {
                     LifeSprites.end();
@@ -363,7 +379,7 @@ public final class Atmosphere {
         if (lvl == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         org.joml.Vector3f left = event.getCamera().getLeftVector();
         org.joml.Vector3f up = event.getCamera().getUpVector();
         LifeSprites.begin(event);
@@ -391,7 +407,7 @@ public final class Atmosphere {
         if (lvl == null || !SporeGale.active() && GlowNight.amount() <= 0.002F) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
         LifeSprites.begin(event, true);
         try {

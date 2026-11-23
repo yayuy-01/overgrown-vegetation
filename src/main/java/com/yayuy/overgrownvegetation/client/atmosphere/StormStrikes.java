@@ -382,10 +382,10 @@ public final class StormStrikes {
             }
             float wa = width * scale * Mth.lerp(i / (float) n, 1.0F, taper) * 0.5F / len;
             float wb = width * scale * Mth.lerp((i + 1) / (float) n, 1.0F, taper) * 0.5F / len;
-            c.addVertex(ax - sx * wa, ay - sy * wa, az - sz * wa).setColor(r, g, b, alpha);
-            c.addVertex(ax + sx * wa, ay + sy * wa, az + sz * wa).setColor(r, g, b, alpha);
-            c.addVertex(bx + sx * wb, by + sy * wb, bz + sz * wb).setColor(r, g, b, alpha);
-            c.addVertex(bx - sx * wb, by - sy * wb, bz - sz * wb).setColor(r, g, b, alpha);
+            c.vertex(ax - sx * wa, ay - sy * wa, az - sz * wa).color(r, g, b, alpha).endVertex();
+            c.vertex(ax + sx * wa, ay + sy * wa, az + sz * wa).color(r, g, b, alpha).endVertex();
+            c.vertex(bx + sx * wb, by + sy * wb, bz + sz * wb).color(r, g, b, alpha).endVertex();
+            c.vertex(bx - sx * wb, by - sy * wb, bz - sz * wb).color(r, g, b, alpha).endVertex();
         }
     }
 
@@ -407,10 +407,10 @@ public final class StormStrikes {
             double a1 = (i + 1) * Math.PI / 4.0;
             float c0 = (float) Math.cos(a0) * radius, s0 = (float) Math.sin(a0) * radius;
             float c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
-            c.addVertex(x + ux * c0 + vx * s0, y + vy * s0, z + uz * c0 + vz * s0).setColor(r, g, b, 0.0F);
-            c.addVertex(x + ux * c1 + vx * s1, y + vy * s1, z + uz * c1 + vz * s1).setColor(r, g, b, 0.0F);
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
+            c.vertex(x + ux * c0 + vx * s0, y + vy * s0, z + uz * c0 + vz * s0).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x + ux * c1 + vx * s1, y + vy * s1, z + uz * c1 + vz * s1).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
         }
     }
 

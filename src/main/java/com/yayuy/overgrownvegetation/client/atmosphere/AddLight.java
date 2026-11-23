@@ -1,6 +1,8 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -30,7 +32,7 @@ final class AddLight {
 
     static MultiBufferSource.BufferSource buffers() {
         if (buffers == null) {
-            buffers = MultiBufferSource.immediate(new ByteBufferBuilder(1 << 18));
+            buffers = MultiBufferSource.immediate(new BufferBuilder(1 << 18));
         }
         return buffers;
     }
@@ -47,19 +49,19 @@ final class AddLight {
     /** {@link #drawToMainTarget} で替えた描き先を粒の層へ戻す(この後のほかの MOD の AFTER_PARTICLES のため)。 */
     static void restoreTarget(boolean switched) {
         if (switched) {
-            RenderStateShard.PARTICLES_TARGET.setupRenderState();
+            PortRender.Shards.PARTICLES_TARGET.setupRenderState();
         }
     }
 
     static RenderType renderType() {
         if (ShaderPacks.active()) {
             if (packRenderType == null) {
-                packRenderType = create("_canopy_light_pack", RenderStateShard.RENDERTYPE_LIGHTNING_SHADER);
+                packRenderType = create("_canopy_light_pack", PortRender.Shards.RENDERTYPE_LIGHTNING_SHADER);
             }
             return packRenderType;
         }
         if (renderType == null) {
-            renderType = create("_canopy_light", RenderStateShard.POSITION_COLOR_SHADER);
+            renderType = create("_canopy_light", PortRender.Shards.POSITION_COLOR_SHADER);
         }
         return renderType;
     }
@@ -74,9 +76,9 @@ final class AddLight {
                 false,
                 RenderType.CompositeState.builder()
                         .setShaderState(shader)
-                        .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
-                        .setCullState(RenderStateShard.NO_CULL)
-                        .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                        .setTransparencyState(PortRender.Shards.LIGHTNING_TRANSPARENCY)
+                        .setCullState(PortRender.Shards.NO_CULL)
+                        .setWriteMaskState(PortRender.Shards.COLOR_WRITE)
                         .createCompositeState(false));
     }
 

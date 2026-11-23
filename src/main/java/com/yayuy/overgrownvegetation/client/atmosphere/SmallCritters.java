@@ -655,8 +655,8 @@ public final class SmallCritters {
                     int y = top(level, x, z);
                     BlockState below = level.getBlockState(POS.set(x, y - 1, z));
                     // 日の当たる岩。岩の少ない森でも見えるよう、日の当たる倒木の上も【仮】。
-                    if (!(below.is(BlockTags.BASE_STONE_OVERWORLD) || below.is(net.minecraftforge.common.Tags.Blocks.STONES)
-                            || below.is(net.minecraftforge.common.Tags.Blocks.COBBLESTONES) || below.is(ModBlocks.FALLEN_LOG.get())) || !below.canOcclude()
+                    if (!(below.is(BlockTags.BASE_STONE_OVERWORLD) || below.is(net.minecraftforge.common.Tags.Blocks.STONE)
+                            || below.is(net.minecraftforge.common.Tags.Blocks.COBBLESTONE) || below.is(ModBlocks.FALLEN_LOG.get())) || !below.canOcclude()
                             || !level.getBlockState(POS.set(x, y, z)).isAir() || level.getBrightness(LightLayer.SKY, POS) < 14 || !overgrown(level, x, y, z)) {
                         continue;
                     }

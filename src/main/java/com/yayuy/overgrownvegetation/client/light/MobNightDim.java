@@ -44,7 +44,7 @@ public final class MobNightDim {
         if (level == null || !VisualQuality.canopyLight()) {
             return 1.0F;
         }
-        long frame = level.getGameTime() * 4L + (long) (mc.getTimer().getGameTimeDeltaPartialTick(false) * 4.0F);
+        long frame = level.getGameTime() * 4L + (long) (mc.getPartialTick() * 4.0F);
         if (frame == cachedFrame) {
             return cachedFactor;
         }

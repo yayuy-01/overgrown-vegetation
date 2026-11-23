@@ -1,10 +1,11 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -45,10 +46,10 @@ final class WeatherShapes {
         }
         float ka = wa * 0.5F / len;
         float kb = wb * 0.5F / len;
-        c.addVertex(ax - sx * ka, ay - sy * ka, az - sz * ka).setColor(ca[0], ca[1], ca[2], ca[3]);
-        c.addVertex(ax + sx * ka, ay + sy * ka, az + sz * ka).setColor(ca[0], ca[1], ca[2], ca[3]);
-        c.addVertex(bx + sx * kb, by + sy * kb, bz + sz * kb).setColor(cb[0], cb[1], cb[2], cb[3]);
-        c.addVertex(bx - sx * kb, by - sy * kb, bz - sz * kb).setColor(cb[0], cb[1], cb[2], cb[3]);
+        c.vertex(ax - sx * ka, ay - sy * ka, az - sz * ka).color(ca[0], ca[1], ca[2], ca[3]).endVertex();
+        c.vertex(ax + sx * ka, ay + sy * ka, az + sz * ka).color(ca[0], ca[1], ca[2], ca[3]).endVertex();
+        c.vertex(bx + sx * kb, by + sy * kb, bz + sz * kb).color(cb[0], cb[1], cb[2], cb[3]).endVertex();
+        c.vertex(bx - sx * kb, by - sy * kb, bz - sz * kb).color(cb[0], cb[1], cb[2], cb[3]).endVertex();
     }
 
     /** カメラを向く丸い光(真ん中が {@code alpha}、縁が 0。8 角形)。{@code stretchUp} = 縦の伸び。 */
@@ -62,23 +63,32 @@ final class WeatherShapes {
             float a1 = (i + 1) * Mth.TWO_PI / 8.0F;
             float c0 = Mth.cos(a0) * radius, s0 = Mth.sin(a0) * radius * stretchUp;
             float c1 = Mth.cos(a1) * radius, s1 = Mth.sin(a1) * radius * stretchUp;
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
-            c.addVertex(x + left.x() * c0 + up.x() * s0, y + left.y() * c0 + up.y() * s0, z + left.z() * c0 + up.z() * s0).setColor(r, g, b, 0.0F);
-            c.addVertex(x + left.x() * c1 + up.x() * s1, y + left.y() * c1 + up.y() * s1, z + left.z() * c1 + up.z() * s1).setColor(r, g, b, 0.0F);
-            c.addVertex(x, y, z).setColor(r, g, b, alpha);
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
+            c.vertex(x + left.x() * c0 + up.x() * s0, y + left.y() * c0 + up.y() * s0, z + left.z() * c0 + up.z() * s0).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x + left.x() * c1 + up.x() * s1, y + left.y() * c1 + up.y() * s1, z + left.z() * c1 + up.z() * s1).color(r, g, b, 0.0F).endVertex();
+            c.vertex(x, y, z).color(r, g, b, alpha).endVertex();
         }
     }
 
     // ------------------------------------------------------------------ ふつうの混ぜ方(TRIANGLES)
 
     private static BufferBuilder builder;
+    /** 1.20.1: 自分だけの器(Tesselator の 1 つの器は begin から end まで他の演出と取り合えない。1.21 は毎回新しい器)。 */
+    private static BufferBuilder own;
+
+    private static BufferBuilder own() {
+        if (own == null) {
+            own = new BufferBuilder(1 << 15);
+        }
+        return own;
+    }
     private static Matrix4f modelView;
     private static Matrix4f projection;
     private static boolean any;
 
     static void begin(RenderLevelStageEvent event) {
-        builder = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        modelView = new Matrix4f(event.getModelViewMatrix());
+        builder = PortRender.begin(own(), VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        modelView = new Matrix4f(PortRender.modelView(event));
         projection = new Matrix4f(event.getProjectionMatrix());
         any = false;
     }
@@ -87,11 +97,11 @@ final class WeatherShapes {
         if (builder == null) {
             return;
         }
-        MeshData mesh = builder.build();
+        BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         builder = null;
         if (mesh == null || !any) {
             if (mesh != null) {
-                mesh.close();
+                mesh.release();
             }
             return;
         }
@@ -102,9 +112,9 @@ final class WeatherShapes {
         RenderSystem.disableCull();
         ShaderInstance shader = GameRenderer.getPositionColorShader();
         if (shader == null) {
-            mesh.close();
+            mesh.release();
         } else {
-            shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
+            PortRender.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
             shader.apply();
             BufferUploader.draw(mesh);
             shader.clear();
@@ -115,7 +125,7 @@ final class WeatherShapes {
     }
 
     private static void v(float x, float y, float z, float r, float g, float b, float a) {
-        builder.addVertex(x, y, z).setColor(r, g, b, a);
+        builder.vertex(x, y, z).color(r, g, b, a).endVertex();
     }
 
     /**

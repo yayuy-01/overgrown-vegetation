@@ -336,7 +336,7 @@ public final class CanopySunMap {
             float amount = 0.0F;
             float mapDay = 0.0F;
             Vec3 sun = null;
-            float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float partialTick = event.getPartialTick();
             float night = 0.0F;
             float moonMapK = 0.0F;
             if (mc.level != null) {

@@ -44,7 +44,7 @@ public final class SurfaceBump {
         ClientLevel level = Minecraft.getInstance().level;
         float strength = 0.0F;
         if (level != null && p.strength() > 0.0F && VisualQuality.surfaceBump() && !ShaderPacks.active() && level.dimensionType().hasSkyLight()) {
-            float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float pt = event.getPartialTick();
             // 昼の太陽の分だけ(夜は 0。雨・夕方の弱まりは daylight に入っている)。
             strength = p.strength() * SunLight.daylight(level, SunLight.sunDirection(level, pt), pt);
         }

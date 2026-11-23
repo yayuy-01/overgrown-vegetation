@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.AtmosphereScary;
 import com.yayuy.overgrownvegetation.data.DesignData;
@@ -181,7 +183,7 @@ public final class PassingShadow {
         if (level == null || !Atmosphere.enabled(level)) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         Vec3 sun = SunLight.sunDirection(level, partial);
         // 昼だけ(太陽が低いと影は遠くへ伸びて、ここには落ちない)・雨の日は弱く・地下は無し。
@@ -218,12 +220,11 @@ public final class PassingShadow {
             return false;
         }
         try {
-            com.mojang.blaze3d.vertex.BufferBuilder b = com.mojang.blaze3d.vertex.Tesselator.getInstance()
-                    .begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR);
-            b.addVertex(-1.0F, -1.0F, z).setColor(0.0F, 0.0F, 0.0F, alpha);
-            b.addVertex(1.0F, -1.0F, z).setColor(0.0F, 0.0F, 0.0F, alpha);
-            b.addVertex(1.0F, 1.0F, z).setColor(0.0F, 0.0F, 0.0F, alpha);
-            b.addVertex(-1.0F, 1.0F, z).setColor(0.0F, 0.0F, 0.0F, alpha);
+            com.mojang.blaze3d.vertex.BufferBuilder b = PortRender.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR);
+            b.vertex(-1.0F, -1.0F, z).color(0.0F, 0.0F, 0.0F, alpha).endVertex();
+            b.vertex(1.0F, -1.0F, z).color(0.0F, 0.0F, 0.0F, alpha).endVertex();
+            b.vertex(1.0F, 1.0F, z).color(0.0F, 0.0F, 0.0F, alpha).endVertex();
+            b.vertex(-1.0F, 1.0F, z).color(0.0F, 0.0F, 0.0F, alpha).endVertex();
             com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
             com.mojang.blaze3d.systems.RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_GREATER);
             com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
@@ -231,9 +232,9 @@ public final class PassingShadow {
             com.mojang.blaze3d.systems.RenderSystem.enableBlend();
             com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
             org.joml.Matrix4f identity = new org.joml.Matrix4f();
-            shader.setDefaultUniforms(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, identity, identity, Minecraft.getInstance().getWindow());
+            PortRender.setDefaultUniforms(shader, com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, identity, identity, Minecraft.getInstance().getWindow());
             shader.apply();
-            com.mojang.blaze3d.vertex.BufferUploader.draw(b.buildOrThrow());
+            com.mojang.blaze3d.vertex.BufferUploader.draw(b.end());
             shader.clear();
             com.mojang.blaze3d.systems.RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_LEQUAL);
             com.mojang.blaze3d.systems.RenderSystem.depthMask(true);

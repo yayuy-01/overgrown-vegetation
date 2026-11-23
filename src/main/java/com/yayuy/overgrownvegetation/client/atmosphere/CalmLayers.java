@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -61,7 +63,7 @@ public final class CalmLayers {
             return;
         }
         WeatherLookEye.Params p = WeatherLook.calmParams();
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float amount = WeatherLook.calmAmount() * (1.0F - Math.max(CaveLights.mix(), ForestPresence.underground())) * (1.0F - DenseFog.level()) * (1.0F - level.getRainLevel(partial));
         int layers = Math.round(p.f("layers"));
         if (amount <= 0.004F || layers <= 0) {
@@ -85,7 +87,7 @@ public final class CalmLayers {
                 target.setFilterMode(GL11.GL_LINEAR);
             }
             Vec3 cam = event.getCamera().getPosition();
-            INV.set(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert();
+            INV.set(event.getProjectionMatrix()).mul(PortRender.modelView(event)).invert();
             // 色: 胞子の濃い所(森の中・胞子の空気)ほど黄緑、離れると白い灰色。夜は暗く。
             float sporey = Mth.clamp(Math.max(ForestPresence.overgrown(), SporeAir.level()), 0.0F, 1.0F);
             float[] forest = p.rgb("layerForestColor");
@@ -124,12 +126,12 @@ public final class CalmLayers {
 
     private static void quad(ShaderInstance shader) {
         RenderSystem.setShader(() -> shader);
-        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        buffer.addVertex(-1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, 1.0F, 0.0F);
-        buffer.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
+        BufferBuilder buffer = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        buffer.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        buffer.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(buffer.end());
     }
 
     static String describe() {

@@ -169,7 +169,7 @@ public final class CrepuscularRays {
         if (level == null || beams.isEmpty()) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         float coverage = VoxelClouds.coverage(level, partialTick);
         float covered = SunLight.smooth(Mth.clamp((coverage - 0.15F) / 0.15F, 0.0F, 1.0F))
                 * (1.0F - SunLight.smooth(Mth.clamp((coverage - 0.9F) / 0.07F, 0.0F, 1.0F)));
@@ -344,10 +344,10 @@ public final class CrepuscularRays {
 
     private static void quad(VertexConsumer c, float[] p0, int i0, float a0, float[] p1, int i1, float a1,
                              float[] p2, int i2, float a2, float[] p3, int i3, float a3, float r, float g, float b) {
-        c.addVertex(p0[i0], p0[i0 + 1], p0[i0 + 2]).setColor(r, g, b, a0);
-        c.addVertex(p1[i1], p1[i1 + 1], p1[i1 + 2]).setColor(r, g, b, a1);
-        c.addVertex(p3[i3], p3[i3 + 1], p3[i3 + 2]).setColor(r, g, b, a3);
-        c.addVertex(p2[i2], p2[i2 + 1], p2[i2 + 2]).setColor(r, g, b, a2);
+        c.vertex(p0[i0], p0[i0 + 1], p0[i0 + 2]).color(r, g, b, a0).endVertex();
+        c.vertex(p1[i1], p1[i1 + 1], p1[i1 + 2]).color(r, g, b, a1).endVertex();
+        c.vertex(p3[i3], p3[i3 + 1], p3[i3 + 2]).color(r, g, b, a3).endVertex();
+        c.vertex(p2[i2], p2[i2 + 1], p2[i2 + 2]).color(r, g, b, a2).endVertex();
     }
 
     static int count() {

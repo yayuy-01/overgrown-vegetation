@@ -644,7 +644,7 @@ public final class CaveLights {
         if (!hp.enabled() || devNoHeld || level == null || mc.player == null || VisualQuality.atmosphereTier() >= 2) {
             return new Light[0];
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         float day = level.dimensionType().hasSkyLight() ? Mth.clamp((level.getSkyDarken(1.0F) - 0.2F) / 0.8F, 0.0F, 1.0F) : 0.0F;
         List<Light> out = new ArrayList<>();

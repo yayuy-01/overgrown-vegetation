@@ -66,7 +66,7 @@ final class LoopSoundInstance extends AbstractTickableSoundInstance {
 
     @Override
     public WeighedSoundEvents resolve(SoundManager manager) {
-        this.sound = new Sound(this.id, ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, 16);
+        this.sound = new Sound(this.id.toString(), ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, 16);
         return new WeighedSoundEvents(this.id, null);
     }
 

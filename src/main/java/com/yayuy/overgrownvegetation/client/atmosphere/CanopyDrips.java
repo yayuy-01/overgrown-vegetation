@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.yayuy.overgrownvegetation.client.VisualQuality;
 import com.yayuy.overgrownvegetation.data.AtmosphereLife;
 import com.yayuy.overgrownvegetation.data.DesignData;
@@ -98,11 +100,11 @@ final class CanopyDrips {
         if (world == null) {
             return;
         }
-        float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float pt = event.getPartialTick();
         net.minecraft.world.phys.Vec3 cam = event.getCamera().getPosition();
         float skyDarken = world.getSkyDarken(pt);
         float alphaBase = DesignData.atmosphere().rainLook().alpha();
-        com.mojang.blaze3d.vertex.BufferBuilder b = com.mojang.blaze3d.vertex.Tesselator.getInstance().begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS,
+        com.mojang.blaze3d.vertex.BufferBuilder b = PortRender.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS,
                 com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR);
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
         for (Drop d : DROPS) {
@@ -126,12 +128,12 @@ final class CanopyDrips {
             if (a <= 0.01F) {
                 continue;
             }
-            b.addVertex(dx - rx, dy, dz - rz).setColor(bright, bright, bright, a);
-            b.addVertex(dx + rx, dy, dz + rz).setColor(bright, bright, bright, a);
-            b.addVertex(dx + rx, dy + len, dz + rz).setColor(bright, bright, bright, 0.0F);
-            b.addVertex(dx - rx, dy + len, dz - rz).setColor(bright, bright, bright, 0.0F);
+            b.vertex(dx - rx, dy, dz - rz).color(bright, bright, bright, a).endVertex();
+            b.vertex(dx + rx, dy, dz + rz).color(bright, bright, bright, a).endVertex();
+            b.vertex(dx + rx, dy + len, dz + rz).color(bright, bright, bright, 0.0F).endVertex();
+            b.vertex(dx - rx, dy + len, dz - rz).color(bright, bright, bright, 0.0F).endVertex();
         }
-        com.mojang.blaze3d.vertex.MeshData mesh = b.build();
+        com.mojang.blaze3d.vertex.BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
         if (mesh == null) {
             return;
         }
@@ -142,9 +144,9 @@ final class CanopyDrips {
         com.mojang.blaze3d.systems.RenderSystem.disableCull();
         net.minecraft.client.renderer.ShaderInstance shader = net.minecraft.client.renderer.GameRenderer.getPositionColorShader();
         if (shader == null) {
-            mesh.close();
+            mesh.release();
         } else {
-            shader.setDefaultUniforms(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, new org.joml.Matrix4f(event.getModelViewMatrix()),
+            PortRender.setDefaultUniforms(shader, com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, new org.joml.Matrix4f(PortRender.modelView(event)),
                     new org.joml.Matrix4f(event.getProjectionMatrix()), mc.getWindow());
             shader.apply();
             com.mojang.blaze3d.vertex.BufferUploader.draw(mesh);

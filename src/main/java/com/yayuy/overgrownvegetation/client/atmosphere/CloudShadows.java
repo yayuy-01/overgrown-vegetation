@@ -218,7 +218,7 @@ public final class CloudShadows {
             lastLevel = level;
             clear();
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = lightDirection(level, partialTick);
         float base = base(level, sun, partialTick);
         lastBase = 0.0F;

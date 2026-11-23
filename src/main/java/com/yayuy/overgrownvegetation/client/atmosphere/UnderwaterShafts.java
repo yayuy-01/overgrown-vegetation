@@ -1,11 +1,12 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.client.VisualQuality;
@@ -107,7 +108,7 @@ final class UnderwaterShafts {
         if (SHAFTS.isEmpty() || under <= 0.01F || level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         Vec3 sun = SunLight.sunDirection(level, partialTick);
         if (sun.y <= 0.03) {
             return;
@@ -137,7 +138,7 @@ final class UnderwaterShafts {
         float cg = Mth.lerp(p.fogMix(), p.g(), Math.min(1.0F, fog[1] * 1.8F + 0.15F));
         float cb = Mth.lerp(p.fogMix(), p.b(), Math.min(1.0F, fog[2] * 1.8F + 0.15F));
         double now = level.getGameTime() + partialTick;
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder builder = PortRender.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         boolean any = false;
         for (Shaft s : SHAFTS) {
             double age = (now - s.born) / 20.0;
@@ -161,13 +162,13 @@ final class UnderwaterShafts {
             beam(builder, cam, tx, s.y, tz, bx, by, bz, s.width, cr, cg, cb, alpha, fogStart, fogEnd);
             beam(builder, cam, tx, s.y, tz, bx, by, bz, s.width * 2.6F, cr, cg, cb, alpha * 0.3F, fogStart, fogEnd);
         }
-        MeshData mesh = builder.build();
+        BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         if (mesh == null) {
             return;
         }
         ShaderInstance shader = GameRenderer.getPositionColorShader();
         if (!any || shader == null) {
-            mesh.close();
+            mesh.release();
             return;
         }
         RenderSystem.enableBlend();
@@ -175,7 +176,7 @@ final class UnderwaterShafts {
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
-        shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, new Matrix4f(event.getModelViewMatrix()), new Matrix4f(event.getProjectionMatrix()),
+        PortRender.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, new Matrix4f(PortRender.modelView(event)), new Matrix4f(event.getProjectionMatrix()),
                 mc.getWindow());
         shader.apply();
         BufferUploader.draw(mesh);
@@ -245,6 +246,6 @@ final class UnderwaterShafts {
     }
 
     private static void vertex(BufferBuilder b, Vec3 cam, double x, double y, double z, float r, float g, float bl, float a) {
-        b.addVertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z)).setColor(r, g, bl, a);
+        b.vertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z)).color(r, g, bl, a).endVertex();
     }
 }

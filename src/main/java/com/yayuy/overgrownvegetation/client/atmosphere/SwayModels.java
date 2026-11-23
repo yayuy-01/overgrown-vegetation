@@ -103,7 +103,7 @@ public final class SwayModels {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
-        Map<ModelResourceLocation, BakedModel> models = event.getModels();
+        Map<net.minecraft.resources.ResourceLocation, BakedModel> models = event.getModels();
         int wrapped = 0;
         wrapped += wrap(models, ModBlocks.OVERGROWN_LEAVES, state -> Mode.WHOLE);
         wrapped += wrap(models, ModBlocks.GIANT_CANOPY_LEAVES, state -> Mode.WHOLE); // 巨大樹の葉(11-16。コルダイテスの葉と同じ揺れ)
@@ -155,7 +155,7 @@ public final class SwayModels {
         OvergrownVegetation.LOGGER.debug("風で揺らす模型: {} 状態", wrapped);
     }
 
-    private static int wrap(Map<ModelResourceLocation, BakedModel> models, Supplier<? extends Block> block,
+    private static int wrap(Map<net.minecraft.resources.ResourceLocation, BakedModel> models, Supplier<? extends Block> block,
                             java.util.function.Function<BlockState, Mode> mode) {
         int n = 0;
         for (BlockState state : block.get().getStateDefinition().getPossibleStates()) {
@@ -207,7 +207,7 @@ public final class SwayModels {
         }
     }
 
-    private static int wrapFringe(Map<ModelResourceLocation, BakedModel> models, Supplier<? extends Block> block, boolean kelp) {
+    private static int wrapFringe(Map<net.minecraft.resources.ResourceLocation, BakedModel> models, Supplier<? extends Block> block, boolean kelp) {
         int n = 0;
         for (BlockState state : block.get().getStateDefinition().getPossibleStates()) {
             ModelResourceLocation key = BlockModelShaper.stateToModelLocation(state);

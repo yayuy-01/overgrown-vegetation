@@ -160,7 +160,7 @@ public final class LeyVeins {
         }
         Vec3 cam = event.getCamera().getPosition();
         float blocks = size * LeyVeinMapPayload.CELL;
-        float time = (float) ((mc.level.getGameTime() % 24000L + event.getPartialTick().getGameTimeDeltaPartialTick(false)) / 20.0);
+        float time = (float) ((mc.level.getGameTime() % 24000L + event.getPartialTick()) / 20.0);
         shader.setSampler("OvLeyMap", texture.getId());
         // 地脈の大潮(ワールドイベント。11-16)の間は、筋が明るくなる。
         float tide = com.yayuy.overgrownvegetation.client.worldevent.LeyTide.veinBoost();

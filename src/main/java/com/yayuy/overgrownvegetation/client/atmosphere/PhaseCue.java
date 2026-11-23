@@ -1,5 +1,7 @@
 package com.yayuy.overgrownvegetation.client.atmosphere;
 
+import com.yayuy.overgrownvegetation.client.shader.PortRender;
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -259,7 +261,7 @@ public final class PhaseCue {
             return;
         }
         AtmosphereEye.PhaseCueParams p = DesignData.atmosphere().phaseCue();
-        float partial = mc.getTimer().getGameTimeDeltaPartialTick(false);
+        float partial = mc.getPartialTick();
         float amount = tint(partial) * p.skyTint() * (1.0F - ForestPresence.underground());
         ShaderInstance shader = ModShaders.phaseTint();
         ShaderInstance blit = ModShaders.phaseTintBlit();
@@ -308,12 +310,12 @@ public final class PhaseCue {
 
     private static void quad(ShaderInstance shader) {
         RenderSystem.setShader(() -> shader);
-        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        buffer.addVertex(-1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, -1.0F, 0.0F);
-        buffer.addVertex(1.0F, 1.0F, 0.0F);
-        buffer.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
+        BufferBuilder buffer = PortRender.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        buffer.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        buffer.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        buffer.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(buffer.end());
     }
 
     /** 確かめ用の 1 行({@code clouds status} などから)。 */

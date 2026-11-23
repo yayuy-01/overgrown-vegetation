@@ -13,7 +13,7 @@ import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.AudioStream;
-import net.minecraft.client.sounds.JOrbisAudioStream;
+import com.mojang.blaze3d.audio.OggAudioStream;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
@@ -185,7 +185,7 @@ public final class FarPresenceSound {
         @Override
         public WeighedSoundEvents resolve(SoundManager manager) {
             ResourceLocation id = OvergrownVegetation.id("far_presence");
-            this.sound = new Sound(id, ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, 16);
+            this.sound = new Sound(id.toString(), ConstantFloat.of(1.0F), ConstantFloat.of(1.0F), 1, Sound.Type.FILE, true, false, 16);
             return new WeighedSoundEvents(id, null);
         }
 
@@ -194,7 +194,7 @@ public final class FarPresenceSound {
             return CompletableFuture.supplyAsync(() -> {
                 Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(this.file);
                 try {
-                    return new JOrbisAudioStream(resource.orElseThrow().open());
+                    return new OggAudioStream(resource.orElseThrow().open());
                 } catch (IOException | RuntimeException e) {
                     throw new java.util.concurrent.CompletionException(e);
                 }

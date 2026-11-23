@@ -42,7 +42,7 @@ final class WaterGlint {
         float camX = 0.0F;
         float camZ = 0.0F;
         if (on && level != null && !SodiumTerrain.unsupported()) {
-            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float pt = mc.getPartialTick();
             Vec3 sun = SunLight.sunDirection(level, pt);
             float rain = level.getRainLevel(pt);
             float day = SunLight.smooth(Mth.clamp(((float) sun.y + 0.02F) / 0.08F, 0.0F, 1.0F));
@@ -86,7 +86,7 @@ final class WaterGlint {
         float rainAmount = 0.0F;
         shaderWater = on && level != null && !SodiumTerrain.unsupported();
         if (on && level != null && !SodiumTerrain.unsupported()) {
-            float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float pt = mc.getPartialTick();
             Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
             Vec3 skyColor = level.getSkyColor(cam, pt);
             zenith = new float[]{(float) skyColor.x, (float) skyColor.y, (float) skyColor.z};

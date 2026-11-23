@@ -78,7 +78,7 @@ public final class LeafSway {
         on = on && VisualQuality.leafSway();
         ShaderInstance mipped = GameRenderer.getRendertypeCutoutMippedShader();
         ShaderInstance cutout = GameRenderer.getRendertypeCutoutShader();
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         float amount = on ? amount(partialTick) : 0.0F;
         if (mipped != null) {
             update(event, mipped, amount, partialTick, on);
