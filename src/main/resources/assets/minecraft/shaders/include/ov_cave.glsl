@@ -55,8 +55,13 @@ uniform vec4 OvCaveSurfColor;
 // leave a soft highlight on solid faces where the eye sees their reflection (Blinn). OvCaveWet = (strength; 0 = off, shininess, -, -).
 uniform vec4 OvCaveWet;
 
+// 11-23 (GPU lightening): a camera cave value below 0.02 counts as 0, ramping back to the full value by 0.06 (no step). On the surface
+// one of the five sample points under a dense crown often reads a little (0.008 in the bench forest), and any value above 0 ran the
+// point-light loop and the 16 cavern reads for every fragment near the camera, for under 1 percent of effect (4K forest: 22 -> 15 ms).
+// The images differ by 0.34 of 255 on average (below the frame-to-frame change of the same view).
 float ovCaveCam() {
-    return OvCaveLocal.x > 0.5 ? OvCaveLocal.y : OvCave.y;
+    float c = OvCaveLocal.x > 0.5 ? OvCaveLocal.y : OvCave.y;
+    return c * smoothstep(0.02, 0.06, c);
 }
 
 float ovFogS(float s) {
@@ -614,7 +619,7 @@ float ovCaveCavern(vec3 pos) {
 const float OV_CAVE_OUTSIDE_HAZE = 0.3;
 
 vec3 ovCaveFogLocal(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
-    float cam = OvCaveLocal.y;
+    float cam = ovCaveCam();
     float k = ovCaveCavernNow;
     float wBoth = cam * (under + (1.0 - under) * k);
     float wToCave = (1.0 - cam) * under;
@@ -665,7 +670,7 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     if (OvCaveLocal.x > 0.5) {
         return ovCaveFogLocal(fogged, lit, surface, dist, under);
     }
-    float cam = OvCave.y;
+    float cam = ovCaveCam();
     vec3 c = fogged;
     float s = ovCaveSinkNow;
     float toCave = under * (1.0 - cam);
