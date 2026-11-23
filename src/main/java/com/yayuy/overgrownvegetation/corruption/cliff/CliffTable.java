@@ -61,6 +61,8 @@ public final class CliffTable {
         public double edgeTuftChance = 0.35D;
         /** 急斜面の横の根: 縄の上からこの段おきに、次の縄まで横に根を渡して網にする(11-20 ユーザー決定)。0 で渡さない。 */
         public int slopeLinkEvery = 4;
+        /** 床まで届く縄の割合(11-23 ユーザー決定「一部が床から 2 段以内まで」。チャンクの同じ向きの縁で最初の 1 本は必ず届き、残りはこの割合)【仮】。 */
+        public double floorShare = 0.34D;
     }
 
     public Sacs sacs = new Sacs();

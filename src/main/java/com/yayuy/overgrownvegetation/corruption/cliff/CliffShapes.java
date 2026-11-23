@@ -153,6 +153,7 @@ public final class CliffShapes {
             int[] bestY = new int[16];
             BlockPos[] best = new BlockPos[16];
             boolean[] bestCliff = new boolean[16];
+            boolean floorRope = false; // このチャンクのこの向きで床まで届く縄をもう置いたか(11-23 ユーザー決定: 崖の 1 続きごとに少なくとも 1 本。1 続き = チャンクの中の同じ向きの縁【仮】)
             for (int i = 0; i < 16; i++) {
                 for (int j = 0; j < 16; j++) {
                     int x = bx + i, z = bz + j;
@@ -188,7 +189,10 @@ public final class CliffShapes {
                 }
                 if (ropes) {
                     if (isAnchor(u, t.rope.spacing, t.rope.spacingJitter, d, 1)) {
-                        if (chance(c, d, 2) < t.rope.chance) rope(put, level, hs, c, d, side, height, !bestCliff[lane], t, r);
+                        if (chance(c, d, 2) < t.rope.chance) {
+                            boolean toFloor = !floorRope || chance(c, d, 8) < t.rope.floorShare;
+                            if (rope(put, level, hs, c, d, side, height, !bestCliff[lane], toFloor, t, r) && toFloor) floorRope = true;
+                        }
                     } else if (isAnchor(u - t.rope.spacing / 2, t.rope.spacing, t.rope.spacingJitter, d, 1) && chance(c, d, 4) < t.rope.chance) {
                         thin(put, level, hs, c, d, side, height, t, r);
                     }
@@ -373,12 +377,17 @@ public final class CliffShapes {
         return last;
     }
 
-    /** A1 太い縄の滝 1 本。 */
-    static void rope(Placer put, ServerLevel level, Heights hs, BlockPos c, Direction d, Direction side, int height, boolean slope, CliffTable t, Result r) {
+    /**
+     * A1 太い縄の滝 1 本。置いたら true。
+     * {@code toFloor} なら長さを崖の高さちょうどにして、下端を真下の足場のすぐ上(床から 1 段)まで下ろす(11-23 ユーザー決定「一部が床から 2 段以内まで」。
+     * 前は長さの上限と乱数で 0〜2 段短く、床から縄に取り付けない崖があり、植物側の Mob が崖の下で止まった)。途中の出っ張り・水などは
+     * 今までどおり置けるマスだけに置く(貫かない)。
+     */
+    static boolean rope(Placer put, ServerLevel level, Heights hs, BlockPos c, Direction d, Direction side, int height, boolean slope, boolean toFloor, CliffTable t, Result r) {
         CliffTable.Rope rp = t.rope;
         int seed = hash(c, d, 9) % 1000;
-        int len = Math.min(rp.maxLength, height) - seed % 3;
-        if (len < 3) return;
+        int len = toFloor ? height : Math.min(rp.maxLength, height) - seed % 3;
+        if (len < 3) return false;
         int split = (int) (len * (rp.forkFrom + rp.forkSpread * ((seed % 97) / 97.0D)));
         int[] a = new int[len], b = new int[len];
         for (int k = 0; k < len; k++) {
@@ -407,6 +416,7 @@ public final class CliffShapes {
                 crawl(put, level, hs, c, d, side, l, -i);
             }
         }
+        return true;
     }
 
     /**

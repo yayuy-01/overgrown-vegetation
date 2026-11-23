@@ -9,7 +9,7 @@
     "maxStepOut": 4
   },
   "rope": {
-    "_comment": "A1 太い縄の滝。縄は 2 マス幅の絡む根。spacing ± spacingJitter マスおき、その chance で垂れる。二股は長さの forkFrom〜forkFrom+forkSpread、短い股は shortBranch。崖の上で crawlMin〜+crawlSpread マス奥へ 3 本に分かれて這う。先に垂れる根 tipDangle 段。縄の間に細い根(崖の thinFrom〜+thinSpread)。縁の垂れる根の房 edgeTuftChance。急斜面は slopeLinkEvery 段おきに縄の間を横の根でつなぐ(網)",
+    "_comment": "A1 太い縄の滝。縄は 2 マス幅の絡む根。spacing ± spacingJitter マスおき、その chance で垂れる。二股は長さの forkFrom〜forkFrom+forkSpread、短い股は shortBranch。崖の上で crawlMin〜+crawlSpread マス奥へ 3 本に分かれて這う。先に垂れる根 tipDangle 段。縄の間に細い根(崖の thinFrom〜+thinSpread)。縁の垂れる根の房 edgeTuftChance。急斜面は slopeLinkEvery 段おきに縄の間を横の根でつなぐ(網)。floorShare = 床(真下の足場の 1 段上)まで届く縄の割合(チャンクの同じ向きの縁で最初の 1 本は必ず届く。11-23)",
     "spacing": 5,
     "spacingJitter": 1,
     "chance": 0.8,
@@ -26,7 +26,8 @@
     "thinFrom": 0.25,
     "thinSpread": 0.25,
     "edgeTuftChance": 0.35,
-    "slopeLinkEvery": 4
+    "slopeLinkEvery": 4,
+    "floorShare": 0.34
   },
   "sacs": {
     "_comment": "B2 嚢の房(芯なし)。割れ目は spacing マスおき(縄と半分ずらす)・chance。うねり wiggle マス。嚢の房は clusterEvery 段おき。縁の下 marginTop 段・地面の上 marginBottom 段は空ける",
