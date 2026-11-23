@@ -159,7 +159,11 @@ final class CanopyShade {
 
     /** 影の濃さ {@code s}(0〜1)の頂点。色ごとに 1 − 濃さ × (1 − 影の色)。 */
     private static void vertex(VertexConsumer c, float x, float y, float z, float s, float kr, float kg, float kb) {
-        c.addVertex(x, y, z).setColor(1.0F - s * kr, 1.0F - s * kg, 1.0F - s * kb, 1.0F);
+        // 2026-11-23: 色の float は 1 を超えると 8 bit で折り返す(1.006 → 1/255)。掛け算の板なので、折り返すと地面がその色に化ける。
+        // 1.20.1 の Embeddium 入りで、影の色の緑が 1 を超えて 0 に折り返し、木の下の草が赤紫になった(1.20.1 の 728b8536)。
+        // 本流も Sodium の差し込みが使えない時はこの板を描くので、同じく 0〜1 に収める。
+        c.addVertex(x, y, z).setColor(Mth.clamp(1.0F - s * kr, 0.0F, 1.0F), Mth.clamp(1.0F - s * kg, 0.0F, 1.0F),
+                Mth.clamp(1.0F - s * kb, 0.0F, 1.0F), 1.0F);
     }
 
     /** 角を囲む 4 マス((x + ox, z + oz) から 2×2)のうち、同じ高さのマスの濃さの平均。まだ見ていない・日が当たるマスは影なし。 */
