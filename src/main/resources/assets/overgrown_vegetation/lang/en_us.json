@@ -405,7 +405,7 @@
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread": "Corrupt unloaded areas",
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread.desc": "When on, distant land with no players also becomes overgrown (including the End island). When off, only loaded chunks. Off makes the overgrown area grow slower and phases advance slower.",
   "gui.overgrown_vegetation.world_difficulty.quake_day": "Starting grace (days)",
-  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "Days until the first quake (start of phase 1). The quake happens once this many days have passed and the advancement count below is reached.",
+  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "Days until the first quake (start of phase 1). The quake happens once this many days have passed and the advancement count below is reached. If an overgrown area appears before then, it happens right away.",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements": "Starting grace (advancements)",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements.desc": "Number of different advancements (by anyone) needed for the first quake. 0 means days only.",
   "gui.overgrown_vegetation.world_difficulty.forest_income": "Forest budget income",

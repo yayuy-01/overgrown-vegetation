@@ -405,7 +405,7 @@
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread": "読み込まれていない所も汚染する",
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread.desc": "オンなら、プレイヤーのいない遠くの土地も過繁茂に変わっていきます(エンドの本島も)。オフなら、読み込まれているチャンクだけ。オフだと過繁茂の面積が増えにくく、フェーズの進みも遅くなります。",
   "gui.overgrown_vegetation.world_difficulty.quake_day": "始まりの猶予(日数)",
-  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "最初の地割れ(フェーズ 1 の始まり)までの日数です。この日数が経ち、かつ下の実績の数がそろうと地割れが起きます。",
+  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "最初の地割れ(フェーズ 1 の始まり)までの日数です。この日数が経ち、かつ下の実績の数がそろうと地割れが起きます。それより前に過繁茂ができたら、待たずにすぐ起きます。",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements": "始まりの猶予(実績の数)",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements.desc": "最初の地割れに要る実績の種類の数です(誰が取ってもよい)。0 なら日数だけで起きます。",
   "gui.overgrown_vegetation.world_difficulty.forest_income": "森の予算の生産量",

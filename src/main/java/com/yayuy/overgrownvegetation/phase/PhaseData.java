@@ -1091,9 +1091,20 @@ public final class PhaseData extends SavedData {
      * フェーズ0→1 の 2 つのゲート(ワールド経過時刻と実績の種類数、2026-09-15 から<b>両方</b>が条件)を
      * 見て、満たしていればフェーズ1へ上げる。{@link #tick} と {@link #recordStartAdvancement} の両方から
      * 呼ぶので、3 日経過後に 10 個目の実績を取った瞬間にも、実績を先に揃えて 3 日経った瞬間にも動く。
+     * ただし過繁茂の台帳が 1 チャンク以上あれば、2 つのゲートを待たずに上げる(2026-11-23)。
      */
     private void tryStartPhase1(ServerLevel overworld) {
         if (frozen || phase != 0) {
+            return;
+        }
+        // 2026-11-23 ユーザー決定: F1 より前に過繁茂ができたら(萌芽体などで森を作った)、日数・実績を待たずにすぐ F1。
+        // 萌芽体が根付く → 半径の汚染 → 地表の割合で過繁茂 → 台帳、の道はフェーズ 0 でも動く(胞子の場・ポイントは F1 から)。
+        // 亀裂の場所は今のまま(advanceToPhase → EarthquakeEvent の通常の抽選)【仮・ユーザーに確認中】。置いた森の所にするなら
+        // EarthquakeEvent.trigger(overworld, 震央) に台帳のチャンクを渡す。
+        // GameTest の世界の本物の PhaseData では見ない(ほかのテストが本物の台帳に載せるので、順番しだいで勝手に F1 になる)。
+        if (overgrownLedgerSize() > 0
+                && !(isLive() && overworld.getServer() instanceof net.minecraft.gametest.framework.GameTestServer)) {
+            advanceToPhase(overworld, 1);
             return;
         }
         // 時刻の条件はワールドの難易度「地割れの発生日時」(2026-09-25。ワールドの値が無ければ startWorldAgeTicks)。

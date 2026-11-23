@@ -405,7 +405,7 @@
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread": "Заражать незагруженные области",
   "gui.overgrown_vegetation.world_difficulty.unloaded_spread.desc": "Если включено, далёкие земли без игроков тоже зарастают (и остров Энда). Если выключено — только загруженные чанки. Тогда площадь зарослей и фазы растут медленнее.",
   "gui.overgrown_vegetation.world_difficulty.quake_day": "Начальная отсрочка (дни)",
-  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "Дней до первого землетрясения (начала фазы 1). Оно происходит, когда прошло столько дней и набрано нужное число достижений ниже.",
+  "gui.overgrown_vegetation.world_difficulty.quake_day.desc": "Дней до первого землетрясения (начала фазы 1). Оно происходит, когда прошло столько дней и набрано нужное число достижений ниже. Если заросль появится раньше, оно происходит сразу.",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements": "Начальная отсрочка (достижения)",
   "gui.overgrown_vegetation.world_difficulty.quake_advancements.desc": "Число разных достижений (у кого угодно) для первого землетрясения. 0 — только дни.",
   "gui.overgrown_vegetation.world_difficulty.forest_income": "Доход бюджета леса",
