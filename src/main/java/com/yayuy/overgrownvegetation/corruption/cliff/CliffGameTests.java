@@ -279,8 +279,9 @@ public final class CliffGameTests {
         CliffTable.Rope rope = DesignData.cliff().rope;
         double was = rope.chance;
         rope.chance = 1.0D;
+        CliffShapes.Result placed;
         try {
-            decorate(h, true, false);
+            placed = decorate(h, true, false);
         } finally {
             rope.chance = was;
         }
@@ -312,7 +313,7 @@ public final class CliffGameTests {
             }
         });
         h.succeedWhen(() -> {
-            h.assertTrue(z.getY() >= topY - 0.01D && z.onGround(), String.format("まだ崖の上にいない: 高さ %.1f(いちばん高く %.1f)", z.getY() - (topY - TOP - 1), best[0] - (topY - TOP - 1)));
+            h.assertTrue(z.getY() >= topY - 0.01D && z.onGround(), String.format("まだ崖の上にいない: 高さ %.1f(いちばん高く %.1f)・縄 %d・崖の縁 %d", z.getY() - (topY - TOP - 1), best[0] - (topY - TOP - 1), placed.ropes, placed.cliffEdges));
             OvergrownVegetation.LOGGER.info("[cliff test] 上った tick {}", h.getTick());
         });
     }

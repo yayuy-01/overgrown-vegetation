@@ -240,14 +240,14 @@ public final class GroundUnderPlantsGameTests {
             for (int z = 1; z <= 5; z++) {
                 BlockPos p = origin.offset(x, 1, z);
                 BlockState s = level.getBlockState(p);
-                if (OvergrownLayerData.isCorruptedCell(level, p, s)) {
-                    done++;
+                if (OvergrownLayerData.isCorruptedCell(level, p, s) || UnderwaterCorruptionGameTests.underFallenLog(level, p)) {
+                    done++; // 倒木の載った床は表に出ていないので数えない(UnderwaterCorruptionGameTests#underFallenLog)
                 } else {
                     int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ()) - 1;
                     left.append(' ').append(x).append(',').append(z).append('=').append(s.getBlock().getDescriptionId())
                             .append('(').append(rowNames[z]).append(" 頂=")
                             .append(level.getBlockState(new BlockPos(p.getX(), top, p.getZ())).getBlock().getDescriptionId())
-                            .append(" y").append(top - origin.getY()).append(')');
+                            .append(" y").append(top - origin.getY()).append(" 列").append(column(level, p, top)).append(')');
                 }
             }
         }
@@ -257,6 +257,18 @@ public final class GroundUnderPlantsGameTests {
         } else {
             helper.succeed();
         }
+    }
+
+    /** 揺れの調べ(11-23): 床の 1 つ上から頂までの列の中身(空気は略す)。 */
+    private static String column(ServerLevel level, BlockPos floor, int top) {
+        StringBuilder b = new StringBuilder();
+        for (int y = floor.getY() + 1; y <= top; y++) {
+            BlockState s = level.getBlockState(new BlockPos(floor.getX(), y, floor.getZ()));
+            if (s.isAir()) continue;
+            String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath();
+            b.append(' ').append(y - floor.getY()).append('=').append(id);
+        }
+        return b.toString();
     }
 
     private static void floor(ServerLevel level, BlockPos origin, int x, int z) {

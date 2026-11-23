@@ -66,11 +66,11 @@ public final class UnderwaterCorruptionGameTests {
             for (int z = 1; z <= 5; z++) {
                 BlockPos p = origin.offset(x, 1, z);
                 BlockState s = level.getBlockState(p);
-                if (OvergrownLayerData.isCorruptedCell(level, p, s)) {
+                if (OvergrownLayerData.isCorruptedCell(level, p, s) || underFallenLog(level, p)) {
                     done++;
                 } else {
                     left.append(' ').append(x).append(',').append(z).append('=').append(s.getBlock().getDescriptionId())
-                            .append(z >= 4 ? "(林冠の下)" : x == 3 && z == 2 ? "(昆布)" : "");
+                            .append(z >= 4 ? "(林冠の下)" : x == 3 && z == 2 ? "(昆布)" : "").append('[').append(column(level, p)).append(']');
                 }
             }
         }
@@ -103,6 +103,26 @@ public final class UnderwaterCorruptionGameTests {
         } else {
             helper.succeed();
         }
+    }
+
+    /**
+     * 真上に倒木が横たわったマス(11-23 揺れるテストの調べ)。倒木(FloorGrowth)は汚染した床から 2〜3 マス横へ倒れ、まだ素の隣の床に載ることがある。
+     * 載った床は表に出ていないので列ごとの浸食の的にしない(深部浸食が拾う。幹の根元と同じ)。倒木の起点は座標で決まるので、テスト場の置かれた所しだいで
+     * 2〜3 マスが一直線に残って落ちていた(新しいワールドで 40 回中 2 回)。
+     */
+    static boolean underFallenLog(ServerLevel level, BlockPos floor) {
+        return level.getBlockState(floor.above()).is(ModBlocks.FALLEN_LOG.get());
+    }
+
+    /** 揺れの調べ(11-23): 水底の 1 つ上から林冠の少し上までの列の中身(空気・水は略す)。 */
+    private static String column(ServerLevel level, BlockPos floor) {
+        StringBuilder b = new StringBuilder();
+        for (int y = floor.getY() + 1; y <= floor.getY() + DEPTH + 12; y++) {
+            BlockState s = level.getBlockState(new BlockPos(floor.getX(), y, floor.getZ()));
+            if (s.isAir() || s.is(Blocks.WATER)) continue;
+            b.append(' ').append(y - floor.getY()).append('=').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath());
+        }
+        return b.toString();
     }
 
     private static void build(ServerLevel level, BlockPos origin) {
