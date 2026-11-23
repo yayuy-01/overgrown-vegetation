@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.gametest;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.corruption.LedgerSpread;
 import com.yayuy.overgrownvegetation.corruption.pushback.AbsentWards;
+import com.yayuy.overgrownvegetation.corruption.pushback.AwayMeter;
 import com.yayuy.overgrownvegetation.corruption.pushback.LeyStakeBlockEntity;
 import com.yayuy.overgrownvegetation.corruption.pushback.RingWards;
 import com.yayuy.overgrownvegetation.corruption.pushback.VentGuard;
@@ -127,26 +128,63 @@ public final class AbsentWardGameTests {
         }
     }
 
-    /** 発電機から受け取っていた杭は、受け取りが使う量を上回る間は留守でも切れない。発電機が無ければ受け取りを数えない。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void awayStakeFedByProducerDoesNotRunOut(GameTestHelper helper) {
+    /**
+     * 発電機から足りていた杭・換気機は留守でも切れない: 本物の口から 40 FE/t(汲み上げ器 1 台・線の真上)を入れ続け、途中で杭が 1 回止めて払い、
+     * 換気機はフィルターを抜いて止まる間もある。窓を 2 回以上埋めてから留守にして 3 日経たせる。入れなかった杭は切れる。
+     * 発電機のつながりと窓の長さはテスト用に決め打ち(自分だけのバッチ)。
+     */
+    @GameTest(template = TEMPLATE, batch = BATCH + "_fed", timeoutTicks = 200)
+    public static void fedMachinesDoNotRunOutAway(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos stake = farCenter(helper, 1);
-        ChunkPos cp = new ChunkPos(stake);
-        try {
-            double d = stakeBaseDrain();
-            AbsentWards.Machine m = AbsentWards.putAwayForTests(level, stake, false, 100, d);
-            m.inflowPerTick = d + 1.0D;
-            m.producerLinked = true;
-            AbsentWards.ageForTests(level, m, 24000L * 3);
-            helper.assertTrue(m.energyAt(level.getGameTime()) == 100 && RingWards.stakeCoversChunk(level, cp.x, cp.z),
-                    "発電機から受け取っていた杭が留守の間に切れた");
-            m.producerLinked = false; // 柱の電池だけ・発電機なし: 受け取りを数えない
-            helper.assertTrue(m.energyAt(level.getGameTime()) == 0, "発電機の無い受け取りを留守の間も数えている");
-            helper.succeed();
-        } finally {
-            AbsentWards.clearForTests(level, stake);
-        }
+        AwayMeter.windowOverrideForTests = 40;
+        AwayMeter.linkedOverrideForTests = true;
+        BlockPos fedRel = new BlockPos(1, 2, 1), dryRel = new BlockPos(1, 2, 5), ventRel = new BlockPos(4, 2, 4);
+        helper.setBlock(fedRel, ModPushBack.LEY_STAKE.get().defaultBlockState());
+        helper.setBlock(dryRel, ModPushBack.LEY_STAKE.get().defaultBlockState());
+        helper.setBlock(ventRel, ModVent.VENTILATOR.get().defaultBlockState());
+        LeyStakeBlockEntity fed = (LeyStakeBlockEntity) helper.getBlockEntity(fedRel);
+        LeyStakeBlockEntity dry = (LeyStakeBlockEntity) helper.getBlockEntity(dryRel);
+        VentBlockEntity vent = (VentBlockEntity) helper.getBlockEntity(ventRel);
+        dry.setEnergy(DesignData.pushBack().ring.stakeBuffer);
+        vent.setFilter(fresh());
+        final int[] tick = {0};
+        helper.onEachTick(() -> {
+            int t = tick[0]++;
+            fed.energyPort().receiveEnergy(40, false);
+            vent.energyPort().receiveEnergy(40, false);
+            if (t == 30) {
+                RingWards.resetCooldownForTests(level);
+                RingWards.blocks(level, helper.absolutePos(new BlockPos(2, 2, 2))); // 止めて払う
+            }
+            if (t == 60) vent.setFilter(ItemStack.EMPTY); // 止まる間(FE を使わない)
+            if (t == 75) vent.setFilter(fresh());
+        });
+        helper.runAtTickTime(150, () -> {
+            try {
+                fed.mirrorForTests();
+                dry.mirrorForTests();
+                vent.mirrorForTests();
+                AbsentWards.Machine mf = AbsentWards.find(level, fed.getBlockPos(), false);
+                AbsentWards.Machine md = AbsentWards.find(level, dry.getBlockPos(), false);
+                AbsentWards.Machine mv = AbsentWards.find(level, vent.getBlockPos(), true);
+                helper.assertTrue(mf.supplied && mv.supplied, "入れ続けた杭・換気機が足りている扱いにならない: 杭 " + mf.supplied + "・換気機 " + mv.supplied
+                        + "(FE " + fed.energy() + "・" + vent.energy() + ")");
+                helper.assertTrue(!md.supplied, "入れなかった杭が足りている扱い");
+                int ef = mf.energyAt(level.getGameTime());
+                long days = 24000L * 3;
+                AbsentWards.ageForTests(level, mf, days);
+                AbsentWards.ageForTests(level, md, days);
+                AbsentWards.ageForTests(level, mv, days);
+                long now = level.getGameTime();
+                helper.assertTrue(mf.guarding(now) && mf.energyAt(now) == ef, "足りていた杭が留守の間に減った・切れた");
+                helper.assertTrue(mv.guarding(now), "足りていた換気機が留守の間に切れた");
+                helper.assertTrue(!md.guarding(now) && md.energyAt(now) == 0, "入れなかった杭が留守の 3 日で切れない");
+                helper.succeed();
+            } finally {
+                AwayMeter.windowOverrideForTests = 0;
+                AwayMeter.linkedOverrideForTests = null;
+            }
+        });
     }
 
     // ---------------------------------------------------------------- (a)(b) 換気機

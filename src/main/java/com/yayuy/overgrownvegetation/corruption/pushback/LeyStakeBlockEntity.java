@@ -122,7 +122,7 @@ public class LeyStakeBlockEntity extends BlockEntity {
      */
     public boolean awayTick(ServerLevel level) {
         long now = level.getGameTime();
-        meter.tick(level, worldPosition);
+        meter.tick(level, energy, RingWards.table().stakeBuffer, slack(), worldPosition);
         AbsentWards.Machine m = AbsentWards.touch(level, worldPosition, false);
         boolean settled = false;
         if (m.isAway(now)) {
@@ -152,8 +152,14 @@ public class LeyStakeBlockEntity extends BlockEntity {
         m.drainPerTick = baseDrain() + payAvg;
         m.inflowPerTick = meter.inflow(now);
         m.producerLinked = meter.linked();
+        m.supplied = meter.supplied(energy, RingWards.table().stakeBuffer, slack());
         AbsentWards.mirrored(level, m);
         lastMirror = now;
+    }
+
+    /** 「器がほぼ満ちている」の幅(1 回に減りうる量 = 止めて払う分・立っているだけの分の 2 倍)。 */
+    private static int slack() {
+        return 2 * Math.max(RingWards.table().stakeFePerBlock, RingWards.table().stakeFePerTick);
     }
 
     /** 立っているだけで使う FE/t(効きの設定で割った値)。 */

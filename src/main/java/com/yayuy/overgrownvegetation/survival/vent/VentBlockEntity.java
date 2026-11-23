@@ -263,7 +263,7 @@ public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
 
     private void awayTick(ServerLevel level) {
         long now = level.getGameTime();
-        meter.tick(level, worldPosition, worldPosition.above(), worldPosition.above(2));
+        meter.tick(level, energy, spec().energyBuffer(), 2 * spec().fePerTick(), worldPosition, worldPosition.above(), worldPosition.above(2));
         AbsentWards.Machine m = AbsentWards.touch(level, worldPosition, true);
         boolean settled = settle(level, m, now);
         if (settled || lastMirror == Long.MIN_VALUE || now - lastMirror >= AbsentWards.MIRROR_TICKS) mirror(level, m, now);
@@ -299,6 +299,7 @@ public class VentBlockEntity extends BlockEntity implements GeoBlockEntity {
         m.drainPerTick = spec().fePerTick();
         m.inflowPerTick = meter.inflow(now);
         m.producerLinked = meter.linked();
+        m.supplied = meter.supplied(energy, spec().energyBuffer(), 2 * spec().fePerTick());
         m.stock = stock.copy();
         m.loadCarry = loadCarry;
         m.revision = seenRevision;

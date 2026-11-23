@@ -36,7 +36,7 @@ import java.util.Map;
  *   読み込まれて動いている間は機械が {@code MIRROR_TICKS} ごとに(フィルターは変わるたびに)書き写す。</li>
  *   <li><b>留守</b> = チャンクが外れた(onChunkUnloaded)か、機械が {@link #AWAY_AFTER_TICKS} tick 動いていない(読み込まれていても回らないチャンク・
  *   サーバーを開き直した直後)。留守の機械は、この覚えで範囲を守る(杭は {@link RingWards}、換気機は {@link VentGuard} と胞子の場)。</li>
- *   <li>FE は経った時間で減らす: 残り = 覚えた FE −(使う FE/t − 受け取っていた FE/t)× 経った tick(受け取りは網・隣に発電機があったときだけ数える)。
+ *   <li>FE は経った時間で減らす: 残り = 覚えた FE − 使う FE/t × 経った tick。ただし「足りていた」機械(網・隣に発電機があり、最後の窓でためた FE が減らなかった。{@link AwayMeter})は減らない。
  *   0 になったらそこで守りが切れる。換気機のフィルターは留守の間も胞子の場の計算で詰まり({@link #applyAway})、予備を順に使う。</li>
  *   <li><b>精算</b>(機械が読み込まれて最初に回ったとき {@link #settle}): FE は「機械の値」と「覚えから出した今の値」の小さい方にし、
  *   換気機のフィルターは留守の間に変わっていれば({@code revision})覚えの物で置き換える。精算の後はすぐ書き写すので、
@@ -68,6 +68,8 @@ public final class AbsentWards extends SavedData {
         public double inflowPerTick;
         /** 網・隣に発電機(汲み上げ器など)があったか。無ければ受け取りを数えない(柱の電池だけなどは留守の間に入り続けない)。 */
         public boolean producerLinked;
+        /** 足りていたか(発電機があり、最後の窓でためた FE が減らなかった。{@link AwayMeter#supplied})。足りていた機械は留守の間も FE が減らない。 */
+        public boolean supplied;
         /** 換気機のフィルター(杭は null)。 */
         @Nullable
         public VentStock stock;
@@ -90,9 +92,8 @@ public final class AbsentWards extends SavedData {
 
         /** 留守の間に減る FE/t(換気機はフィルターが使えないと回らないので 0)。 */
         public double netDrain() {
-            double use = vent && (stock == null || !stock.usable()) ? 0.0D : drainPerTick;
-            double in = producerLinked ? inflowPerTick : 0.0D;
-            return Math.max(0.0D, use - in);
+            if (supplied) return 0.0D;
+            return vent && (stock == null || !stock.usable()) ? 0.0D : drainPerTick;
         }
 
         /** 今の FE(覚えから出した値)。 */
@@ -107,8 +108,8 @@ public final class AbsentWards extends SavedData {
 
         /** 留守の間も守っているか(杭: FE が残る。換気機: 詰まっていないフィルターがあり、1 tick 分の FE が残る)。 */
         public boolean guarding(long now) {
-            if (!vent) return energyAt(now) > 0;
-            return stock != null && stock.usable() && energyAt(now) >= Math.max(1, VentBlockEntity.feNeeded());
+            if (!vent) return supplied || energyAt(now) > 0;
+            return stock != null && stock.usable() && (supplied || energyAt(now) >= Math.max(1, VentBlockEntity.feNeeded()));
         }
 
         /** FE を今に揃える(使う量が変わる前に)。 */
@@ -355,6 +356,7 @@ public final class AbsentWards extends SavedData {
             m.drainPerTick = t.getDouble("drain");
             m.inflowPerTick = t.getDouble("inflow");
             m.producerLinked = t.getBoolean("linked");
+            m.supplied = t.getBoolean("supplied");
             m.revision = t.getInt("revision");
             m.loadCarry = t.getDouble("loadCarry");
             if (m.vent && m.stock != null && t.contains("stock")) m.stock.load(t.getCompound("stock"), registries);
@@ -377,6 +379,7 @@ public final class AbsentWards extends SavedData {
                 t.putDouble("drain", m.drainPerTick);
                 t.putDouble("inflow", m.inflowPerTick);
                 t.putBoolean("linked", m.producerLinked);
+                t.putBoolean("supplied", m.supplied);
                 t.putInt("revision", m.revision);
                 t.putDouble("loadCarry", m.loadCarry);
                 if (m.stock != null) {
@@ -435,11 +438,11 @@ public final class AbsentWards extends SavedData {
         if (m != null) {
             long now = level.getGameTime();
             long exp = m.expiry();
-            String left = !m.guarding(now) ? "切れている" : exp == Long.MAX_VALUE ? "切れない(発電機から受け取る扱い)"
+            String left = !m.guarding(now) ? "切れている" : exp == Long.MAX_VALUE ? "切れない(発電機から足りている)"
                     : String.format(java.util.Locale.ROOT, "あと %.1f 分", (exp - now) / 1200.0D);
             sb.append(String.format(java.util.Locale.ROOT, "・いちばん近い留守 %d,%d,%d: %d FE・使う %.2f FE/t・受け取る %.2f FE/t%s・%s",
                     BlockPos.getX(m.pos), BlockPos.getY(m.pos), BlockPos.getZ(m.pos), m.energyAt(now), m.drainPerTick, m.inflowPerTick,
-                    m.producerLinked ? "(発電機あり)" : "(発電機なし・数えない)", left));
+                    m.supplied ? "(発電機から足りている・減らない)" : m.producerLinked ? "(発電機あり・足りない)" : "(発電機なし)", left));
             if (m.stock != null) {
                 sb.append(String.format(java.util.Locale.ROOT, "・フィルター %s・予備 %d・詰まった物 %d",
                         m.stock.filter.isEmpty() ? "-" : AirFilters.percentLeft(m.stock.filter) + "%", m.stock.spareFilled(), m.stock.cloggedFilled()));
