@@ -413,7 +413,7 @@ public final class FrontDirector {
         int total = m[0];
         int[] bestOf = new int[total];
         boolean[] edgeOf = new boolean[total];
-        int slices = Math.max(1, Math.min(Runtime.getRuntime().availableProcessors(), total / 16384));
+        int slices = Math.max(1, Math.min(Runtime.getRuntime().availableProcessors() / 2, total / 16384)); // コアの半分まで(1 人用で描画のスレッドの分を残す。切れ目の数で答えは変わらない)
         java.util.stream.IntStream range = java.util.stream.IntStream.range(0, slices);
         (slices > 1 ? range.parallel() : range).forEach(si -> {
             NearestIndex index = new NearestIndex(xs, zs); // 引くたびに中で覚えを書くので切れ目ごとに 1 つ

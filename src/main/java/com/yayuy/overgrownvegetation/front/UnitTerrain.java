@@ -26,10 +26,12 @@ public final class UnitTerrain {
 
     /** チャンク → 地形(覚えておく数の上限を超えたら全部忘れる)。 */
     private static final Long2ByteOpenHashMap CACHE = new Long2ByteOpenHashMap();
-    /** 11-23 サーバーの tick の軽量化: 20 万だと部隊が広がった F7 で毎分のように溢れて全部忘れ、バイオームを引き直していた(答えは同じ。約 20 MB)。 */
+    /** 11-23 サーバーの tick の軽量化: F7 の部隊の移動で地形のバイオームの引き直しが目立った(溢れると全部忘れる)ので上限を上げる(溢れていたかは数えていない。答えは同じ・覚えは最大で約 20 MB)。 */
     private static final int CACHE_MAX = 1_000_000;
     static {
         CACHE.defaultReturnValue((byte) -1);
+        // 鍵は座標だけなので、ワールドが替わる(サーバーが止まる)ときに忘れる(11-23 Codex の指摘: 前は同じ起動で別のワールドを開くと前の地形を使い回しえた)
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> CACHE.clear());
     }
     /** テスト用: 地形の決め打ち(null で本物)。 */
     @Nullable
