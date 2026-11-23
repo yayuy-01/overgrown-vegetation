@@ -411,8 +411,16 @@ public final class GearTierGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void conduitOreTurnsGreenWithRootBuds(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        if (!CorruptionRegistry.corrupt(ModGear.CONDUIT_ORE.get().defaultBlockState(), level.random).is(ModGear.OVERGROWN_CONDUIT_ORE.get())
-                || !CorruptionRegistry.corrupt(ModGear.DEEPSLATE_CONDUIT_ORE.get().defaultBlockState(), level.random).is(ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE.get())) {
+        // randomBlockChance(既定 5%)で汎用の汚染ブロックになる引きを外す(level.random のままだと 3 回引くので 1 回の流しで約 14% 落ちた。11-23 揺れの調べ)。
+        // 確かめたいのは対応表の「導晶鉱 → 緑の版」と根晶なので、乱数はいつも高い値を返す物にする
+        net.minecraft.util.RandomSource noRandomBlock = new net.minecraft.world.level.levelgen.LegacyRandomSource(0L) {
+            @Override
+            public double nextDouble() {
+                return 0.99D;
+            }
+        };
+        if (!CorruptionRegistry.corrupt(ModGear.CONDUIT_ORE.get().defaultBlockState(), noRandomBlock).is(ModGear.OVERGROWN_CONDUIT_ORE.get())
+                || !CorruptionRegistry.corrupt(ModGear.DEEPSLATE_CONDUIT_ORE.get().defaultBlockState(), noRandomBlock).is(ModGear.OVERGROWN_DEEPSLATE_CONDUIT_ORE.get())) {
             helper.fail("飲み込まれた導晶鉱が緑の版にならない");
             return;
         }
@@ -427,7 +435,7 @@ public final class GearTierGameTests {
             helper.setBlock(ore, ModGear.CONDUIT_ORE.get());
             // 本物の置き換えの口(汚染が広がるときと同じ)で緑の版にする → その 1 回だけ生える
             BlockState before = helper.getBlockState(ore);
-            CorruptionRegistry.placeCorrupted(level, abs, before, CorruptionRegistry.corrupt(before, level.random),
+            CorruptionRegistry.placeCorrupted(level, abs, before, CorruptionRegistry.corrupt(before, noRandomBlock),
                     net.minecraft.world.level.block.Block.UPDATE_ALL);
             if (buds(helper, ore) != 2 || !helper.getBlockState(ore).is(ModGear.OVERGROWN_CONDUIT_ORE.get())) {
                 helper.fail("小さな根晶の数 " + buds(helper, ore) + "(期待 2)・鉱石 " + helper.getBlockState(ore));
