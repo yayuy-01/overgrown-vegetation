@@ -26,10 +26,12 @@ java {
 // 全部を移し終えたら、このブロックとファイルを消す。
 // 2026-11-23: 組ごとの一覧 ported-sources.d/*.txt も読む(統合のとき、組ごとに足していけるように。書き方は同じ)
 def portedSourceFiles = [file('ported-sources.txt')] + (file('ported-sources.d').listFiles()?.findAll { it.name.endsWith('.txt') }?.sort() ?: [])
-def portedSources = portedSourceFiles.collectMany { it.readLines('UTF-8') }
+def portedLines = portedSourceFiles.collectMany { it.readLines('UTF-8') }
         .collect { it.trim() }
         .findAll { it && !it.startsWith('#') }
-sourceSets.main.java.include(portedSources)
+// 2026-11-23 統合 I: 頭に ! の行は外す物(G8 の gametest が移し終わるまで外す)
+sourceSets.main.java.include(portedLines.findAll { !it.startsWith('!') })
+sourceSets.main.java.exclude(portedLines.findAll { it.startsWith('!') }.collect { it.substring(1) })
 
 legacyForge {
     version = "${minecraft_version}-${forge_version}"
@@ -60,6 +62,8 @@ legacyForge {
             gameDirectory = project.file(System.getenv('OV_CC_DIR') ?: 'runs/claude')
             systemProperty 'ov.devbridge', 'true'
             systemProperty 'ov.autoQuit', System.getProperty('ov.autoQuit', '')
+            // 2026-11-23 統合 I: -Dov.mixinCount=true で mixin の注入の数を数える(require 0 の外れも起動で分かる。G7 の報告。配る版には付けない)
+            if (Boolean.getBoolean('ov.mixinCount')) systemProperty 'mixin.debug.countInjections', 'true'
             programArguments.addAll('--width', '1280', '--height', '720')
         }
         configureEach {
@@ -150,14 +154,6 @@ tasks.named('processResources', ProcessResources) {
     filesMatching('META-INF/mods.toml') {
         expand props
     }
-
-    // data/ は 1.21.1 の書き方のまま(フォルダ名が単数形・レシピの result など)。
-    // 1.20.1 の書き方へ直したものを入れるまで、jar にも runClient にも載せない。
-    exclude 'data/**'
-
-    // 2026-11-23: バニラのシェーダーの上書き(assets/minecraft/shaders)は 1.21 の物のまま。1.20.1 では fog_distance の引数などが違い、
-    // 読み込むとクライアントが起動で落ちる。G6 が 1.20.1 の原本から作り直すまで jar・runClient に載せない(作り直したらこの行を外す)
-    exclude 'assets/minecraft/shaders/**'
 }
 
 tasks.withType(JavaCompile).configureEach {
