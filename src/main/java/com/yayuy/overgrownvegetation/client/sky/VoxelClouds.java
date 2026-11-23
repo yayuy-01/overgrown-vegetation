@@ -364,10 +364,160 @@ public final class VoxelClouds implements CloudRenderer {
         try {
             // 雲の海の下の霞の床(改善 ①、{@link HazeFloor})。遠くの雲より先に、背景として。
             HazeFloor.draw(level, partialTick, event.getModelViewMatrix(), event.getProjectionMatrix(), cam.x, cam.y, cam.z);
-            draw(level, partialTick, event.getModelViewMatrix(), event.getProjectionMatrix(), cam.x, cam.y, cam.z, true);
+            skyFrame++;
+            deferred = deferFarPass();
+            if (deferred) {
+                // 地形の後(AFTER_CUTOUT_BLOCKS)に描く。この段の値を覚えておく(霧の色は地形の段で書き換わるので、空の段の色を使う)。
+                deferredModelView.set(event.getModelViewMatrix());
+                deferredProjection.set(event.getProjectionMatrix());
+                deferredCam = cam;
+                deferredPartialTick = partialTick;
+                float[] fog = RenderSystem.getShaderFogColor();
+                System.arraycopy(fog, 0, deferredFogColor, 0, Math.min(4, fog.length));
+            } else {
+                draw(level, partialTick, event.getModelViewMatrix(), event.getProjectionMatrix(), cam.x, cam.y, cam.z, true);
+            }
         } catch (RuntimeException e) {
             broken = true;
             OvergrownVegetation.LOGGER.error("ボクセルの雲(遠く)で例外が出たので、このセッションではバニラの雲に戻す", e);
+        }
+    }
+
+    // ---------------------------------------------------------------- 遠くの雲を地形の後に描く(2026-11-23 軽量化 GPU。parked の 10-24 版を戻した)
+    // 空と一緒に地形より先に描くと、林冠や地面に隠れる画素まで重い雲のシェーダーが全部走る(森の中の 4K で雲を切ると −2.8 ms)。
+    // 地形(不透明・切り抜き)を描いた後に、主画面の色の絵 + 自分の奥行きの絵の描き先へ描く。自分の奥行きは「主画面の奥行きが空(1.0)なら 1、
+    // 地形なら 0」で始める(cloud_sky_mask)ので、地形の画素は奥行きの試しで色を計算する前に落ち、空の画素では雲だけの奥行きの幅で今まで通り前後が決まる。
+    // 空の画素の色は地形の前と同じ(不透明の地形は空の画素を書かない)なので、結果の絵は同じ。主画面の奥行きは触らない(後で消す手間も無い)。
+    // 前の描き方に戻す場合: ワールドイベント中(日食・流星などが空の段で雲と重なる順を変えない)・Distant Horizons(遠景の水が雲に重なる)・
+    // シェーダーパック・型のシェーダーが無い・前のフレームに AFTER_CUTOUT_BLOCKS が来なかった・開発用 {@link #devOldFarPass}。
+
+    private static long skyFrame;
+    private static long cutoutFrame = -1L;
+    private static boolean deferred;
+    private static final Matrix4f deferredModelView = new Matrix4f();
+    private static final Matrix4f deferredProjection = new Matrix4f();
+    private static Vec3 deferredCam = Vec3.ZERO;
+    private static float deferredPartialTick;
+    private static final float[] deferredFogColor = new float[4];
+    /** 型を使って描いている最中(自分の奥行きの絵なので最後に奥行きを消さない・霧の色は空の段の色)。 */
+    private static boolean maskedPass;
+    private static boolean maskBroken;
+    private static int maskFbo;
+    private static int maskDepth;
+    private static int maskWidth;
+    private static int maskHeight;
+    private static VertexBuffer maskQuad;
+    private static final boolean DH = ModList.get().isLoaded("distanthorizons");
+
+    /** 開発用: 前の描き方(空と一緒)に固定する(撮り比べ)。 */
+    public static volatile boolean devOldFarPass;
+
+    private static boolean deferFarPass() {
+        return !devOldFarPass && !maskBroken && !DH && com.yayuy.overgrownvegetation.client.shader.ModShaders.cloudSkyMask() != null
+                && !ShaderPacks.active() && com.yayuy.overgrownvegetation.client.worldevent.WorldEventClient.kind() == null
+                && cutoutFrame == skyFrame - 1L;
+    }
+
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
+    public static void onAfterCutout(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+            return;
+        }
+        cutoutFrame = skyFrame;
+        if (!deferred) {
+            return;
+        }
+        deferred = false;
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || broken) {
+            return;
+        }
+        try {
+            drawMasked(level);
+        } catch (RuntimeException e) {
+            maskBroken = true;
+            OvergrownVegetation.LOGGER.error("遠くの雲を地形の後に描けなかったので、空と一緒に描く(前の描き方)に戻す", e);
+        }
+    }
+
+    private static void drawMasked(ClientLevel level) {
+        RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+        int w = main.width;
+        int h = main.height;
+        int[] viewport = new int[4];
+        org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, viewport);
+        int drawTarget = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int readTarget = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER_BINDING);
+        try {
+            if (maskFbo == 0) {
+                maskFbo = org.lwjgl.opengl.GL30.glGenFramebuffers();
+            }
+            if (maskDepth == 0 || maskWidth != w || maskHeight != h) {
+                if (maskDepth == 0) {
+                    maskDepth = com.mojang.blaze3d.platform.GlStateManager._genTexture();
+                }
+                RenderSystem.bindTexture(maskDepth);
+                org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_MIN_FILTER, org.lwjgl.opengl.GL11.GL_NEAREST);
+                org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_MAG_FILTER, org.lwjgl.opengl.GL11.GL_NEAREST);
+                org.lwjgl.opengl.GL11.glTexImage2D(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0, org.lwjgl.opengl.GL30.GL_DEPTH_COMPONENT32F, w, h, 0,
+                        org.lwjgl.opengl.GL11.GL_DEPTH_COMPONENT, org.lwjgl.opengl.GL11.GL_FLOAT, (java.nio.FloatBuffer) null);
+                maskWidth = w;
+                maskHeight = h;
+            }
+            if (maskQuad == null) {
+                BufferBuilder quad = RenderSystem.renderThreadTesselator().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+                quad.addVertex(-1.0F, -1.0F, 0.0F);
+                quad.addVertex(1.0F, -1.0F, 0.0F);
+                quad.addVertex(1.0F, 1.0F, 0.0F);
+                quad.addVertex(-1.0F, 1.0F, 0.0F);
+                maskQuad = new VertexBuffer(VertexBuffer.Usage.STATIC);
+                maskQuad.bind();
+                maskQuad.upload(quad.buildOrThrow());
+                VertexBuffer.unbind();
+            }
+            // 色は主画面の絵(毎回付け直す)、奥行きは自分の絵。
+            com.mojang.blaze3d.platform.GlStateManager._glBindFramebuffer(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, maskFbo);
+            org.lwjgl.opengl.GL30.glFramebufferTexture2D(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, org.lwjgl.opengl.GL30.GL_COLOR_ATTACHMENT0,
+                    org.lwjgl.opengl.GL11.GL_TEXTURE_2D, main.getColorTextureId(), 0);
+            org.lwjgl.opengl.GL30.glFramebufferTexture2D(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, org.lwjgl.opengl.GL30.GL_DEPTH_ATTACHMENT,
+                    org.lwjgl.opengl.GL11.GL_TEXTURE_2D, maskDepth, 0);
+            if (org.lwjgl.opengl.GL30.glCheckFramebufferStatus(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER) != org.lwjgl.opengl.GL30.GL_FRAMEBUFFER_COMPLETE) {
+                maskBroken = true;
+                OvergrownVegetation.LOGGER.warn("遠くの雲の描き先が作れなかったので、次のフレームから空と一緒に描く(前の描き方)に戻す");
+                return;
+            }
+            com.mojang.blaze3d.platform.GlStateManager._viewport(0, 0, w, h);
+            // 型: 主画面の奥行きが空なら 1、地形なら 0。
+            ShaderInstance mask = com.yayuy.overgrownvegetation.client.shader.ModShaders.cloudSkyMask();
+            mask.setSampler("MainDepth", main.getDepthTextureId());
+            RenderSystem.colorMask(false, false, false, false);
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(true);
+            RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_ALWAYS);
+            RenderSystem.disableBlend();
+            RenderSystem.disableCull();
+            maskQuad.bind();
+            maskQuad.drawWithShader(new Matrix4f(), new Matrix4f(), mask);
+            VertexBuffer.unbind();
+            RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_LEQUAL);
+            RenderSystem.colorMask(true, true, true, true);
+            RenderSystem.enableCull();
+            maskedPass = true;
+            try {
+                draw(level, deferredPartialTick, deferredModelView, deferredProjection, deferredCam.x, deferredCam.y, deferredCam.z, true);
+            } catch (RuntimeException e) {
+                broken = true;
+                OvergrownVegetation.LOGGER.error("ボクセルの雲(遠く)で例外が出たので、このセッションではバニラの雲に戻す", e);
+            } finally {
+                maskedPass = false;
+            }
+        } finally {
+            com.mojang.blaze3d.platform.GlStateManager._glBindFramebuffer(org.lwjgl.opengl.GL30.GL_DRAW_FRAMEBUFFER, drawTarget);
+            com.mojang.blaze3d.platform.GlStateManager._glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER, readTarget);
+            com.mojang.blaze3d.platform.GlStateManager._viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+            RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_LEQUAL);
+            RenderSystem.colorMask(true, true, true, true);
+            RenderSystem.depthMask(true);
         }
     }
 
@@ -744,7 +894,7 @@ public final class VoxelClouds implements CloudRenderer {
         shader.safeGetUniform("LitTint").set(lit[0], lit[1], lit[2], 1.0F);
         shader.safeGetUniform("ShadeTint").set(shadeT[0], shadeT[1], shadeT[2], 1.0F);
         // 地平の霧の色(改善 ③④): 遠くの雲・曇りの天井・夜の遠い雲の底をここへ溶かす。
-        float[] horizon = RenderSystem.getShaderFogColor();
+        float[] horizon = maskedPass ? deferredFogColor : RenderSystem.getShaderFogColor();
         shader.safeGetUniform("HorizonColor").set(horizon[0], horizon[1], horizon[2], 1.0F);
         // 森の霞(11-13 見え方の点検 A): 霞で満ちた空の中では雲も霞に溶かす。
         com.yayuy.overgrownvegetation.client.atmosphere.CloudHaze.set(shader);
@@ -796,7 +946,7 @@ public final class VoxelClouds implements CloudRenderer {
         RenderSystem.disableBlend();
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
-        if (far) {
+        if (far && !maskedPass) {
             // 地形はこの後にいつもの奥行きで描くので、雲だけの奥行きを消す(空は奥行きを書かないので消しても困らない)。
             RenderSystem.clear(org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         }

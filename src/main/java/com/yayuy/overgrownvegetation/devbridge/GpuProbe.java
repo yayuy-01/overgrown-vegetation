@@ -76,6 +76,11 @@ public final class GpuProbe {
                 OvergrownClientConfig.CLIENT.clouds.set(!(a.length > 1 && a[1].equals("off")));
                 return "GPUPROBE 雲 " + OvergrownClientConfig.CLIENT.clouds.get();
             }
+            case "farclouds" -> {
+                // 遠くの雲: old = 空と一緒に地形より先(前の描き方)・new = 地形の後に型で(11-23)
+                com.yayuy.overgrownvegetation.client.sky.VoxelClouds.devOldFarPass = a.length > 1 && a[1].equals("old");
+                return "GPUPROBE 遠くの雲 " + (com.yayuy.overgrownvegetation.client.sky.VoxelClouds.devOldFarPass ? "前の描き方" : "地形の後");
+            }
             case "bloom" -> {
                 GlowBloom.devOff = a.length > 1 && a[1].equals("off");
                 return "GPUPROBE 光のにじみ " + (GlowBloom.devOff ? "止めた" : "戻した");
