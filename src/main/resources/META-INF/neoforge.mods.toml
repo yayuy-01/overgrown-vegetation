@@ -16,6 +16,10 @@ description = '''
 まず露出面のあるブロックが置き換わり、その後で内部のブロックも置き換わります。
 '''
 
+# Sodium の設定の画面にこの MOD のページを足す(2026-11-23)。Sodium が無い・API の無い版では読まれない
+[modproperties.overgrown_vegetation]
+"sodium:config_api_user" = "com.yayuy.overgrownvegetation.client.compat.SodiumOptionsPage"
+
 [[mixins]]
 config = "overgrown_vegetation.mixins.json"
 

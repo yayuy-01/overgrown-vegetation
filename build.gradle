@@ -266,6 +266,13 @@ repositories {
             includeGroup('com.eliotlash.mclib')
         }
     }
+    maven {
+        name = 'CaffeineMC' // Sodium の設定の API(コンパイルだけ。2026-11-23 Sodium の画面にこの MOD のページを足す)
+        url = 'https://maven.caffeinemc.net/releases'
+        content {
+            includeGroup('net.caffeinemc')
+        }
+    }
 }
 
 // structure-grammar エンジンのゴールデンテスト(tools/structure-grammar/SPEC.md §9)専用の
@@ -285,6 +292,9 @@ dependencies {
     implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${pal_version}") {
         transitive = false
     }
+
+    // Sodium の設定の API(client/compat/SodiumOptionsPage)。コンパイルにだけ使う(Sodium は入れた人だけ。無い・版が違うときはそのクラスを読まない)
+    compileOnly "net.caffeinemc:sodium-neoforge-api:0.8.13+mc1.21.1"
 
     grammarTest 'com.google.code.gson:gson:2.10.1' // Minecraft 1.21.1 と同じ版
 }

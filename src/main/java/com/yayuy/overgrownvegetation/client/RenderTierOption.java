@@ -37,7 +37,7 @@ public final class RenderTierOption {
             return this == CUSTOM ? null : QualityPreset.valueOf(name());
         }
 
-        Component caption() {
+        public Component caption() {
             return Component.translatable(KEY + "." + name().toLowerCase(Locale.ROOT));
         }
     }
@@ -103,18 +103,22 @@ public final class RenderTierOption {
         return instance;
     }
 
-    private static Shown now() {
+    /** 今の設定の段(カスタムも)。Sodium の画面({@code client/compat/SodiumOptionsPage})も読む。 */
+    public static Shown now() {
         return OvergrownClientConfig.SPEC.isLoaded() ? Shown.of(QualityPreset.current()) : Shown.HIGH;
     }
 
-    private static void apply(Shown shown) {
+    /** 段を書く(カスタムは何もしない)。ビデオ設定と Sodium の画面から。 */
+    public static void apply(Shown shown) {
         QualityPreset p = shown.preset();
         if (p == null || !OvergrownClientConfig.SPEC.isLoaded() || QualityPreset.current() == p) {
             return;
         }
+        boolean wasOn = OvergrownClientConfig.CLIENT.visualEffects.get();
         p.writeToConfig();
         // 巻きシダの精細さが変わっていれば区画を焼き直す。ほかの演出は描く側が毎フレーム VisualQuality から読むので、次のフレームから効く。
         GeoStaticGeometry.applyDetailChange();
+        RenderTierNotice.afterChange(wasOn, OvergrownClientConfig.CLIENT.visualEffects.get());
     }
 
     private RenderTierOption() {

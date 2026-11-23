@@ -461,8 +461,11 @@ public final class VisualSettingsScreen extends Screen {
         if (!settings.stream().allMatch(Setting::valid)) {
             return;
         }
+        boolean wasOn = OvergrownClientConfig.CLIENT.visualEffects.get();
         settings.forEach(Setting::save);
         OvergrownClientConfig.SPEC.save();
+        // 段「なし」へ・から変えたら、地形のシェーダーの差し込みが次の起動で外れる・戻ると一言(11-23)
+        com.yayuy.overgrownvegetation.client.RenderTierNotice.afterChange(wasOn, OvergrownClientConfig.CLIENT.visualEffects.get());
         // 演出のオンオフは描く側が毎 tick・毎フレーム VisualQuality から読むので、ここで何もしなくても次の tick から効く。
         // 巻きシダは変わっていれば焼き直す(値が同じなら何もしない)。
         com.yayuy.overgrownvegetation.client.GeoStaticGeometry.applyDetailChange();
