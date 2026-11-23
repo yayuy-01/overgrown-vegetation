@@ -383,11 +383,13 @@ vec3 ovCaveLight(vec3 color, vec3 albedo, vec3 pos, vec3 n, float facing, float 
         vec4 p = texelFetch(OvCaveLights, ivec2(i, 0), 0);
         float r = abs(p.w);
         vec3 to = p.xyz - pos;
-        float d = length(to);
         float reach = 1.5 * r;
-        if (d >= reach) {
+        // 11-23 (GPU lightening): out of reach is decided on the squared distance, before the square root.
+        float d2 = dot(to, to);
+        if (d2 >= reach * reach) {
             continue;
         }
+        float d = sqrt(d2);
         vec4 c = texelFetch(OvCaveLights, ivec2(i, 1), 0);
         float q = d / (r * falloff);
         float base = c.w / (1.0 + q * q) * (1.0 - smoothstep(r, reach, d));
@@ -566,6 +568,11 @@ float ovCaveCavern(vec3 pos) {
     }
     float roofed = 0.0;
     for (int i = 0; i < 16; i++) {
+        // 11-23 (GPU lightening): stop once the result is settled. With 4 or fewer roofed in the end the smoothstep below is 0, with 8 or
+        // more it is 1, so the output is the same as reading all 16.
+        if (roofed + float(16 - i) <= 4.0) {
+            return 0.0;
+        }
         float a = float(i) * 0.785398;
         float r = i < 8 ? 6.0 : 12.0;
         vec2 q = pos.xz + vec2(cos(a), sin(a)) * r;
@@ -586,6 +593,9 @@ float ovCaveCavern(vec3 pos) {
         }
         if (c.g >= 0.5 && c.r + OvCaveMapA.z - pos.y > OvCaveMapB.y) {
             roofed += 1.0;
+            if (roofed >= 8.0) {
+                return 1.0;
+            }
         }
     }
     return smoothstep(0.25, 0.5, roofed / 16.0);
@@ -683,8 +693,10 @@ vec3 ovCaveFog(vec3 fogged, vec3 lit, vec3 surface, float dist, float under) {
     // after the camera has left, so under the canopy right outside the leaves past ~8 blocks were painted with a bright haze wall next
     // to vivid near ones. It now goes by the lower of the smoothed mix and its unsmoothed target (OvCaveMouth.w): off as soon as the
     // camera is out, still easing in on the way into a cave. The black camera fog keeps its slow fade (vanilla fog, MistView).
-    float cavern = (1.0 - under) * cam * ovCaveCavern(ovCavePosNow);
-    float toSurface = (1.0 - under) * min(cam, OvCaveMouth.w) * (1.0 - ovCaveCavern(ovCavePosNow));
+    // 11-23 (GPU lightening): the cavern share is read once, and not at all where both weights are 0 anyway (cam 0 or under 1).
+    float kc = (1.0 - under) * cam > 0.0 ? ovCaveCavern(ovCavePosNow) : 0.0;
+    float cavern = (1.0 - under) * cam * kc;
+    float toSurface = (1.0 - under) * min(cam, OvCaveMouth.w) * (1.0 - kc);
     if (toSurface > 0.0) {
         // 11-04 (13): the part of the path inside the cave (the camera's own distance to the nearest mouth, map b) has no bright forest
         // haze, the same as the cave part seen from outside (a lit floor under a hole in the roof a few blocks away was veiled bright green).
