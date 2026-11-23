@@ -3,6 +3,7 @@ package com.yayuy.overgrownvegetation.survival.vent;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.SporeFieldTable;
 import com.yayuy.overgrownvegetation.data.VentSpec;
+import com.yayuy.overgrownvegetation.corruption.pushback.AbsentWards;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -70,21 +71,30 @@ public final class Ventilators {
     public static Snapshot snapshot(ServerLevel level, int steps, SporeFieldTable table) {
         if (level.dimension() != Level.OVERWORLD) return Snapshot.NONE;
         List<VentBlockEntity> run = running(level);
-        if (run.isEmpty()) return Snapshot.NONE;
-        long[] pos = new long[run.size()];
-        double[] budget = new double[run.size()];
-        for (int i = 0; i < run.size(); i++) {
-            pos[i] = run.get(i).getBlockPos().asLong();
-            budget[i] = run.get(i).budgetUnits(steps, table);
+        List<AbsentWards.Machine> away = AbsentWards.guardingVents(level); // 留守の機械も場から吸い、覚えのフィルターが詰まる(11-23)
+        if (run.isEmpty() && away.isEmpty()) return Snapshot.NONE;
+        it.unimi.dsi.fastutil.longs.LongArrayList pos = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        it.unimi.dsi.fastutil.doubles.DoubleArrayList budget = new it.unimi.dsi.fastutil.doubles.DoubleArrayList();
+        for (VentBlockEntity be : run) {
+            pos.add(be.getBlockPos().asLong());
+            budget.add(be.budgetUnits(steps, table));
         }
-        return new Snapshot(pos, budget);
+        for (AbsentWards.Machine m : away) {
+            if (pos.contains(m.pos)) continue;
+            pos.add(m.pos);
+            budget.add(AbsentWards.awayBudget(level, m, steps, table));
+        }
+        return new Snapshot(pos.toLongArray(), budget.toDoubleArray());
     }
 
     /** 計算が抜いた量を機械へ返す。機械が消えていれば捨てる。 */
     public static void apply(ServerLevel level, long[] pos, double[] extracted, int steps, SporeFieldTable table) {
         for (int i = 0; i < pos.length; i++) {
             BlockPos p = BlockPos.of(pos[i]);
-            if (level.isLoaded(p) && level.getBlockEntity(p) instanceof VentBlockEntity be) {
+            AbsentWards.Machine m = AbsentWards.find(level, p, true);
+            if (m != null && m.isAway(level.getGameTime())) {
+                AbsentWards.applyAway(level, p, extracted[i], steps, table); // 留守の機械は覚えのフィルターへ(11-23)
+            } else if (level.isLoaded(p) && level.getBlockEntity(p) instanceof VentBlockEntity be) {
                 be.onExtracted(extracted[i], steps, table);
             }
         }
@@ -96,12 +106,15 @@ public final class Ventilators {
      */
     public static boolean covers(ServerLevel level, int cx, int cz, VentSpec spec) {
         if (!spec.lowerFloor() || level.dimension() != Level.OVERWORLD) return false;
-        Set<VentBlockEntity> set = LOADED.get(level.dimension());
-        if (set == null || set.isEmpty()) return false;
+        Set<VentBlockEntity> set = LOADED.getOrDefault(level.dimension(), Set.of());
         double r2 = spec.radiusChunks() * spec.radiusChunks();
         for (VentBlockEntity be : set) {
             if (be.isRemoved() || !be.running()) continue;
             int dx = (be.getBlockPos().getX() >> 4) - cx, dz = (be.getBlockPos().getZ() >> 4) - cz;
+            if (dx * dx + dz * dz <= r2) return true;
+        }
+        for (AbsentWards.Machine m : AbsentWards.guardingVents(level)) {
+            int dx = (BlockPos.getX(m.pos) >> 4) - cx, dz = (BlockPos.getZ(m.pos) >> 4) - cz;
             if (dx * dx + dz * dz <= r2) return true;
         }
         return false;
@@ -110,10 +123,15 @@ public final class Ventilators {
     /** 動いている機械のいるチャンク(場の写しを作る区画に足す)。 */
     public static long[] runningChunks(ServerLevel level) {
         List<VentBlockEntity> run = running(level);
-        long[] out = new long[run.size()];
-        for (int i = 0; i < out.length; i++) {
+        List<AbsentWards.Machine> away = AbsentWards.guardingVents(level); // 留守でも守っている機械(11-23)
+        long[] out = new long[run.size() + away.size()];
+        for (int i = 0; i < run.size(); i++) {
             BlockPos p = run.get(i).getBlockPos();
             out[i] = net.minecraft.world.level.ChunkPos.asLong(p.getX() >> 4, p.getZ() >> 4);
+        }
+        for (int i = 0; i < away.size(); i++) {
+            long p = away.get(i).pos;
+            out[run.size() + i] = net.minecraft.world.level.ChunkPos.asLong(BlockPos.getX(p) >> 4, BlockPos.getZ(p) >> 4);
         }
         return out;
     }

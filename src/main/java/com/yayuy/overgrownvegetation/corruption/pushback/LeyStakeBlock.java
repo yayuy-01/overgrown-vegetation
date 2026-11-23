@@ -80,6 +80,13 @@ public class LeyStakeBlock extends BaseEntityBlock {
         return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
 
+    /** 壊した(別のブロックになった)ら留守の覚えを忘れる(11-23。チャンクが外れたときは呼ばれない)。 */
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level instanceof ServerLevel server) AbsentWards.forget(server, pos, false);
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof LeyStakeBlockEntity be) {

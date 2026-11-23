@@ -919,6 +919,7 @@
   "item.overgrown_vegetation.cure_draught.desc": "飲むと胞子感染が 1 段下がる。体が胞子と戦うので疲れる",
   "item.overgrown_vegetation.cure_draught.not_infected": "感染していないので、飲んでも効かない",
   "message.overgrown_vegetation.ley_ventilator.info": "・フィルター %s%%・%s/%s FE・抜いた %s%%",
+  "message.overgrown_vegetation.ley_ventilator.stock": "・予備 %s/%s 枚・詰まった物 %s/%s 枚",
   "message.overgrown_vegetation.ley_ventilator.filter_clogged": "このフィルターは詰まっている",
   "message.overgrown_vegetation.ley_ventilator.no_room": "換気機は高さ 3 ブロック: 上に 2 マスの空きが要る",
   "message.overgrown_vegetation.ley_stake.on": "地脈の杭: 半径 %s の汚染を止めている・%s/%s FE",

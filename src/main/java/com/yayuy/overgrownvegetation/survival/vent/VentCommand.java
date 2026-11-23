@@ -51,7 +51,7 @@ public final class VentCommand {
         SporeConcentration.Reading r = SporeConcentration.reading(level, p);
         ctx.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT,
                 "換気機: 動いている %d 台・ここは範囲%s・濃度 %.1f%%・部屋のたまり %.3f %%秒/秒",
-                running, covered ? "の中" : "の外", r.percent(), r.roomSeepPerSecond())), false);
+                running, covered ? "の中" : "の外", r.percent(), r.roomSeepPerSecond()) + "\n" + com.yayuy.overgrownvegetation.corruption.pushback.AbsentWards.describe(level, p, true)), false); // 留守の換気機(11-23)
         return running;
     }
 

@@ -919,6 +919,7 @@
   "item.overgrown_vegetation.cure_draught.desc": "Lowers spore infection by one stage. Fighting the spores tires the body",
   "item.overgrown_vegetation.cure_draught.not_infected": "You are not infected; it would do nothing",
   "message.overgrown_vegetation.ley_ventilator.info": " · filter %s%% · %s/%s FE · pulled %s%%",
+  "message.overgrown_vegetation.ley_ventilator.stock": " · spares %s/%s · clogged %s/%s",
   "message.overgrown_vegetation.ley_ventilator.filter_clogged": "This filter is clogged",
   "message.overgrown_vegetation.ley_ventilator.no_room": "The ventilator is 3 blocks tall: it needs 2 free blocks above",
   "message.overgrown_vegetation.ley_stake.on": "Ley Stake: holding back corruption within %s blocks · %s/%s FE",

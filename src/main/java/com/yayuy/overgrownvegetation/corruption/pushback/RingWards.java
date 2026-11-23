@@ -40,7 +40,7 @@ import java.util.Map;
  *   胞子の発芽で始まる汚染も、這ってくる汚染も起きない。中心が範囲に入るチャンクでは発芽も受け取らない({@link #stakeCoversChunk})。
  *   止めるたびに、その杭が {@code stakeFePerBlock} FE 払う(杭ごとに 1 秒 1 回まで)。</li>
  * </ul>
- * 帯の座標は次元ごとの SavedData に持つ(中身の無いブロックなので)。杭は中身(FE)があるので、読み込まれて FE のある杭だけを覚える。
+ * 帯の座標は次元ごとの SavedData に持つ(中身の無いブロックなので)。杭は中身(FE)があるので、読み込まれて FE のある杭を覚え、留守の杭は {@link AbsentWards} の覚えで守る(11-23)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class RingWards extends SavedData {
@@ -69,6 +69,13 @@ public final class RingWards extends SavedData {
     /** チャンク → その範囲がかかる杭。 */
     private final Long2ObjectOpenHashMap<List<BlockPos>> stakeChunks = new Long2ObjectOpenHashMap<>();
     private boolean rebuildStakes = true;
+    /** 留守で FE の残る杭(11-23 {@link AbsentWards}。読み込まれている杭 {@link #stakes} とは別)と、その見直しの印。 */
+    private List<BlockPos> awayStakes = List.of();
+    private int awayVersion = Integer.MIN_VALUE;
+    private long awayCheckTick = Long.MIN_VALUE;
+    private long awayExpiry = Long.MAX_VALUE;
+    /** 留守の杭 → 最後に払った tick。 */
+    private final Long2LongOpenHashMap awayLastPaid = new Long2LongOpenHashMap();
 
     /** 確かめ用: 止めた回数(数えた分)。 */
     public static int blockedCount;
@@ -167,7 +174,7 @@ public final class RingWards extends SavedData {
     /** このチャンクで止めることがありうるか(チャンク単位の近道。false ならそのチャンクのどこも止めない)。 */
     public static boolean mayBlockIn(ServerLevel level, ChunkPos chunk) {
         RingWards w = get(level);
-        if (w.bands.isEmpty() && w.stakes.isEmpty()) return false;
+        if (w.bands.isEmpty() && !w.anyStakes(level)) return false;
         w.ensure();
         if (w.stakeChunks.containsKey(chunk.toLong())) return true;
         if (w.bandChunks.isEmpty()) return false;
@@ -201,7 +208,7 @@ public final class RingWards extends SavedData {
      */
     public static boolean nearAny(ServerLevel level, BlockPos center, int radius) {
         RingWards w = get(level);
-        if (w.bands.isEmpty() && w.stakes.isEmpty()) return false;
+        if (w.bands.isEmpty() && !w.anyStakes(level)) return false;
         w.ensure();
         PushBackTable.Ring t = table();
         for (BlockPos s : w.stakesNear(center, radius)) {
@@ -231,7 +238,7 @@ public final class RingWards extends SavedData {
 
     private static boolean check(ServerLevel level, BlockPos pos, boolean count) {
         RingWards w = get(level);
-        if (w.bands.isEmpty() && w.stakes.isEmpty()) return false;
+        if (w.bands.isEmpty() && !w.anyStakes(level)) return false;
         w.ensure();
         BlockPos stake = w.stakeAt(pos);
         if (stake != null) {
@@ -253,7 +260,7 @@ public final class RingWards extends SavedData {
     /** そのマスが FE のある杭の範囲か(数えない。見せる・テスト用)。 */
     public static boolean inStakeField(ServerLevel level, BlockPos pos) {
         RingWards w = get(level);
-        if (w.stakes.isEmpty()) return false;
+        if (!w.anyStakes(level)) return false;
         w.ensure();
         return w.stakeAt(pos) != null;
     }
@@ -261,7 +268,7 @@ public final class RingWards extends SavedData {
     /** チャンクの中心が FE のある杭の範囲か(そこでは発芽を受け取らない)。 */
     public static boolean stakeCoversChunk(ServerLevel level, int cx, int cz) {
         RingWards w = get(level);
-        if (w.stakes.isEmpty()) return false;
+        if (!w.anyStakes(level)) return false;
         w.ensure();
         List<BlockPos> list = w.stakeChunks.get(ChunkPos.asLong(cx, cz));
         if (list == null) return false;
@@ -287,9 +294,26 @@ public final class RingWards extends SavedData {
 
     // ------------------------------------------------------------------ 中身
 
+    /** 杭(読み込まれている・留守)が 1 本でもあるか。留守の杭の一覧は、覚えが変わった・誰かの FE が切れた・1 秒たったときに見直す。 */
+    private boolean anyStakes(ServerLevel level) {
+        long now = level.getGameTime();
+        int v = AbsentWards.version(level);
+        if (v != awayVersion || now >= awayExpiry || now - awayCheckTick >= 20 || now < awayCheckTick) {
+            awayVersion = v;
+            awayCheckTick = now;
+            List<BlockPos> list = AbsentWards.guardingStakes(level);
+            awayExpiry = AbsentWards.nextStakeExpiry(level);
+            if (!list.equals(awayStakes)) {
+                awayStakes = list;
+                rebuildStakes = true;
+            }
+        }
+        return !stakes.isEmpty() || !awayStakes.isEmpty();
+    }
+
     @Nullable
     private BlockPos stakeAt(BlockPos pos) {
-        if (stakes.isEmpty()) return null;
+        if (stakeChunks.isEmpty()) return null;
         List<BlockPos> list = stakeChunks.get(ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4));
         if (list == null) return null;
         PushBackTable.Ring t = table();
@@ -353,12 +377,16 @@ public final class RingWards extends SavedData {
 
     private void payStake(ServerLevel level, BlockPos stake) {
         long now = level.getGameTime();
-        long last = stakes.getOrDefault(stake.asLong(), NEVER);
+        boolean live = stakes.containsKey(stake.asLong());
+        long last = live ? stakes.get(stake.asLong()) : awayLastPaid.getOrDefault(stake.asLong(), NEVER);
         if (now - last < 20) return;
-        stakes.put(stake.asLong(), now);
+        if (live) stakes.put(stake.asLong(), now);
+        else awayLastPaid.put(stake.asLong(), now);
         blockedCount++;
         if (level.isLoaded(stake) && level.getBlockEntity(stake) instanceof LeyStakeBlockEntity be) {
             be.pay(table().stakeFePerBlock);
+        } else {
+            AbsentWards.payAway(level, stake, table().stakeFePerBlock); // 留守の杭は覚えから払う(11-23)
         }
     }
 
@@ -392,7 +420,9 @@ public final class RingWards extends SavedData {
             rebuildStakes = false;
             stakeChunks.clear();
             int r = (int) Math.ceil(table().stakeRadius);
-            for (long s : stakes.keySet()) {
+            it.unimi.dsi.fastutil.longs.LongOpenHashSet all = new it.unimi.dsi.fastutil.longs.LongOpenHashSet(stakes.keySet());
+            for (BlockPos a : awayStakes) all.add(a.asLong()); // 留守で FE の残る杭(11-23 AbsentWards)
+            for (long s : all) {
                 BlockPos p = BlockPos.of(s);
                 for (int cx = (p.getX() - r) >> 4; cx <= (p.getX() + r) >> 4; cx++) {
                     for (int cz = (p.getZ() - r) >> 4; cz <= (p.getZ() + r) >> 4; cz++) {
@@ -409,6 +439,9 @@ public final class RingWards extends SavedData {
         w.bands.clear();
         w.stakes.clear();
         w.bandLastHit.clear();
+        w.awayStakes = List.of();
+        w.awayVersion = Integer.MIN_VALUE;
+        w.awayLastPaid.clear();
         w.rebuild = true;
         w.rebuildStakes = true;
         w.setDirty();
@@ -419,5 +452,6 @@ public final class RingWards extends SavedData {
         RingWards w = get(level);
         w.bandLastHit.clear();
         w.stakes.replaceAll((k, v) -> NEVER);
+        w.awayLastPaid.clear();
     }
 }
