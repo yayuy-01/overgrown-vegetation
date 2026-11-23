@@ -550,9 +550,13 @@ final class MistView {
         boolean caveFog = caveK > 0.001F && !cloudPass;
         float k = hazeK(forest, reach) + airK;
         // 印(胞子の霞 k と空気遠近)。どちらも無ければ NaN。
-        float mark = encodeMark(k, aerial, p.aerialStart());
+        // 2026-11-23 統合 I(本番の Embeddium・Oculus 入りの起動で見つけた): 地形を Embeddium・Sodium(差し込めない版)・シェーダーパックが
+        // 描く間は、地形が印を読める上書きの fog.glsl を通らない。印(負の霧の始まり)をそのまま読まれて、地形が全部霧の色になった
+        // (Mob だけ見えて地面が消える)。その間は印を入れず、ふつうの霧の距離にする(森の霞・空気遠近は止まる。ほかの地形の演出と同じ扱い)。
+        boolean noMark = com.yayuy.overgrownvegetation.client.shader.SodiumTerrain.unsupported();
+        float mark = noMark ? Float.NaN : encodeMark(k, aerial, p.aerialStart());
         // 雲を描く間に戻す霧の始まり(空気遠近を除いた印か、印の無い始まり。beginClouds)。
-        float markNoAerial = encodeMark(k, 0.0F, 0.0F);
+        float markNoAerial = noMark ? Float.NaN : encodeMark(k, 0.0F, 0.0F);
         float cloudStart = !Float.isNaN(markNoAerial) ? markNoAerial : near;
         if (aerial > 0.0F && !Float.isNaN(mark)) {
             surfaceEnd = far;
