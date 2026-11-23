@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.organ;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -18,25 +17,18 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class TangledRootBlock extends OrganTissueBlock {
 
-    public static final MapCodec<TangledRootBlock> CODEC = simpleCodec(TangledRootBlock::new);
-
     public TangledRootBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
     /** マングローブの根と同じく、縦に重なった絡む根どうしの面は描かない(横の面は透けて重なりが見える)。 */
     @Override
-    protected boolean skipRendering(BlockState state, BlockState adjacent, Direction dir) {
+    public boolean skipRendering(BlockState state, BlockState adjacent, Direction dir) {
         return adjacent.is(this) && dir.getAxis() == Direction.Axis.Y;
     }
 
     @Override
-    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
 }

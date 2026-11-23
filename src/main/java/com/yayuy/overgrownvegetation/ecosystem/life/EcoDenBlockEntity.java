@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.ecosystem.life;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -98,7 +97,7 @@ public class EcoDenBlockEntity extends BlockEntity {
                 return x;
             });
             if (!(e instanceof Mob m)) continue;
-            if (fresh) m.finalizeSpawn(level, level.getCurrentDifficultyAt(m.blockPosition()), MobSpawnType.NATURAL, null);
+            if (fresh) m.finalizeSpawn(level, level.getCurrentDifficultyAt(m.blockPosition()), MobSpawnType.NATURAL, null, null);
             m.addTag(EcoDens.DEN_TAG);
             if (m instanceof EcoLife life) life.ecoMind().home = this.worldPosition.immutable();
             if (level.addFreshEntity(m)) {
@@ -130,8 +129,8 @@ public class EcoDenBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         ListTag list = new ListTag();
         list.addAll(this.occupants);
         tag.put("Occupants", list);
@@ -140,8 +139,8 @@ public class EcoDenBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         this.occupants.clear();
         ListTag list = tag.getList("Occupants", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) this.occupants.add(list.getCompound(i));

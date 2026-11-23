@@ -24,7 +24,7 @@ import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import com.yayuy.overgrownvegetation.port.event.tick.LevelTickEvent;
 
 import javax.annotation.Nullable;
@@ -153,7 +153,7 @@ public final class FogLurkers {
     }
 
     @SubscribeEvent
-    public static void onHurt(LivingIncomingDamageEvent event) {
+    public static void onHurt(LivingAttackEvent event) {
         if (event.getEntity() instanceof Mob m && m.getTags().contains(TAG)) wakeUp(m);
     }
 
@@ -193,7 +193,7 @@ public final class FogLurkers {
             BlockPos feet = besideTrunk(level, Mth.floor(x + Math.cos(ang) * d), Mth.floor(z + Math.sin(ang) * d));
             if (feet == null || !data.isOvergrownKey(ChunkPos.asLong(feet.getX() >> 4, feet.getZ() >> 4))) continue;
             if (eye != null && level.clip(new net.minecraft.world.level.ClipContext(eye, new net.minecraft.world.phys.Vec3(feet.getX() + 0.5D, feet.getY() + 1.5D, feet.getZ() + 0.5D),
-                    net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty())).getType()
+                    net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, (net.minecraft.world.entity.Entity) null)).getType()
                     != net.minecraft.world.phys.HitResult.Type.MISS) continue; // 目から見通せる所だけ
             Mob m = EnemySpawns.create(level, type, feet, MobSpawnType.EVENT, random);
             if (m == null) continue;

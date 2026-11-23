@@ -9,7 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.MobDespawnEvent;
+import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.eventbus.api.Event;
 
 /**
  * 予算を払って出した攻め手を、遠くで消さない(見直し ②3、11-16)。地上の G2・G3 はバニラの Monster のまま {@code removeWhenFarAway} が true で、
@@ -29,8 +30,8 @@ public final class RaidKeepAlive {
     }
 
     @SubscribeEvent
-    public static void onDespawn(MobDespawnEvent event) {
-        if (keep(event.getEntity())) event.setResult(MobDespawnEvent.Result.DENY);
+    public static void onDespawn(MobSpawnEvent.AllowDespawn event) {
+        if (keep(event.getEntity())) event.setResult(Event.Result.DENY);
     }
 
     /** 消さないでおく個体か。 */

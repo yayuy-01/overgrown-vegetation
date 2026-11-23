@@ -26,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ExplosionEvent;
@@ -211,7 +211,7 @@ public final class ForestAwareness {
     public static void onExplosion(ExplosionEvent.Detonate event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         FrontTable t = DesignData.front();
-        Vec3 c = event.getExplosion().center();
+        Vec3 c = event.getExplosion().getPosition();
         for (ServerPlayer p : level.players()) {
             if (p.distanceToSqr(c) <= t.awareExplosionBlocks * t.awareExplosionBlocks) add(p, Act.EXPLOSION, 1.0D);
         }
@@ -246,7 +246,7 @@ public final class ForestAwareness {
     }
 
     @SubscribeEvent
-    public static void onDamage(LivingIncomingDamageEvent event) {
+    public static void onDamage(LivingAttackEvent event) {
         ServerPlayer p = attacker(event.getSource().getEntity());
         if (p == null) return;
         Act a = fightKind(event.getEntity());

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.organ;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.MultifaceSpreader;
@@ -15,18 +14,12 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
  */
 public class OrganVeinBlock extends MultifaceBlock {
 
-    public static final MapCodec<OrganVeinBlock> CODEC = simpleCodec(OrganVeinBlock::new);
     public static final BooleanProperty WITHERED = OrganTissueBlock.WITHERED;
     private final MultifaceSpreader spreader = new MultifaceSpreader(this);
 
     public OrganVeinBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(WITHERED, false));
-    }
-
-    @Override
-    protected MapCodec<? extends MultifaceBlock> codec() {
-        return CODEC;
     }
 
     @Override

@@ -79,7 +79,7 @@ public final class OrganBlocks {
     /** 膜: 半透明(まだ形では使っていない)。 */
     public static final DeferredBlock<Block> ORGAN_MEMBRANE = BLOCKS.registerBlock("organ_membrane", p -> new OrganTissueBlock(p) {
                 @Override
-                protected boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
+                public boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
                     return adjacent.is(this) || super.skipRendering(state, adjacent, dir);
                 }
             },
@@ -97,7 +97,7 @@ public final class OrganBlocks {
     /** 蜜: 蓄えの嚢の中身(まだ形では使っていない)。半透明・光 6、枯れたら 0。 */
     public static final DeferredBlock<Block> ORGAN_HONEY = BLOCKS.registerBlock("organ_honey", p -> new OrganTissueBlock(p) {
                 @Override
-                protected boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
+                public boolean skipRendering(BlockState state, BlockState adjacent, net.minecraft.core.Direction dir) {
                     return adjacent.is(this) || super.skipRendering(state, adjacent, dir);
                 }
             },
@@ -136,7 +136,7 @@ public final class OrganBlocks {
 
     /** 根晶の芽(段 3 の結晶。地脈を吸う根で育つ)。壊すと根晶。 */
     public static final DeferredBlock<Block> ROOT_CRYSTAL_CLUSTER = BLOCKS.registerBlock("root_crystal_cluster",
-            p -> new AmethystClusterBlock(7.0F, 3.0F, p),
+            p -> new AmethystClusterBlock(7, 3, p),
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_LIGHT_GREEN).forceSolidOn().noOcclusion().strength(1.5F)
                     .sound(SoundType.AMETHYST_CLUSTER).lightLevel(s -> 6).pushReaction(PushReaction.DESTROY));
 

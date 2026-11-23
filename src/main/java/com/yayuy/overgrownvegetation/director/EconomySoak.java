@@ -119,7 +119,7 @@ public final class EconomySoak {
     // ---------------------------------------------------------------- 動かす
 
     public static String start(MinecraftServer server) {
-        dir = server.getServerDirectory().resolve("soak");
+        dir = server.getServerDirectory().toPath().resolve("soak");
         try {
             Files.createDirectories(dir);
         } catch (IOException e) {

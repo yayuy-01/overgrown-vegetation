@@ -434,10 +434,11 @@ public final class EcoDens {
 
     /** 後付けで見たチャンク(保存)。 */
     public static final class Scanned extends OvSavedData {
+        static final OvSavedData.Factory<Scanned> FACTORY = new OvSavedData.Factory<>(Scanned::new, Scanned::load, null);
         final LongOpenHashSet done = new LongOpenHashSet();
 
         static Scanned get(ServerLevel level) {
-            return level.getDataStorage().computeIfAbsent(new OvSavedData.Factory<>(Scanned::new, Scanned::load, null), "overgrown_vegetation_eco_dens");
+            return level.getDataStorage().computeIfAbsent(Scanned.FACTORY.load(), Scanned.FACTORY.constructor(), "overgrown_vegetation_eco_dens");
         }
 
         static Scanned load(CompoundTag tag, HolderLookup.Provider registries) {

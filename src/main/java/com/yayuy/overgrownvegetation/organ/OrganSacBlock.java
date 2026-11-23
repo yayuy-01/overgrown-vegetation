@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.organ;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import com.yayuy.overgrownvegetation.spore.SporeExposureTracker;
@@ -26,17 +25,11 @@ import net.minecraft.world.phys.BlockHitResult;
  */
 public class OrganSacBlock extends OrganTissueBlock {
 
-    public static final MapCodec<OrganSacBlock> CODEC = simpleCodec(OrganSacBlock::new);
     /** 破裂で浴びる胞子の量【仮】と届く距離。 */
     public static final double BURST_DOSE = 6.0D, BURST_RADIUS = 3.0D;
 
     public OrganSacBlock(BlockBehaviour.Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Override
@@ -48,13 +41,13 @@ public class OrganSacBlock extends OrganTissueBlock {
     }
 
     @Override
-    protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
+    public void attack(BlockState state, Level level, BlockPos pos, Player player) {
         burst(level, pos, state);
         super.attack(state, level, pos, player);
     }
 
     @Override
-    protected void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
+    public void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
         burst(level, hit.getBlockPos(), state);
     }
 

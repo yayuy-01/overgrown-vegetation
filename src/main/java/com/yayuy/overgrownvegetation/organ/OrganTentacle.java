@@ -57,13 +57,13 @@ public class OrganTentacle extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(LENGTH, 10);
-        builder.define(WITHERED, false);
-        builder.define(HEADING, 0.0F);
-        builder.define(CUT, false);
-        builder.define(STRIKE_AT, -1L);
-        builder.define(TIMING, 6 | 4 << 8 | 10 << 16);
+    protected void defineSynchedData() {
+        this.entityData.define(LENGTH, 10);
+        this.entityData.define(WITHERED, false);
+        this.entityData.define(HEADING, 0.0F);
+        this.entityData.define(CUT, false);
+        this.entityData.define(STRIKE_AT, -1L);
+        this.entityData.define(TIMING, 6 | 4 << 8 | 10 << 16);
     }
 
     // ---------------------------------------------------------------- 叩く合図(11-20 ユーザー「叩く直前に巻きがほどける短い合図を入れ、ほどけた瞬間だけ当てる」)

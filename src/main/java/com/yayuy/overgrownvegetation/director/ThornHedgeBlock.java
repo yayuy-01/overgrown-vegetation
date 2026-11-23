@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.director;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.data.HedgeTable;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
@@ -28,7 +27,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class ThornHedgeBlock extends Block {
 
-    public static final MapCodec<ThornHedgeBlock> CODEC = simpleCodec(ThornHedgeBlock::new);
     private static final VoxelShape SHAPE = Block.box(1.0D, 0.0D, 1.0D, 15.0D, 14.0D, 15.0D);
 
     public ThornHedgeBlock(BlockBehaviour.Properties properties) {
@@ -36,30 +34,25 @@ public class ThornHedgeBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         BlockPos below = pos.below();
         return level.getBlockState(below).isFaceSturdy(level, below, net.minecraft.core.Direction.UP);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, net.minecraft.core.Direction dir, BlockState neighbor,
+    public BlockState updateShape(BlockState state, net.minecraft.core.Direction dir, BlockState neighbor,
                                      net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return !state.canSurvive(level, pos) ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
                 : super.updateShape(state, dir, neighbor, level, pos, neighborPos);
     }
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (!(entity instanceof LivingEntity living)) return;
         HedgeTable t = DesignData.director().hedge;
         boolean plant = PlantSideRules.isPlantSide(living);
@@ -71,12 +64,12 @@ public class ThornHedgeBlock extends Block {
     }
 
     @Override
-    protected boolean isRandomlyTicking(BlockState state) {
+    public boolean isRandomlyTicking(BlockState state) {
         return true;
     }
 
     @Override
-    protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         HedgeTable t = DesignData.director().hedge;
         if (!t.enabled || random.nextDouble() >= t.growChance) return;
         ThornHedges.grow(level, pos, random);

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.ecosystem.life;
 
-import com.mojang.serialization.MapCodec;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,7 +31,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  */
 public class EcoCocoonBlock extends Block {
 
-    public static final MapCodec<EcoCocoonBlock> CODEC = simpleCodec(EcoCocoonBlock::new);
     public static final IntegerProperty STAGE = IntegerProperty.create("stage", 0, 2);
     /** 繭に入ってから成虫が出るまで(1 日)【仮】。 */
     public static final int EMERGE_TICKS = 24000;
@@ -49,39 +47,34 @@ public class EcoCocoonBlock extends Block {
     }
 
     @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(STAGE);
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES[state.getValue(STAGE)];
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getBlockState(pos.above()).is(BlockTags.LEAVES);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+    public BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         return dir == Direction.UP && !canSurvive(state, level, pos) ? Blocks.AIR.defaultBlockState() : super.updateShape(state, dir, neighbor, level, pos, neighborPos);
     }
 
     /** 置かれたら、3 回に分けて膨らみ、最後に羽化する予定を入れる。 */
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState old, boolean moved) {
         super.onPlace(state, level, pos, old, moved);
         if (!old.is(this)) level.scheduleTick(pos, this, EMERGE_TICKS / 3);
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         int s = state.getValue(STAGE);
         if (s < 2) {
             level.setBlock(pos, state.setValue(STAGE, s + 1), Block.UPDATE_CLIENTS);
@@ -111,14 +104,14 @@ public class EcoCocoonBlock extends Block {
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(OvergrownVegetation.id(id));
         if (!(type.create(level) instanceof Mob m)) return null;
         m.moveTo(pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D, level.random.nextFloat() * 360.0F, 0.0F);
-        m.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.CONVERSION, null);
+        m.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.CONVERSION, null, null);
         m.addTag(EcoDens.DEN_TAG);
         return level.addFreshEntity(m) ? m : null;
     }
 
     /** 壊れた・押し返しで消えた: 中の幼虫が出てくる。 */
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
         if (!newState.is(this) && !EMERGING.get() && level instanceof ServerLevel sl) spawn(sl, pos, "stenodictya_nymph");
         super.onRemove(state, level, pos, newState, moved);
     }

@@ -445,7 +445,19 @@ public final class OrganGameTests {
         OrganTable tt = DesignData.organs();
         long now = 1000L;
         net.minecraft.world.phys.Vec3 end = t.position().add(t.point(t.segments(), (float) now));
-        net.minecraft.world.entity.player.Player p = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        // 1.20.1: makeMockPlayer に遊びの型の引数が無い(いつもクリエイティブ)。サバイバルの仮のプレイヤーを手で作る
+        net.minecraft.world.entity.player.Player p = new net.minecraft.world.entity.player.Player(level, BlockPos.ZERO, 0.0F,
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-mock-player")) {
+            @Override
+            public boolean isSpectator() {
+                return false;
+            }
+
+            @Override
+            public boolean isCreative() {
+                return false;
+            }
+        };
         p.setPos(end.x, end.y - 0.5D, end.z);
         p.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         t.getEntityData().packDirty(); // ここまでの変化は数えない
@@ -460,7 +472,7 @@ public final class OrganGameTests {
         boolean sentAt = false;
         if (dirty != null) {
             for (var v : dirty) {
-                if (v.id() == OrganTentacle.STRIKE_AT.id()) sentAt = true;
+                if (v.id() == OrganTentacle.STRIKE_AT.getId()) sentAt = true;
             }
         }
         helper.assertTrue(sentAt, "叩く時刻がクライアントへ送られない");

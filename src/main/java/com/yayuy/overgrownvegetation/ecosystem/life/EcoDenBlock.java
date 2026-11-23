@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.ecosystem.life;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -47,18 +46,12 @@ import java.util.Map;
  */
 public class EcoDenBlock extends BaseEntityBlock {
 
-    public static final MapCodec<EcoDenBlock> CODEC = simpleCodec(EcoDenBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OCCUPIED = BooleanProperty.create("occupied");
 
     public EcoDenBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(OCCUPIED, false));
-    }
-
-    @Override
-    protected MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -72,17 +65,17 @@ public class EcoDenBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
@@ -105,8 +98,10 @@ public class EcoDenBlock extends BaseEntityBlock {
 
     // ---------------------------------------------------------------- 覗く
 
+    // 1.20.1: 1.21 の useWithoutItem(素手の扱い。利き手だけで呼ばれる)を use 1 つで
     @Override
-    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hit) {
+        if (hand != net.minecraft.world.InteractionHand.MAIN_HAND) return InteractionResult.PASS;
         if (level.isClientSide()) return InteractionResult.SUCCESS;
         if (level.getBlockEntity(pos) instanceof EcoDenBlockEntity den) {
             player.displayClientMessage(peek(den), true);
@@ -133,17 +128,17 @@ public class EcoDenBlock extends BaseEntityBlock {
     // ---------------------------------------------------------------- 壊す・消える
 
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (level instanceof ServerLevel sl && level.getBlockEntity(pos) instanceof EcoDenBlockEntity den) {
             boolean attack = !player.isCreative() && !player.isSpectator();
             den.releaseAll(sl, mouth(pos, state), outYaw(state), m -> burst(m, player, attack));
         }
-        return super.playerWillDestroy(level, pos, state, player);
+        super.playerWillDestroy(level, pos, state, player);
     }
 
     /** 押し返し(火・散布薬)などで消えたとき: 中の個体は出てきて、いちばん近いプレイヤーから逃げる(11-18 決定)。 */
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
         if (!newState.is(this) && level instanceof ServerLevel sl && level.getBlockEntity(pos) instanceof EcoDenBlockEntity den && den.count() > 0) {
             Player near = sl.getNearestPlayer(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 24.0D, false);
             den.releaseAll(sl, mouth(pos, state), outYaw(state), m -> burst(m, near, false));

@@ -1,6 +1,5 @@
 package com.yayuy.overgrownvegetation.organ;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
@@ -18,17 +17,11 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  */
 public class OrganRibBlock extends OrganTissueBlock {
 
-    public static final MapCodec<OrganRibBlock> CODEC = simpleCodec(OrganRibBlock::new);
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
 
     public OrganRibBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
-    }
-
-    @Override
-    protected MapCodec<? extends Block> codec() {
-        return CODEC;
     }
 
     @Override
@@ -43,7 +36,7 @@ public class OrganRibBlock extends OrganTissueBlock {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         Direction.Axis a = state.getValue(AXIS);
         if (a == Direction.Axis.Y || rotation == Rotation.NONE || rotation == Rotation.CLOCKWISE_180) return state;
         return state.setValue(AXIS, a == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X);

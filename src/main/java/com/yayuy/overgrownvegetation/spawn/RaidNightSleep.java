@@ -7,9 +7,16 @@ import com.yayuy.overgrownvegetation.director.HoardRaids;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 
 /**
  * 襲撃が来る夜は寝られない(見直し ②7、11-16 ユーザー決定「襲撃が来る夜は、近くに敵がいるのと同じく寝られない」)。
@@ -33,13 +40,41 @@ public final class RaidNightSleep {
     private RaidNightSleep() {
     }
 
-    @SubscribeEvent
-    public static void onCanSleep(CanPlayerSleepEvent event) {
-        if (event.getProblem() != null || !(event.getEntity() instanceof ServerPlayer player)) return;
+    /**
+     * 1.20.1: 本流の {@code CanPlayerSleepEvent} は「バニラの判定の後」に来るが、Forge 1.20.1 の {@link PlayerSleepInBedEvent} は「バニラの判定の前」に来る。
+     * そこで、バニラが通す時だけ断るよう、バニラの判定({@code ServerPlayer#startSleepInBed} の前半)をここで同じ順になぞる。
+     * どれかで落ちるならバニラに任せる(バニラの理由の言葉が出る)。全部通る時は、バニラと同じく復活の場所を先に決めてから断る。
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onCanSleep(PlayerSleepInBedEvent event) {
+        if (event.getResultStatus() != null || !(event.getEntity() instanceof ServerPlayer player)) return;
         if (player.level().dimension() != net.minecraft.world.level.Level.OVERWORLD) return;
-        if (raidTonight(player.getServer(), player.getX(), player.getZ())) {
-            event.setProblem(Player.BedSleepingProblem.NOT_SAFE);
-        }
+        if (!raidTonight(player.getServer(), player.getX(), player.getZ())) return;
+        if (!vanillaWouldAllow(player, event.getPos())) return;
+        event.setResult(Player.BedSleepingProblem.NOT_SAFE);
+    }
+
+    /** バニラが「近くに敵がいる」の手前まで通すか。通るなら、バニラと同じく復活の場所を決める(バニラも断る前に決める)。 */
+    private static boolean vanillaWouldAllow(ServerPlayer player, BlockPos at) {
+        BlockState bed = player.level().getBlockState(at);
+        if (!bed.hasProperty(HorizontalDirectionalBlock.FACING)) return true; // 1.21 と同じ: 向きの無い寝床は判定なしで通る
+        Direction dir = bed.getValue(HorizontalDirectionalBlock.FACING);
+        if (player.isSleeping() || !player.isAlive()) return false;
+        if (!player.level().dimensionType().natural()) return false;
+        if (!reachable(player, at) && !reachable(player, at.relative(dir.getOpposite()))) return false;
+        BlockPos above = at.above();
+        if (!freeAt(player, above) || !freeAt(player, above.relative(dir.getOpposite()))) return false;
+        player.setRespawnPosition(player.level().dimension(), at, player.getYRot(), false, true);
+        return ForgeEventFactory.fireSleepingTimeCheck(player, java.util.Optional.of(at));
+    }
+
+    private static boolean reachable(ServerPlayer player, BlockPos pos) {
+        Vec3 c = Vec3.atBottomCenterOf(pos);
+        return Math.abs(player.getX() - c.x()) <= 3.0D && Math.abs(player.getY() - c.y()) <= 2.0D && Math.abs(player.getZ() - c.z()) <= 3.0D;
+    }
+
+    private static boolean freeAt(ServerPlayer player, BlockPos pos) {
+        return !player.level().getBlockState(pos).isSuffocating(player.level(), pos);
     }
 
     /** (x, z) のそばの認識した拠点に、次の朝までに襲撃が来るか。 */

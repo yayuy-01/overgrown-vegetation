@@ -199,8 +199,8 @@ public final class OrganReview2GameTests {
             double[] after = LeyBuffs.totals(level);
             helper.assertTrue(after[s.ordinal()] > before[s.ordinal()], "根を足しても上げ幅が増えない");
             var inst = old.getAttribute(s.attribute);
-            boolean has = inst == null || inst.getModifier(s.id) != null
-                    && Math.abs(inst.getModifier(s.id).amount() - (s.percent ? after[s.ordinal()] / 100.0D : after[s.ordinal()])) < 1.0E-9D;
+            boolean has = inst == null || com.yayuy.overgrownvegetation.port.entity.OvModifiers.has(inst, s.id)
+                    && Math.abs(com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(inst, s.id).getAmount() - (s.percent ? after[s.ordinal()] / 100.0D : after[s.ordinal()])) < 1.0E-9D;
             helper.assertTrue(has, "前からいる Mob に新しい根の " + s.label + " が掛からない");
             helper.succeed();
         } finally {

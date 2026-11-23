@@ -4,7 +4,6 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.spore.PlantSideRules;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -45,13 +44,13 @@ public final class LeyBuffs {
         KNOCKBACK("ノックバック耐性", Attributes.KNOCKBACK_RESISTANCE, AttributeModifier.Operation.ADDITION, false);
 
         public final String label;
-        final Holder<Attribute> attribute;
+        final Attribute attribute;
         final AttributeModifier.Operation op;
         /** 設計値が % か。 */
         final boolean percent;
         final ResourceLocation id;
 
-        Stat(String label, Holder<Attribute> attribute, AttributeModifier.Operation op, boolean percent) {
+        Stat(String label, Attribute attribute, AttributeModifier.Operation op, boolean percent) {
             this.label = label;
             this.attribute = attribute;
             this.op = op;
@@ -135,12 +134,13 @@ public final class LeyBuffs {
             if (inst == null) continue;
             double v = t[s.ordinal()];
             if (v <= 0.0D) {
-                inst.removeModifier(s.id);
+                OvModifiers.remove(inst, s.id);
             } else {
                 double amount = s.percent ? v / 100.0D : v;
-                AttributeModifier cur = inst.getModifier(s.id);
-                if (cur != null && cur.amount() == amount && cur.operation() == s.op) continue;
-                inst.addOrReplacePermanentModifier(OvModifiers.create(s.id, amount, s.op));
+                AttributeModifier cur = OvModifiers.get(inst, s.id);
+                if (cur != null && cur.getAmount() == amount && cur.getOperation() == s.op) continue;
+                OvModifiers.remove(inst, s.id); // 1.20.1: addOrReplacePermanentModifier が無い
+                inst.addPermanentModifier(OvModifiers.create(s.id, amount, s.op));
             }
         }
         if (e.getHealth() > e.getMaxHealth()) e.setHealth(e.getMaxHealth());
@@ -152,7 +152,7 @@ public final class LeyBuffs {
     private static boolean hasAny(LivingEntity e) {
         for (Stat s : Stat.values()) {
             AttributeInstance inst = e.getAttribute(s.attribute);
-            if (inst != null && inst.getModifier(s.id) != null) return true;
+            if (inst != null && OvModifiers.has(inst, s.id)) return true;
         }
         return false;
     }

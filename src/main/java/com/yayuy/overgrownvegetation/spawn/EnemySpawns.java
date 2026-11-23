@@ -476,7 +476,7 @@ public final class EnemySpawns {
             m.discard();
             return null;
         }
-        m.finalizeSpawn(level, level.getCurrentDifficultyAt(at), reason, null);
+        m.finalizeSpawn(level, level.getCurrentDifficultyAt(at), reason, null, null);
         return m;
     }
 
