@@ -144,4 +144,13 @@ public class LeyPylonBlockEntity extends BlockEntity implements LeyBatteryHolder
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
+
+    /**
+     * 1.20.1: 描く範囲はブロックエンティティが答える(Forge の IForgeBlockEntity。1.21 は描き手の getRenderBoundingBox)。
+     * 張った線の先まで含めないと、柱が画面の外に出たとき線も消える。式は描き手(G6)の物を使う。クライアントだけが呼ぶ。
+     */
+    @Override
+    public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+        return com.yayuy.overgrownvegetation.client.ley.LeyPylonRenderer.getRenderBoundingBox(this);
+    }
 }
