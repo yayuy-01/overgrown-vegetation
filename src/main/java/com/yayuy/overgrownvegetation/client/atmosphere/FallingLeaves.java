@@ -397,24 +397,25 @@ final class FallingLeaves {
             buffer.vertex(p.x(), p.y(), p.z()).uv(u, v).color(this.rCol, this.gCol, this.bCol, this.alpha).uv2(light).endVertex();
         }
 
+        // 1.20.1: TextureAtlasSprite#getU/getV は 0〜16 で受ける(1.21 は 0〜1)ので 16 を掛ける。
         @Override
         protected float getU0() {
-            return this.sprite.getU(this.u0);
+            return this.sprite.getU(this.u0 * 16.0F);
         }
 
         @Override
         protected float getU1() {
-            return this.sprite.getU(this.u0 + 4.0F / 16.0F);
+            return this.sprite.getU((this.u0 + 4.0F / 16.0F) * 16.0F);
         }
 
         @Override
         protected float getV0() {
-            return this.sprite.getV(this.v0);
+            return this.sprite.getV(this.v0 * 16.0F);
         }
 
         @Override
         protected float getV1() {
-            return this.sprite.getV(this.v0 + 4.0F / 16.0F);
+            return this.sprite.getV((this.v0 + 4.0F / 16.0F) * 16.0F);
         }
 
         @Override
