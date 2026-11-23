@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.spawn;
 
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.director.ForestDirector;
-import com.yayuy.overgrownvegetation.director.HoardRaids;
 import com.yayuy.overgrownvegetation.director.LargeRaids;
 import com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster;
 import net.minecraft.server.level.ServerLevel;
@@ -17,7 +16,6 @@ import net.neoforged.neoforge.event.entity.living.MobDespawnEvent;
  * 種のクラスには手を入れず、消えるかを聞くイベントで断る:
  * <ul>
  *   <li>拠点へ歩いている間(G2・G3 = {@link PlantMarch}、G1 = 拠点へ向かう使い)。</li>
- *   <li>貯めた襲撃の印があり、その継ぎ足しが続いている間({@link HoardRaids#active})。</li>
  *   <li>大きな襲撃の印があり、大きな襲撃が続いている間(気分 LARGE)。</li>
  * </ul>
  * 襲撃が終わった後の個体は、ふだんどおり遠くで消える。
@@ -41,7 +39,6 @@ public final class RaidKeepAlive {
         if (PlantMarch.active(m)) return true;
         if (m instanceof AbstractParasitizedMonster g1 && g1.march().active()) return true;
         if (!(m.level() instanceof ServerLevel level)) return false;
-        if (m.getTags().contains(HoardRaids.TAG) && HoardRaids.active()) return true;
         return m.getTags().contains(LargeRaids.ATTACKER_TAG) && ForestDirector.get(level).mood() == ForestDirector.Mood.LARGE;
     }
 }

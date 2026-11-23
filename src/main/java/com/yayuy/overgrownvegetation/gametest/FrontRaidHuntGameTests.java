@@ -233,7 +233,7 @@ public final class FrontRaidHuntGameTests {
             int smallWant = DesignData.front().raidCapSmall(0.0D);
             helper.assertTrue(small == smallWant, "認識した日の送り込みが日数の上限でない: " + small + "(欲しい " + smallWant + ")");
             int medium = FrontRaids.send(level, b, day, RaidScales.RaidScale.MEDIUM);
-            int alive = com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive();
+            int alive = com.yayuy.overgrownvegetation.director.RaidScales.mediumMaxAlive();
             helper.assertTrue(medium == alive, "貯めた襲撃の 1 回目が同時の上限でない: " + medium + "(欲しい " + alive + ")");
             FrontRaids.Raid r = data.raids().get(data.raids().size() - 1);
             for (int i = 0; i < 200; i++) h.move(level, 100, DesignData.perf());
@@ -387,7 +387,7 @@ public final class FrontRaidHuntGameTests {
                 VirtualHordes.Swarm d = h.newUnit(x + 10 + i, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
                 d.addHeads(zombie(), 50, 100.0D);
             }
-            int alive = com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive();
+            int alive = com.yayuy.overgrownvegetation.director.RaidScales.mediumMaxAlive();
             int total = FrontRaids.mediumTotal(b, day);
             helper.assertTrue(total > alive, "テストの前提: 合計の上限が同時の上限より大きい");
             int first = FrontRaids.send(level, b, day, RaidScales.RaidScale.MEDIUM);

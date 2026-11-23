@@ -1,32 +1,9 @@
 {
   "_comment": "敵の湧き方(縁・地下・司令塔)。2026-11-15 ユーザー決定。正本は Vault「構想と進捗/敵の湧き方(縁・地下・司令塔)(11-15)」。数はどれも【仮】。縁 = 過繁茂の台帳に載ったチャンクと載っていないチャンクの境目を挟んで内側 1・外側 1。数はフェーズの小さな段の強さだけで決め、森の予算は払わない。明るさでは止まらない。",
-  "enabled": true,
   "fernNaturalSpawn": true,
-  "_comment_open": "開くフェーズ。11-18 夜 ユーザー決定「出るフェーズは種ごと」: 眷属種・植物種は mob_class.json の phase(種の open があればそれが先。mob_class.json に無い種だけ director.json の gates の waveG2・waveG3・waveMixed)。G1 の段階 0 の縁と地下は openG1(段階 0 は全部 F1)。縁の上限(edge.caps)はグループの箱ごとで、その箱の種のうち出ている種の強さを掛ける。",
-  "openG1": 1,
   "edge": {
-    "_comment": "11-17 ユーザー決定で「森からの距離の帯」に: G1 は過繁茂から外へ 1〜g1Band チャンク(近いほど多い)・G2/G3 は境目の内外 g23Band チャンク。プレイヤーのまわり 41×41 チャンクの台帳から境目までの距離を数えて名簿を作り(rebuildTicks おきか、チャンクをまたいだとき)、intervalTicks ごとにプレイヤー 1 人あたり triesPerPlayer 回、名簿から重みで引く(空振り無し)。名簿に入るのはプレイヤーから minBlocks〜maxBlocks のチャンクだけ(B: 前は 24〜96)。上限 caps はグループごと(最盛。今の強さを掛ける。群れは 1 体ずつ数える。A: 前は 15/15/10 → 11-17 に 25/40/15 → 11-17 深夜 ユーザー「上限を超えてもよい・物量は上限の値で増やす」で 35/60/20・G4 3)。数えるのは countRadius(前 128。11-17 に 72 → 同じ夜に片付けの距離 despawnBlocks と同じ 96 へ。72 だと 72〜96 に出た個体(特に空の種)を数えず消しもしないので、F7 の前線で上限のほかに約 30 たまった。コードも despawnBlocks より狭くしない)の中の、縁・地下で湧いた個体。despawnBlocks(前 128)よりどのプレイヤーからも遠くなったら消す(湧かせる端 72 より 24 遠い 96。端で湧いてすぐ消えないように)。値はどれも【仮】。",
-    "intervalTicks": 20,
-    "triesPerPlayer": 4,
-    "minBlocks": 24,
-    "maxBlocks": 64,
-    "countRadius": 96,
-    "despawnBlocks": 96,
-    "g1Band": 16,
-    "g23Band": 4,
-    "rebuildTicks": 100,
-    "caps": { "1": 35, "2": 60, "3": 20, "4": 3 },
-    "skyMinAbove": 12,
-    "skyMaxAbove": 28,
-    "caveMinDepth": 8
-  },
-  "underground": {
-    "_comment": "G1 の段階 0 を、過繁茂の真下と、そこから nearChunks チャンクまでの洞窟に。上限は縁とは別(G1 の強さを掛ける)。",
-    "cap": 10,
-    "triesPerPlayer": 2,
-    "rangeChunks": 6,
-    "nearChunks": 1,
-    "minDepth": 8
+    "_comment": "11-23 片付け E: 縁・地下の湧き(帯・間・試す数・上限・空/洞窟の高さ)と underground・openG1・enabled・sender・gestatrix.senderChance は消した(湧きは前線と部隊)。残るのは despawnBlocks = 印の無い空の種をどのプレイヤーからもこれより遠ければ片付ける距離(SkyStrays)。",
+    "despawnBlocks": 96
   },
   "fogLurker": {
     "_comment": "怖い現象 E「霧の中のシルエット」の「たまに本物」(11-16 ユーザー了承)。濃霧(度合い minFog 以上)・昼と朝・G3 のフェーズ(director.json の gates の waveG3)から・汚染地帯の中で、プレイヤーごとに平均 meanSeconds 秒に 1 回(偽の影の平均 90 秒の 10 倍 = 偽 10 回に本物 1 回)、見通しの縁 minBlocks〜maxBlocks の木の幹のそばに、立ち止まった G3 を 1 体。wakeBlocks まで近づくか攻撃されると動き出す。霧が晴れたら、まだ動いていないものは去る。weights は種の重み。数はどれも【仮】。",
@@ -50,8 +27,7 @@
     "birthWhenHurt": true,
     "roamTicks": 600,
     "settleBlocks": 20,
-    "approachBlocks": 48,
-    "senderChance": 0.25
+    "approachBlocks": 48
   },
   "merge": {
     "_comment": "司令塔が Mob を群れにまとめる(11-17 深夜 ユーザー決定。正本は Vault「敵の湧き方」)。11-18 ユーザー了承の A + B: まとめるのは群れが動くとき(相手のプレイヤーを見つけた・司令塔が歩かせている)だけ、範囲は先導役から joinBlocks 以内(升 cellBlocks)。intervalTicks おきに、プレイヤーのまわり scanBlocks の役割(role)のある地上の個体(根付き・苗床・根付いた/腰を据えたゲスタトリクス・器官の守り・空の種は入れない)を見て、動いている浮いた個体を、近くの群れ(先導役から joinBlocks 以内)のうちその役割が比 ratio に足りない群れへ足す。群れが無ければ、先導役(前衛から)の joinBlocks 以内に minMobs 以上いれば新しい群れにする。動いている群れでは先導役だけが経路を引き、後続は相手まで遠い間、役割ごとの持ち場(前衛は前・後衛は後ろ・かく乱は横・支援は後ろの真ん中)へ移動の舵で真っ直ぐ寄る。近づいたら各種の戦い方へ。止まっている群れの後続は先導役の近くなら動かない。数はどれも【仮】。",
@@ -62,15 +38,6 @@
     "joinBlocks": 12,
     "minMobs": 6,
     "ratio": { "front": 5, "back": 3, "harass": 2, "support": 1 }
-  },
-  "sender": {
-    "_comment": "司令塔の送り込み・大きな襲撃が G2・G3 を出すとき。拠点のまわりにいる個体を先に歩かせ、足りない分は森の方角の見えない地面に湧かせる(司令塔の予算から costSpawn × 段)。",
-    "spawnMinBlocks": 40,
-    "spawnMaxBlocks": 64,
-    "spreadDeg": 40,
-    "playerMinBlocks": 24,
-    "tries": 12,
-    "clusterBlocks": 4
   },
   "species": [
     { "_comment": "habitats: ground(地上)・sky(縁の上空)・sea(海に面した縁)・cave(縁の下の洞窟。G1 は地下の湧きにも)・soil(地中)。g1 は G1 の種の key(段階 0)。id は登録名。登録の無い id は飛ばす。director: false の種は司令塔の口(苗床・送り込み・襲撃。G1 は送り込み・大きな襲撃・偵察で森から湧かせる段階 0。11-16 見直し: G1 の重みはここ 1 か所)に入れない(空の種は 11-15 全体管理: 最初は縁だけ)。pack: 群れで湧く頭数(min〜max)と混ぜる種(with。11-17 ユーザー: アルボラが先導役・ストロビラは群れの後ろ)。グレガリアは自前の群れ(同じ種どうし)、ほかは湧かせた群れの頭が先導役【仮】。breaker: true の種は、拠点へ向かう・相手を追う途中で道が詰まると壁や扉(タグ raid_breakable)を壊す(11-16 ユーザー: アルボラ・ファルキムネス・クリペイムネス・ヴェナムネス)。open: 縁で湧き始めるフェーズの上書き(無ければ mob_class.json の phase。11-18 夜からは使っている種なし。ゲスタトリクスの F4 は mob_class.json へ移した)。group: 縁の上限を数える箱(caps のキー)。11-18 夜に登録の無い id(radicula・bathymnes・erebomnes・fodimnes)の行を消した。role: 群れの中の役割(front 前衛・back 後衛・harass かく乱・support 支援。11-17 深夜。無い種は群れにまとめない)【仮】。", "id": "" },

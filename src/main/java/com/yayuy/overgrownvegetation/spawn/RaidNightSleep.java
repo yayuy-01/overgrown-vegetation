@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.spawn;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.director.BaseMemory;
 import com.yayuy.overgrownvegetation.director.ForestDirector;
-import com.yayuy.overgrownvegetation.director.HoardRaids;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -54,7 +53,6 @@ public final class RaidNightSleep {
             if (dx * dx + dz * dz > RANGE * RANGE) continue;
             near = true;
             if (BaseMemory.firstRaidPending(b) && b.nextWaveDay() <= morning) return true;
-            if (HoardRaids.raid(b.id()) != null) return true;
         }
         if (!near) return false;
         ForestDirector.Mood mood = d.mood();

@@ -14,7 +14,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 敵の湧き方の設計値({@code design/spawns.json}、2026-11-15)。正本は Vault「敵の湧き方(縁・地下・司令塔)(11-15)」。数はどれも【仮】。
+ * 植物側の Mob の種の表と、湧きに関わる設計値({@code design/spawns.json}、2026-11-15)。数はどれも【仮】。
+ * 2026-11-23 片付け E: 縁・地下の湧き(edge の湧きの値・underground・openG1・enabled)と、送り込みの湧かせ方(sender・gestatrix.senderChance)・
+ * 種の open は消した(読む物が無くなった)。edge は despawnBlocks だけ残る(空の種の片付け)。
  */
 public final class SpawnTable {
 
@@ -33,12 +35,8 @@ public final class SpawnTable {
 
     // --- Gson DTO ---
     public static final class Json {
-        public Boolean enabled;
         public Boolean fernNaturalSpawn;
-        public Integer openG1;
         public EdgeJson edge;
-        public UnderJson underground;
-        public SenderJson sender;
         public List<SpeciesJson> species;
         public FogLurkerJson fogLurker;
         public GestatrixJson gestatrix;
@@ -48,19 +46,19 @@ public final class SpawnTable {
     public static final class GestatrixJson {
         public Integer broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
         public Boolean birthWhenHurt;
-        public Double settleBlocks, approachBlocks, senderChance;
+        public Double settleBlocks, approachBlocks;
     }
 
     /**
      * ゲスタトリクス(G4・歩く苗床。11-17 ユーザー)の数。どれも【仮】。産む数 broodMin〜broodMax・産んだ手先の上限 broodCap(1 匹につき・縁の上限とは別)・
      * 根を下ろすまでに産む回数 birthsToRoot・産む間 restMin〜restMax tick・腰を据えるまで歩く長さ roamTicks・プレイヤー/拠点にこれだけ近づいたら腰を据える settleBlocks・
-     * これより遠いプレイヤーへは寄らない approachBlocks・司令塔の送り込みで G2 を湧かせた回に 1 匹混ぜる確率 senderChance。
+     * これより遠いプレイヤーへは寄らない approachBlocks。
      */
     public static final class Gestatrix {
         public final int broodMin, broodMax, broodCap, birthsToRoot, restMin, restMax, roamTicks;
         /** 休んでいる間に傷を受けたら、休みを切り上げてすぐ前触れへ(11-18 夜 ユーザー「攻撃されたらクールダウンを無視して産む」)。 */
         public final boolean birthWhenHurt;
-        public final double settleBlocks, approachBlocks, senderChance;
+        public final double settleBlocks, approachBlocks;
 
         Gestatrix(@Nullable GestatrixJson j) {
             GestatrixJson s = j != null ? j : new GestatrixJson();
@@ -74,7 +72,6 @@ public final class SpawnTable {
             this.roamTicks = Math.max(20, or(s.roamTicks, 600));
             this.settleBlocks = Math.max(4.0D, or(s.settleBlocks, 20.0D));
             this.approachBlocks = Math.max(this.settleBlocks, or(s.approachBlocks, 48.0D));
-            this.senderChance = Math.max(0.0D, Math.min(1.0D, or(s.senderChance, 0.25D)));
         }
     }
 
@@ -114,18 +111,7 @@ public final class SpawnTable {
     }
 
     public static final class EdgeJson {
-        public Integer intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
-        public Integer g1Band, g23Band, rebuildTicks;
-        public Map<String, Integer> caps;
-    }
-
-    public static final class UnderJson {
-        public Integer cap, triesPerPlayer, rangeChunks, nearChunks, minDepth;
-    }
-
-    public static final class SenderJson {
-        public Double spawnMinBlocks, spawnMaxBlocks, spreadDeg, playerMinBlocks, clusterBlocks;
-        public Integer tries;
+        public Integer despawnBlocks;
     }
 
     public static final class PackJson {
@@ -159,8 +145,6 @@ public final class SpawnTable {
         public Boolean breaker;
         /** 群れで湧く頭数(この種の分)と、混ぜる種。 */
         public PackJson pack;
-        /** 縁で湧き始めるフェーズの上書き(無ければグループの開くフェーズ。11-17: G4 のゲスタトリクスを F4 から)。 */
-        public Integer open;
         /** 群れの中の役割(front 前衛・back 後衛・harass かく乱・support 支援。11-17 深夜)。無ければ司令塔は群れにまとめない。 */
         public String role;
     }
@@ -213,7 +197,7 @@ public final class SpawnTable {
 
     /** 表の 1 行。type は登録の有無を起動後に引く(登録の無い id は null = 飛ばす)。 */
     public record Species(@Nullable String id, @Nullable G1Species g1, int group, EnumSet<Habitat> habitats, double weight, boolean director, boolean breaker,
-                          int packMin, int packMax, List<PackWith> packWith, int open, @Nullable Role role) {
+                          int packMin, int packMax, List<PackWith> packWith, @Nullable Role role) {
         /** 群れで湧く種か(頭数の上が 2 以上)。 */
         public boolean packs() {
             return packMax >= 2 || !packWith.isEmpty();
@@ -237,7 +221,6 @@ public final class SpawnTable {
     /** id → 登録された型(取っておく)。 */
     private static final java.util.Map<String, java.util.Optional<EntityType<?>>> TYPES = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public final boolean enabled;
     /** 萌芽体(汚染シダ)の自然発生(地割れなど NATURAL の湧き)を許すか。mobs.json の naturalSpawn の代わり(見直し ④、2026-11-16)。 */
     public final boolean fernNaturalSpawn;
     /** 怖い現象 E の「たまに本物」。 */
@@ -246,58 +229,20 @@ public final class SpawnTable {
     public final Gestatrix gestatrix;
     /** 群れへのまとめ(11-17 深夜)。 */
     public final Merge merge;
-    /** G1 の縁と地下の湧きが開くフェーズ(G2・G3 は director.json の gates。11-16 見直しで 1 か所にまとめた)。 */
-    public final int openG1;
-    private final int[] caps = new int[11];
 
-    public final int intervalTicks, triesPerPlayer, minBlocks, maxBlocks, countRadius, despawnBlocks, skyMinAbove, skyMaxAbove, caveMinDepth;
-    /** 森からの距離の帯(11-17): G1 は外へ 1〜g1Band チャンク・G2/G3 は内外 g23Band チャンク。名簿の作り直しの間(tick)。 */
-    public final int g1Band, g23Band, rebuildTicks;
-    public final int underCap, underTries, underRangeChunks, underNearChunks, underMinDepth;
-    public final double senderMin, senderMax, senderSpread, senderPlayerMin, senderCluster;
-    public final int senderTries;
+    /** 印の無い空の種を片付ける距離(どのプレイヤーからもこれより遠い。{@link SkyStrays})。 */
+    public final int despawnBlocks;
     public final List<Species> species;
 
     public static final SpawnTable DEFAULT = fromJson(null);
 
     private SpawnTable(Json j) {
-        this.enabled = j.enabled == null || j.enabled;
         this.fernNaturalSpawn = j.fernNaturalSpawn == null || j.fernNaturalSpawn;
         this.fogLurker = new FogLurker(j.fogLurker);
         this.gestatrix = new Gestatrix(j.gestatrix);
         this.merge = new Merge(j.merge);
-        this.openG1 = Math.max(1, j.openG1 != null ? j.openG1 : 1);
         EdgeJson e = j.edge != null ? j.edge : new EdgeJson();
-        caps[1] = 15;
-        caps[2] = 15;
-        caps[3] = 10;
-        if (e.caps != null) e.caps.forEach((k, v) -> put(caps, k, v));
-        intervalTicks = Math.max(1, or(e.intervalTicks, 20));
-        g1Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g1Band, 16)));
-        g23Band = Math.max(1, Math.min(BandRoster.R - 1, or(e.g23Band, 4)));
-        rebuildTicks = Math.max(20, or(e.rebuildTicks, 100));
-        triesPerPlayer = Math.max(0, or(e.triesPerPlayer, 4));
-        minBlocks = Math.max(0, or(e.minBlocks, 24));
-        maxBlocks = Math.max(minBlocks + 16, or(e.maxBlocks, 96));
         despawnBlocks = Math.max(32, or(e.despawnBlocks, 128));
-        // 数える範囲は片付けの距離より狭くしない(11-17 夜: 72 にしていたら、72〜96 に出た空の種が上限に数えられず消えもしないで、F7 の前線で縁の G2 が上限 40 のほかに約 30 たまった)
-        countRadius = Math.max(despawnBlocks, Math.max(16, or(e.countRadius, 128)));
-        skyMinAbove = Math.max(2, or(e.skyMinAbove, 12));
-        skyMaxAbove = Math.max(skyMinAbove, or(e.skyMaxAbove, 28));
-        caveMinDepth = Math.max(2, or(e.caveMinDepth, 8));
-        UnderJson u = j.underground != null ? j.underground : new UnderJson();
-        underCap = Math.max(0, or(u.cap, 10));
-        underTries = Math.max(0, or(u.triesPerPlayer, 2));
-        underRangeChunks = Math.max(1, or(u.rangeChunks, 6));
-        underNearChunks = Math.max(0, or(u.nearChunks, 1));
-        underMinDepth = Math.max(2, or(u.minDepth, 8));
-        SenderJson s = j.sender != null ? j.sender : new SenderJson();
-        senderMin = Math.max(8.0D, or(s.spawnMinBlocks, 40.0D));
-        senderMax = Math.max(senderMin, or(s.spawnMaxBlocks, 64.0D));
-        senderSpread = Math.max(0.0D, or(s.spreadDeg, 40.0D));
-        senderPlayerMin = Math.max(0.0D, or(s.playerMinBlocks, 24.0D));
-        senderCluster = Math.max(0.0D, or(s.clusterBlocks, 4.0D));
-        senderTries = Math.max(1, or(s.tries, 12));
         List<Species> list = new ArrayList<>();
         if (j.species != null) {
             for (SpeciesJson sj : j.species) {
@@ -333,7 +278,7 @@ public final class SpawnTable {
         if (hs.isEmpty()) hs.add(Habitat.GROUND);
         String id = g1 != null ? null : (sj.id.contains(":") ? sj.id : OvergrownVegetation.MODID + ":" + sj.id);
         return new Species(id, g1, Math.max(1, Math.min(10, sj.group)), hs, Math.max(0.0D, or(sj.weight, 1.0D)), sj.director == null || sj.director, sj.breaker != null && sj.breaker,
-                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack), sj.open == null ? 0 : Math.max(1, Math.min(10, sj.open)), Role.byName(sj.role));
+                sj.pack == null ? 1 : Math.max(1, or(sj.pack.min, 1)), sj.pack == null ? 1 : Math.max(Math.max(1, or(sj.pack.min, 1)), or(sj.pack.max, 1)), packWith(sj.pack), Role.byName(sj.role));
     }
 
     private static List<PackWith> packWith(@Nullable PackJson p) {
@@ -348,14 +293,6 @@ public final class SpawnTable {
         return List.copyOf(out);
     }
 
-    private static void put(int[] arr, String k, Integer v) {
-        try {
-            int g = Integer.parseInt(k);
-            if (g >= 1 && g <= 10 && v != null) arr[g] = v;
-        } catch (NumberFormatException ignored) {
-        }
-    }
-
     private static int or(Integer v, int d) {
         return v != null ? v : d;
     }
@@ -366,32 +303,5 @@ public final class SpawnTable {
 
     public static SpawnTable fromJson(@Nullable Json j) {
         return new SpawnTable(j != null ? j : new Json());
-    }
-
-    /**
-     * そのグループの縁・地下の湧きが開くフェーズ。G1 は {@link #openG1}、G2 以降は司令塔の送り込みのゲート(director.json の gates: G2 waveG2・G3 waveG3・
-     * G4 以降 waveMixed)と同じ(11-16 見直し: 前は spawns.json の openAt と 2 か所にあった)。環境生物は開かない。
-     */
-    public int openAt(int group) {
-        if (group == 1) return openG1;
-        if (group < 2 || group > com.yayuy.overgrownvegetation.phase.MobGroup.MAX_NUMBER) return Integer.MAX_VALUE;
-        return com.yayuy.overgrownvegetation.director.DirectorGates.openAt(com.yayuy.overgrownvegetation.data.DesignData.director().gates, DirectorHooks.gateOf(group));
-    }
-
-    /**
-     * その種の縁・地下の湧きが開くフェーズ(2026-11-18 夜 ユーザー決定「出るフェーズは種ごと」)。
-     * 種の open の上書き → G1(段階 0)は {@link #openG1} → {@code mob_class.json} の phase(natural false の種は開かない)→ 表に無ければグループの {@link #openAt}。
-     */
-    public int openOf(Species sp) {
-        if (sp.open() > 0) return sp.open();
-        if (sp.g1() != null) return openG1;
-        com.yayuy.overgrownvegetation.phase.MobClassTable.Entry e = com.yayuy.overgrownvegetation.data.DesignData.mobClass().get(sp.id());
-        if (e != null) return e.natural() ? Math.max(1, e.phase) : Integer.MAX_VALUE;
-        return openAt(sp.group());
-    }
-
-    /** そのグループの縁の上限(最盛の値)。 */
-    public int cap(int group) {
-        return group >= 1 && group <= com.yayuy.overgrownvegetation.phase.MobGroup.MAX_NUMBER ? caps[group] : 0;
     }
 }

@@ -8,7 +8,6 @@ import com.yayuy.overgrownvegetation.entity.crawler.SmallCrawler;
 import com.yayuy.overgrownvegetation.phase.ParasitizedMob;
 import com.yayuy.overgrownvegetation.registry.ModCrawlers;
 import com.yayuy.overgrownvegetation.registry.ModSounds;
-import com.yayuy.overgrownvegetation.spawn.EnemySpawns;
 import com.yayuy.overgrownvegetation.spawn.SpawnTable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -507,8 +506,6 @@ public class GestatrixEntity extends SmallCrawler implements GeoEntity, Parasiti
     private void becomeRooted() {
         enter(ROOTED, 0);
         setPersistenceRequired();
-        // 縁で湧いた印を外す(根付いたら縁の上限に数えない・遠くても片付けない。苗床と同じく残る)
-        removeTag(EnemySpawns.EDGE_TAG);
         sproutIn = nextSproutDelay();
         hatchAskIn = NurseryParasitized.hatchAskInterval();
     }

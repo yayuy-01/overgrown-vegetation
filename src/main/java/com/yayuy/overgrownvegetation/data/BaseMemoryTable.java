@@ -62,16 +62,10 @@ public final class BaseMemoryTable {
         public Double scoutSpawnCost;
         public Double marchArriveBlocks;
         public Integer marchTimeoutTicks;
-        public Double raidSearchBlocks;
-        public Double raidFromMinBlocks;
         public Double waveIntervalMinDays;
         public Double waveIntervalMaxDays;
         public java.util.List<WaveJson> waves;
-        public Double evolveTowardBase;
         public Double evolveBaseBlocks;
-        public Double rootTowardBase;
-        public Double rootBaseBlocks;
-        public Double rootBaseMinBlocks;
         public Double farNurserySkip;
         public Integer weakSectors;
         public Integer weakSamplesPerSector;
@@ -155,21 +149,13 @@ public final class BaseMemoryTable {
     /** 拠点の真ん中からこれだけまで来たら、歩きの使いは終わり(そこからはいつもの狙い方)。歩いても着かなければ marchTimeoutTicks で終わり。 */
     public final double marchArriveBlocks;
     public final int marchTimeoutTicks;
-    /** 送り込む個体を探す半径と、拠点に近すぎて選ばない半径(ブロック)。 */
-    public final double raidSearchBlocks;
-    public final double raidFromMinBlocks;
     /** 送り込みの間(日)。 */
     public final double waveIntervalMinDays;
     public final double waveIntervalMaxDays;
     /** 送り込みの段(認識してからの日数の小さい順)。 */
     public final java.util.List<Wave> waves;
-    /** 進化の点に足す「認識した拠点に近いほど」の上がり幅と、届く距離(D-8)。 */
-    public final double evolveTowardBase;
+    /** 認識した拠点のそばとみなす距離(D-8。一斉進化した個体・苗床から孵った Mob が拠点へ向かう)。 */
     public final double evolveBaseBlocks;
-    /** 根付き: 森から離れる向きに混ぜる「拠点へ寄る」の重みと、拠点を見る距離・拠点に近すぎて根付かない距離(D-16)。 */
-    public final double rootTowardBase;
-    public final double rootBaseBlocks;
-    public final double rootBaseMinBlocks;
     /** 区切り 4: 認識した拠点があるとき、拠点から遠い苗床が孵すのを断る割合【仮】。 */
     public final double farNurserySkip;
     // ---- 第 3 段 区切り 2: 弱い所を突く(どれも【仮】。ユーザーが決めたのは「明るさ + 危ない所の方位で見る」「汚染そのものは伸ばさない」)
@@ -260,16 +246,10 @@ public final class BaseMemoryTable {
         this.scoutSpawnCost = nonNeg(s.scoutSpawnCost, 300.0D);
         this.marchArriveBlocks = Math.max(2.0D, nonNeg(s.marchArriveBlocks, 10.0D));
         this.marchTimeoutTicks = Math.max(20, s.marchTimeoutTicks != null ? s.marchTimeoutTicks : 6000);
-        this.raidSearchBlocks = Math.max(16.0D, nonNeg(s.raidSearchBlocks, 128.0D));
-        this.raidFromMinBlocks = Math.min(this.raidSearchBlocks, nonNeg(s.raidFromMinBlocks, 24.0D));
         this.waveIntervalMinDays = Math.max(0.01D, nonNeg(s.waveIntervalMinDays, 1.0D));
         this.waveIntervalMaxDays = Math.max(this.waveIntervalMinDays, nonNeg(s.waveIntervalMaxDays, 2.0D));
         this.waves = readWaves(s.waves);
-        this.evolveTowardBase = nonNeg(s.evolveTowardBase, 0.4D);
         this.evolveBaseBlocks = Math.max(1.0D, nonNeg(s.evolveBaseBlocks, 160.0D));
-        this.rootTowardBase = nonNeg(s.rootTowardBase, 0.8D);
-        this.rootBaseBlocks = Math.max(1.0D, nonNeg(s.rootBaseBlocks, 192.0D));
-        this.rootBaseMinBlocks = nonNeg(s.rootBaseMinBlocks, 24.0D);
         this.farNurserySkip = Math.min(1.0D, nonNeg(s.farNurserySkip, 0.5D));
         this.weakSectors = Math.max(4, Math.min(16, s.weakSectors != null ? s.weakSectors : 8));
         this.weakSamplesPerSector = Math.max(1, Math.min(64, s.weakSamplesPerSector != null ? s.weakSamplesPerSector : 12));

@@ -16,7 +16,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 /**
  * 環境生物の飛ぶ種の登録(2026-11-16。1 体目はメガネウラ)。「飛ぶ型」の土台は {@code entity/flyer/}。
  * 共有の {@code ModFlyers} はほかのセッション(ステノディクティア)が書いている途中だったので、ぶつからないよう分けた。{@link #init()} を MOD の構築子から呼ぶ。
- * 自然湧きは無い(生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。
+ * 自然湧きは無い(生態系の台帳 {@code ecosystem/life/EcoDens} へ後でつなぐ)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class ModCritterFlyers {

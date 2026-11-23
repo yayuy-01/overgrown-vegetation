@@ -4,7 +4,6 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.block.FallenLogBlock;
 import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.ecosystem.EcoLedger;
-import com.yayuy.overgrownvegetation.ecosystem.EcoSpawns;
 import com.yayuy.overgrownvegetation.ecosystem.EcoTable;
 import com.yayuy.overgrownvegetation.ecosystem.Ecosystem;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
@@ -143,7 +142,7 @@ public final class EcoDens {
     }
 
     static boolean inside(ServerLevel level, BlockPos at) {
-        return EcoSpawns.inside(PhaseData.get(level), at.getX() >> 4, at.getZ() >> 4);
+        return insideChunk(PhaseData.get(level), at.getX() >> 4, at.getZ() >> 4);
     }
 
     // ================================================================ 洞
@@ -263,7 +262,7 @@ public final class EcoDens {
     // ================================================================ 洞を持たない種
 
     static void tryFree(ServerLevel level, ServerPlayer p, int[] live, RandomSource random) {
-        long chunk = EcoSpawns.pickChunk(level, p.getX(), p.getZ(), 24.0D, 64.0D, random);
+        long chunk = pickChunk(level, p.getX(), p.getZ(), 24.0D, 64.0D, random);
         int cx = ChunkPos.getX(chunk), cz = ChunkPos.getZ(chunk);
         if (!com.yayuy.overgrownvegetation.util.LoadedChunks.loaded(level, cx, cz)) return;
         BlockPos col = new BlockPos((cx << 4) + random.nextInt(16), 0, (cz << 4) + random.nextInt(16));
@@ -450,5 +449,42 @@ public final class EcoDens {
             tag.putLongArray("Done", this.done.toLongArray());
             return tag;
         }
+    }
+
+    // ---------------------------------------------------------------- 置き場(2026-11-23 片付け E で EcoSpawns から移した)
+
+    /** そのチャンクは内側か(台帳に載っていて、縁でない)。 */
+    public static boolean insideChunk(PhaseData data, int cx, int cz) {
+        return data.isOvergrownKey(ChunkPos.asLong(cx, cz)) && !com.yayuy.overgrownvegetation.spawn.EnemySpawns.isEdgeChunk(data, cx, cz);
+    }
+
+    /**
+     * 湧かせるチャンクを選ぶ: プレイヤーから min〜max ブロックの減った升を、欠けの重みで 1 つ(その中のチャンクを 1 つ)。
+     * 無ければ、プレイヤーからその距離のチャンクを 1 つ引く。
+     */
+    public static long pickChunk(ServerLevel level, double px, double pz, double min, double max, RandomSource random) {
+        EcoTable t = DesignData.ecosystem();
+        int shift = t.cellShift, size = 1 << shift;
+        double half = size * 8.0D, reach = max + half * 1.5D;
+        EcoLedger ledger = EcoLedger.get(level);
+        long now = EcoLedger.now(level);
+        long[] pick = {Long.MIN_VALUE};
+        double[] acc = {0.0D};
+        ledger.forEachDamaged(now, key -> {
+            double cx = (ChunkPos.getX(key) << (shift + 4)) + half, cz = (ChunkPos.getZ(key) << (shift + 4)) + half;
+            return Math.abs(cx - px) <= reach && Math.abs(cz - pz) <= reach;
+        }, (key, w) -> {
+            // 重み付きの 1 つ選び(貯水池法)
+            acc[0] += w;
+            if (random.nextDouble() * acc[0] < w) pick[0] = key;
+        });
+        if (pick[0] != Long.MIN_VALUE) {
+            int x = (ChunkPos.getX(pick[0]) << shift) + random.nextInt(size), z = (ChunkPos.getZ(pick[0]) << shift) + random.nextInt(size);
+            double dx = (x << 4) + 8 - px, dz = (z << 4) + 8 - pz, d2 = dx * dx + dz * dz;
+            if (d2 >= min * min && d2 <= reach * reach) return ChunkPos.asLong(x, z);
+        }
+        double ang = random.nextDouble() * Math.PI * 2.0D;
+        double d = min + random.nextDouble() * (max - min);
+        return ChunkPos.asLong(net.minecraft.util.Mth.floor(px + Math.cos(ang) * d) >> 4, net.minecraft.util.Mth.floor(pz + Math.sin(ang) * d) >> 4);
     }
 }

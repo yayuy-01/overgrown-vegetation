@@ -21,13 +21,13 @@ import java.util.Locale;
 /**
  * 司令塔の確かめ用のコマンド(2026-11-13、第 1 段)。{@code /ov perf g1} の下({@code corpse/G1Command} と同じ枝に足す)。
  * <ul>
- *   <li>{@code director} — 森の予算・上限・貯まる速さ・これまでの判断と直近の判断、周り 32 ブロックの段階 0 の「見に来るまで」。</li>
+ *   <li>{@code director} — 森の予算・上限・貯まる速さ・これまでの判断と直近の判断。</li>
  *   <li>{@code budget <量>} — 森の予算をその量にする。</li>
- *   <li>{@code visit [半径]} — 周りの段階 0 を今すぐ見に来させる(判断は司令塔がする。予算が足りなければ何もしない)。</li>
  *   <li>{@code route evolve [半径]} — 周りの段階 0 を、司令塔を通さず(予算も払わず)進化の前兆に入らせる。</li>
  *   <li>{@code director base} — 拠点の記憶(覚えている拠点・点・段・いない日数)。{@code base sample} = 見張りを今すぐ 1 回、{@code base here <時間>} = 立っている升にいたことにする、
  *   {@code base absent <日>} = 全部の拠点でその日数いなかったことにする、{@code base forget} = 全部消す(第 2 段 区切り 1)。</li>
  * </ul>
+ * 2026-11-23 片付け E: {@code visit}・{@code route rooted}・{@code route nursery}・{@code danger send}・{@code base wave}・{@code raid large omen}・{@code raid large start} を消した。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class DirectorCommand {
@@ -65,18 +65,6 @@ public final class DirectorCommand {
                                         .then(Commands.literal("raid")
                                                 .then(Commands.literal("large")
                                                         .executes(ctx -> largeDescribe(ctx.getSource()))
-                                                        .then(Commands.literal("omen")
-                                                                .then(Commands.argument("days", DoubleArgumentType.doubleArg(0.01D, 10.0D))
-                                                                        .executes(ctx -> {
-                                                                            var s = ctx.getSource();
-                                                                            LargeRaids.startOmen(s.getServer().overworld(), BaseMemory.today(s.getServer()), DoubleArgumentType.getDouble(ctx, "days"));
-                                                                            return largeDescribe(s);
-                                                                        })))
-                                                        .then(Commands.literal("start").executes(ctx -> {
-                                                            var s = ctx.getSource();
-                                                            LargeRaids.begin(s.getServer().overworld(), BaseMemory.today(s.getServer()));
-                                                            return largeDescribe(s);
-                                                        }))
                                                         .then(Commands.literal("stop").executes(ctx -> {
                                                             var s = ctx.getSource();
                                                             LargeRaids.end(s.getServer().overworld(), BaseMemory.today(s.getServer()), "コマンド");
@@ -102,7 +90,6 @@ public final class DirectorCommand {
                                                 .then(Commands.literal("here")
                                                         .then(Commands.argument("kills", IntegerArgumentType.integer(1, 100))
                                                                 .executes(ctx -> dangerHere(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "kills")))))
-                                                .then(Commands.literal("send").executes(ctx -> dangerSend(ctx.getSource())))
                                                 .then(Commands.literal("forget").executes(ctx -> {
                                                     KillMemory.get(ctx.getSource().getServer()).clear();
                                                     ctx.getSource().sendSuccess(() -> Component.literal("倒された記録を全部消した"), true);
@@ -120,8 +107,6 @@ public final class DirectorCommand {
                                                                 .executes(ctx -> baseAbsent(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "days")))))
                                                 .then(Commands.literal("scout")
                                                         .executes(ctx -> baseScout(ctx.getSource())))
-                                                .then(Commands.literal("wave")
-                                                        .executes(ctx -> baseWave(ctx.getSource())))
                                                 .then(Commands.literal("defense")
                                                         .executes(ctx -> baseDefense(ctx.getSource())))
                                                 .then(Commands.literal("stage")
@@ -137,61 +122,14 @@ public final class DirectorCommand {
                                 .then(Commands.literal("budget")
                                         .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0D, 1.0E9D))
                                                 .executes(ctx -> budget(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "amount")))))
-                                .then(Commands.literal("visit")
-                                        .executes(ctx -> visit(ctx.getSource(), 16))
-                                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
-                                                .executes(ctx -> visit(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius")))))
                                 .then(Commands.literal("route")
                                         .then(Commands.literal("evolve")
                                                 .executes(ctx -> forceEvolve(ctx.getSource(), 16))
                                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
-                                                        .executes(ctx -> forceEvolve(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius")))))
-                                        .then(Commands.literal("rooted")
-                                                .executes(ctx -> forceRooted(ctx.getSource(), 16))
-                                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
-                                                        .executes(ctx -> forceRooted(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius")))))
-                                        .then(Commands.literal("nursery")
-                                                .executes(ctx -> forceNursery(ctx.getSource(), 16))
-                                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
-                                                        .executes(ctx -> forceNursery(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius")))))))));
+                                                        .executes(ctx -> forceEvolve(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius")))))))));
     }
 
-    /** 半径の中の段階 0 を、司令塔を通さず(予算も払わず)苗床の道に入らせる: 森から離れて歩く → 根を下ろす → 苗床に入れ替わる。 */
-    private static int forceNursery(CommandSourceStack source, int radius) {
-        ServerLevel level = source.getLevel();
-        int n = 0;
-        for (AbstractParasitizedMonster m : stageZero(source, radius)) {
-            if (m.fate().route() == ForestDirector.Route.NONE && !m.isRising()) {
-                m.fate().beginNursery();
-                ForestDirector.get(level).record(ForestDirector.Route.NURSERY, m.species().key() + " → 苗床(コマンド)");
-                n++;
-            }
-        }
-        int count = n;
-        source.sendSuccess(() -> Component.literal("段階 0 を苗床の道に入らせた(森から離れて歩く): " + count + " 体"), true);
-        return n;
-    }
-
-    /**
-     * 半径の中の段階 0 を、司令塔を通さず(予算も払わず)根付きの道に入らせる: 森から離れて歩く → 根を下ろす。
-     * 根付きの姿をまだ組み込んでいない種は、根を下ろした所でやめて段階 0 のまま残る。
-     */
-    private static int forceRooted(CommandSourceStack source, int radius) {
-        ServerLevel level = source.getLevel();
-        int n = 0;
-        for (AbstractParasitizedMonster m : stageZero(source, radius)) {
-            if (m.fate().route() == ForestDirector.Route.NONE && !m.isRising()) {
-                m.fate().beginRooted();
-                ForestDirector.get(level).record(ForestDirector.Route.ROOTED, m.species().key() + " → 根付き(コマンド)");
-                n++;
-            }
-        }
-        int count = n;
-        source.sendSuccess(() -> Component.literal("段階 0 を根付きの道に入らせた(森から離れて歩く): " + count + " 体"), true);
-        return n;
-    }
-
-    /** 半径の中の、司令塔が見に来る個体(段階 0。前兆の途中のものは除く)。 */
+    /** 半径の中の、進化の道を持つ個体(段階 0)。 */
     private static List<AbstractParasitizedMonster> stageZero(CommandSourceStack source, int radius) {
         List<AbstractParasitizedMonster> out = new ArrayList<>();
         for (AbstractParasitizedMonster m : source.getLevel().getEntitiesOfClass(AbstractParasitizedMonster.class,
@@ -218,17 +156,7 @@ public final class DirectorCommand {
             source.sendSuccess(() -> Component.literal(line), false);
         }
         source.sendSuccess(() -> Component.literal(ThornHedges.describe()), false);
-        long now = level.getGameTime();
-        List<AbstractParasitizedMonster> near = stageZero(source, 32);
-        for (AbstractParasitizedMonster m : near) {
-            G1Fate f = m.fate();
-            String when = f.route() != ForestDirector.Route.NONE ? f.route().label + "の途中"
-                    : f.nextVisit() < 0L ? "まだ決めていない"
-                    : String.format(Locale.ROOT, "あと %.1f 分", Math.max(0L, f.nextVisit() - now) / 1200.0D);
-            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "  %s(%.0f, %.0f, %.0f): 見に来るまで %s",
-                    m.species().key(), m.getX(), m.getY(), m.getZ(), when)), false);
-        }
-        return 1 + near.size();
+        return 1;
     }
 
     // ---------------------------------------------------------------- 監視塔(11-14。本体が組み込まれるまでの確かめ用)
@@ -312,12 +240,10 @@ public final class DirectorCommand {
         ForestDirector d = ForestDirector.get(level);
         double day = BaseMemory.today(server);
         BaseMemory.Base b = LargeRaids.target(level);
-        String miss = String.format(Locale.ROOT, "(湧かせる回 %d・湧かせる所で弾いた数: 動いていない %d・地面 %d・見える %d)", LargeRaids.steps, RaidSpawns.lastMisses[0], RaidSpawns.lastMisses[1], RaidSpawns.lastMisses[2]);
-        source.sendSuccess(() -> Component.literal(miss), false);
-        String line = String.format(Locale.ROOT, "大きな襲撃: 気分 %s%s・的 %s・攻め手 %s / 上限 %d・予算 %.1f / 上限 %.1f・次に起こしてよいのは %.2f 日後(F%d から・今の段 %s)",
+        String line = String.format(Locale.ROOT, "大きな襲撃: 気分 %s%s・的 %s / 上限 %d・予算 %.1f / 上限 %.1f・次に起こしてよいのは %.2f 日後(F%d から・今の段 %s)",
                 d.mood().label,
                 d.mood() == ForestDirector.Mood.LARGE_OMEN ? String.format(Locale.ROOT, "(本番まで %.2f 日)", Math.max(0.0D, d.moodUntil() - day)) : "",
-                b == null ? "なし" : "拠点 #" + b.id(), b == null ? "-" : String.valueOf(LargeRaids.alive(level, b)),
+                b == null ? "なし" : "拠点 #" + b.id(),
                 LargeRaids.maxAlive(), d.available(level), ForestDirector.cap(level),
                 Math.max(0.0D, d.largeRaidCooldownUntil() - day), com.yayuy.overgrownvegetation.data.DesignData.director().gates.largeRaid,
                 DirectorGates.stage(level).name());
@@ -355,19 +281,6 @@ public final class DirectorCommand {
         KillMemory.get(server).addForTests(net.minecraft.world.level.ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4), kills, BaseMemory.today(server));
         source.sendSuccess(() -> Component.literal("この升で " + kills + " 体倒されたことにした"), true);
         return dangerDescribe(source);
-    }
-
-    /** 危ない所へ、今すぐ送る(間を待たない。フェーズは見ない)。 */
-    private static int dangerSend(CommandSourceStack source) {
-        var server = source.getServer();
-        int n = 0;
-        for (KillMemory.Danger d : KillMemory.get(server).dangers(BaseMemory.today(server))) {
-            int[] r = DangerWatch.send(server.overworld(), d, server.overworld().getRandom());
-            n += r[0] + r[1];
-            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "危ない所 (%.0f, %.0f) へ: 1 段目 %d・進化させて %d", d.x(), d.z(), r[0], r[1])), true);
-        }
-        DangerWatch.resetTimers();
-        return n;
     }
 
     // ---------------------------------------------------------------- フェーズで開くもの(第 2 段の続き)
@@ -481,16 +394,6 @@ public final class DirectorCommand {
         return 1;
     }
 
-    /** いちばん近い拠点へ、今すぐ 1 回送り込む(認識していなくても送る。顔ぶれは認識してからの日数の段)。 */
-    private static int baseWave(CommandSourceStack source) {
-        BaseMemory.Base b = nearestBase(source);
-        if (b == null) return 0;
-        var server = source.getServer();
-        BaseRaids.Result r = BaseRaids.sendWave(server.overworld(), b, BaseMemory.today(server), server.overworld().getRandom());
-        source.sendSuccess(() -> Component.literal("拠点 #" + b.id() + " へ送り込んだ: " + r.summary()), true);
-        return 1;
-    }
-
     /** いちばん近い拠点の段を変える(偵察済みにしたら、認識までの日数も決める)。 */
     private static int baseStage(CommandSourceStack source, BaseMemory.Stage stage) {
         BaseMemory.Base b = nearestBase(source);
@@ -512,20 +415,6 @@ public final class DirectorCommand {
         ForestDirector.get(level).setBudget(level, amount);
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "森の予算を %.1f にした(上限 %.1f)", amount, ForestDirector.cap(level))), true);
         return 1;
-    }
-
-    private static int visit(CommandSourceStack source, int radius) {
-        long now = source.getLevel().getGameTime();
-        int n = 0;
-        for (AbstractParasitizedMonster m : stageZero(source, radius)) {
-            if (m.fate().route() == ForestDirector.Route.NONE) {
-                m.fate().setNextVisit(now);
-                n++;
-            }
-        }
-        int count = n;
-        source.sendSuccess(() -> Component.literal("段階 0 を今すぐ見に来させた: " + count + " 体(結果は /ov perf g1 director)"), true);
-        return n;
     }
 
     private static int forceEvolve(CommandSourceStack source, int radius) {

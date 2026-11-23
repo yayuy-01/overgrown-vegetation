@@ -103,14 +103,6 @@ public final class FrontDirector {
         return DesignData.front().enabled && DesignData.director().enabled && VirtualHordes.enabled();
     }
 
-    /**
-     * 縁・地下・森の中の湧きと、実物の G1 の進化・根付き・苗床を止めて前線の部隊に任せるか(11-21 区切り 6)。GameTest のサーバーでは、テストが前線を動かすときだけ。
-     */
-    public static boolean replacesOldSpawns(ServerLevel level) {
-        return enabled() && DesignData.front().replaceOldSpawns
-                && (tickInGameTests || !(level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer));
-    }
-
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
@@ -154,7 +146,7 @@ public final class FrontDirector {
         FrontNurseries.get(level.getServer()).tick(level, hordes);
         FrontWatchers.get(level.getServer()).tick(level);
         FrontOutposts.get(level.getServer()).tick(level);
-        if (replacesOldSpawns(level) && level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes);
+        if (level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes); // 11-23 片付け E: 前は切り替え replaceOldSpawns を見ていた(いつもオン)
         // 空の部隊(実物も残っていない)を片付ける
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
             if (s.unit() && s.size() <= 0 && real.get(s.id()) <= 0) hordes.removeUnit(s);

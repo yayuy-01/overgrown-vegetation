@@ -15,9 +15,6 @@ public final class AssaultTable {
         public BaseMemoryTable.WaveJson firstRaid;
         public Integer nightStartTicks;
         public Integer nightEndTicks;
-        public Integer maxWave;
-        public Double stageZeroCost;
-        public Double hoardShareFactor;
         public Double foulRadius;
         public Double foulAirPercentPerMinute;
         public Double foulDepositShare;
@@ -27,10 +24,7 @@ public final class AssaultTable {
         public Integer breakTicksPerHardness;
         public Double breakReach;
         public Integer hoardMaxAlive;
-        public Integer hoardMaxTotal;
         public Integer hoardRefillTicks;
-        public Double hoardMaxDays;
-        public Double firstRetryUnloadedDays;
         public Double firstRetryPoorDays;
         public Integer nightLastTicks;
     }
@@ -40,12 +34,6 @@ public final class AssaultTable {
     /** 最初の襲撃が来る時刻の幅(1 日の中の tick。13000 = 夜の始め)。 */
     public final int nightStartTicks;
     public final int nightEndTicks;
-    /** 1 回の送り込みの上限の体数(ユーザー 40)。 */
-    public final int maxWave;
-    /** 送り込みで段階 0 を湧かせる値段(1 体)。 */
-    public final double stageZeroCost;
-    /** 貯めた襲撃の回の、進化体と G3 の割合の倍率(ユーザー 1.5)。 */
-    public final double hoardShareFactor;
     /** 拠点を汚す: 拠点の真ん中からの半径(ブロック)・1 体 1 分で上げる空気(%)・降り積もりの割合・間(tick)。 */
     public final double foulRadius;
     public final double foulAirPercentPerMinute;
@@ -56,14 +44,10 @@ public final class AssaultTable {
     public final int breakTicksBase;
     public final int breakTicksPerHardness;
     public final double breakReach;
-    /** 貯めた襲撃(11-16 ユーザー): 同時にいるのは hoardMaxAlive(40)まで、倒された分を継ぎ足してその回の合計は hoardMaxTotal(80)まで。
-     *  継ぎ足しの間(tick)と、始めてから終えるまでの長さ(日)は【仮】。 */
+    /** 貯めた襲撃(11-16 ユーザー): 同時にいるのは hoardMaxAlive(40)まで・継ぎ足しの間(tick)【仮】。前線の中の襲撃が使う(11-23 片付け E: 合計 hoardMaxTotal・長さ hoardMaxDays は消した)。 */
     public final int hoardMaxAlive;
-    public final int hoardMaxTotal;
     public final int hoardRefillTicks;
-    public final double hoardMaxDays;
-    /** 最初の襲撃が 0 体だったときの試し直しの間(日。見直し ②1): 拠点のまわりが読み込まれていない・予算が足りない。夜の終わり(tick)を過ぎたら次の夜。【仮】 */
-    public final double firstRetryUnloadedDays;
+    /** 最初の襲撃で前線から出せる部隊が無かったときの試し直しの間(日。見直し ②1)。夜の終わり(tick)を過ぎたら次の夜。【仮】 */
     public final double firstRetryPoorDays;
     public final int nightLastTicks;
 
@@ -74,9 +58,6 @@ public final class AssaultTable {
                 : new BaseMemoryTable.Wave(0.0D, cnt(f.stageZero, 7), cnt(f.developed, 2), cnt(f.g2, 6), cnt(f.g3plus, 0));
         this.nightStartTicks = clampTick(s.nightStartTicks, 13000);
         this.nightEndTicks = Math.max(this.nightStartTicks, clampTick(s.nightEndTicks, 15000));
-        this.maxWave = Math.max(1, Math.min(200, s.maxWave != null ? s.maxWave : 40));
-        this.stageZeroCost = nn(s.stageZeroCost, 100.0D);
-        this.hoardShareFactor = Math.max(1.0D, nn(s.hoardShareFactor, 1.5D));
         this.foulRadius = Math.max(4.0D, nn(s.foulRadius, 24.0D));
         this.foulAirPercentPerMinute = nn(s.foulAirPercentPerMinute, 1.0D);
         this.foulDepositShare = nn(s.foulDepositShare, 0.25D);
@@ -86,10 +67,7 @@ public final class AssaultTable {
         this.breakTicksPerHardness = Math.max(0, s.breakTicksPerHardness != null ? s.breakTicksPerHardness : 40);
         this.breakReach = Math.max(1.0D, Math.min(4.0D, nn(s.breakReach, 2.0D)));
         this.hoardMaxAlive = Math.max(1, Math.min(200, s.hoardMaxAlive != null ? s.hoardMaxAlive : 40));
-        this.hoardMaxTotal = Math.max(this.hoardMaxAlive, Math.min(500, s.hoardMaxTotal != null ? s.hoardMaxTotal : 80));
         this.hoardRefillTicks = Math.max(20, s.hoardRefillTicks != null ? s.hoardRefillTicks : 200);
-        this.hoardMaxDays = Math.max(0.05D, nn(s.hoardMaxDays, 1.0D));
-        this.firstRetryUnloadedDays = Math.max(0.005D, nn(s.firstRetryUnloadedDays, 0.02D));
         this.firstRetryPoorDays = Math.max(0.005D, nn(s.firstRetryPoorDays, 0.05D));
         this.nightLastTicks = Math.max(this.nightEndTicks, clampTick(s.nightLastTicks, 23000));
     }

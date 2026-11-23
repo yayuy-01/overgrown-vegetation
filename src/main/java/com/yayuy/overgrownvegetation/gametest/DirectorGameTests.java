@@ -88,46 +88,6 @@ public final class DirectorGameTests {
         helper.succeed();
     }
 
-    // ------------------------------------------------------------------ 判断
-    /** 判断: 予算が値段に足りない・進化体が無い個体は進化を選べない。足りていれば進化も選ばれる。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void evolveNeedsBudgetAndDevelopedForm(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        RandomSource random = RandomSource.create(20261113L);
-        int poor = 0, noForm = 0, rich = 0;
-        for (int i = 0; i < 400; i++) {
-            if (ForestDirector.score(t, new ForestDirector.Inputs(true, false, t.costEvolve - 0.01D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.EVOLVE) poor++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, t.costEvolve * 100.0D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.EVOLVE) noForm++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(true, false, t.costEvolve, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.EVOLVE) rich++;
-        }
-        helper.assertTrue(poor == 0, "予算が足りないのに進化を選んだ: " + poor);
-        helper.assertTrue(noForm == 0, "進化体の無い個体に進化を選んだ: " + noForm);
-        helper.assertTrue(rich > 0, "予算が足りていて人が近く日もたっているのに、400 回で一度も進化を選ばない");
-        helper.succeed();
-    }
-
-    /** 見に来る時刻: 最小〜最大の間に収まり、早い個体も遅い個体もいる。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void firstVisitSpreadsFromMinutesToDays(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        RandomSource random = RandomSource.create(20261113L);
-        double middle = Math.sqrt((double) t.firstVisitMinTicks * t.firstVisitMaxTicks);
-        int early = 0, late = 0;
-        for (int i = 0; i < 500; i++) {
-            int d = G1Fate.firstDelay(t, random);
-            helper.assertTrue(d >= t.firstVisitMinTicks && d <= t.firstVisitMaxTicks, "見に来る時刻が範囲の外: " + d);
-            if (d < middle) early++;
-            else late++;
-        }
-        if (t.firstVisitMaxTicks > t.firstVisitMinTicks * 2) {
-            helper.assertTrue(early > 100 && late > 100, "見に来る時刻が片寄っている: 早い " + early + " / 遅い " + late);
-        }
-        helper.succeed();
-    }
-
     /** 司令塔が見に来るのは、1 段目のある種の段階 0 だけ(ゴーレム・1 段目には来ない)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void onlyStageZeroWithDevelopedFormIsVisited(GameTestHelper helper) {
@@ -141,22 +101,6 @@ public final class DirectorGameTests {
         helper.assertTrue(z, "段階 0 のゾンビに司令塔の時計が無い");
         helper.assertTrue(!g, "ゴーレムに司令塔の時計がある");
         helper.assertTrue(!d, "1 段目に司令塔の時計がある");
-        helper.succeed();
-    }
-
-    /** 見に来る時刻は保存される(読み込み直しても同じ時刻に見に来る)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void visitTimeSurvivesSaveAndLoad(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = spawnStageZero(helper, G1Species.ZOMBIE);
-        long when = helper.getLevel().getGameTime() + 54321L;
-        zombie.fate().setNextVisit(when);
-        CompoundTag tag = new CompoundTag();
-        zombie.saveWithoutId(tag);
-        AbstractParasitizedMonster copy = G1Species.ZOMBIE.entityType().create(helper.getLevel());
-        copy.load(tag);
-        long loaded = copy.fate().nextVisit();
-        zombie.discard();
-        helper.assertTrue(loaded == when, "見に来る時刻が保存されていない: " + loaded + " ≠ " + when);
         helper.succeed();
     }
 
@@ -223,53 +167,6 @@ public final class DirectorGameTests {
         });
     }
 
-    /**
-     * 見に来たとき予算が足りなければ何もせず、後でまた見に来る。足りていれば(何度か見に来るうちに)進化を選び、値段ぶんを払う。
-     * 揺らぎで「何もしない」になる回があるので、進化を選ぶまで毎 tick 見に来させる。
-     */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 400)
-    public static void visitWaitsWithoutBudgetThenPaysToEvolve(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        ServerLevel level = helper.getLevel();
-        ForestDirector director = ForestDirector.get(level);
-        double cap = ForestDirector.cap(level);
-        if (!t.enabled || cap < t.costEvolve || t.costEvolve <= 0.0D) {
-            helper.succeed(); // 設計値が「進化できない」になっている(上限が値段より低い)
-            return;
-        }
-        AbstractParasitizedMonster zombie = spawnStageZero(helper, G1Species.ZOMBIE);
-        zombie.fate().setNoRootedForTests(true);
-        boolean[] rich = {false};
-        helper.runAfterDelay(5, () -> {
-            director.setBudget(level, 0.0D);
-            zombie.fate().setNextVisit(level.getGameTime());
-        });
-        helper.runAfterDelay(8, () -> {
-            helper.assertTrue(zombie.fate().route() == ForestDirector.Route.NONE && zombie.omen() == G1Fate.OMEN_NONE,
-                    "予算が無いのに道が決まった: " + zombie.fate().route());
-            long wait = zombie.fate().nextVisit() - level.getGameTime();
-            helper.assertTrue(wait > t.revisitMinTicks - 10, "何もしなかった後の「また見に来る」が近すぎる: " + wait);
-            director.setBudget(level, cap);
-            rich[0] = true;
-        });
-        helper.onEachTick(() -> {
-            if (!rich[0] || !zombie.isAlive()) return;
-            if (zombie.fate().route() == ForestDirector.Route.EVOLVE) {
-                double left = director.available(level);
-                double slack = ForestDirector.incomePerDay(level) * 400.0D / 24000.0D + 1.0E-6D;
-                double price = ForestDirector.routeCost(t, ForestDirector.Route.EVOLVE, zombie); // 11-21 進化先の危険度に応じた追加の費用
-                helper.assertTrue(left >= cap - price - 1.0E-6D && left <= cap - price + slack,
-                        "払った量が違う: 残り " + left + "(上限 " + cap + "・値段 " + price + ")");
-                zombie.discard();
-                director.setBudget(level, 0.0D); // 世界に 1 つの予算を残さない(ほかのテストの段階 0 が進化しないように)
-                helper.succeed();
-                return;
-            }
-            director.setBudget(level, cap);
-            zombie.fate().setNextVisit(level.getGameTime());
-        });
-    }
-
     // ------------------------------------------------------------------ 根付きの道(区切り 2): 森から離れて歩く → 根を下ろす
     /** テスト場の西の端(相対 x = 0)より西が全部森、という見え方。離れる向きは東。 */
     private static com.yayuy.overgrownvegetation.director.ForestEdge forestToTheWest(GameTestHelper helper) {
@@ -287,14 +184,6 @@ public final class DirectorGameTests {
         };
     }
 
-    /** 森から離れて歩く Goal だけを残した段階 0(標的は選ばない)。 */
-    private static AbstractParasitizedMonster spawnWalker(GameTestHelper helper, Vec3 at) {
-        AbstractParasitizedMonster m = helper.spawn(G1Species.ZOMBIE.entityType(), at);
-        m.goalSelector.removeAllGoals(g -> !(g instanceof com.yayuy.overgrownvegetation.director.G1WalkAwayGoal));
-        m.targetSelector.removeAllGoals(g -> true);
-        return m;
-    }
-
     /** 升までの距離: 升の中は 0、外は辺・角までの長さ。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void forestEdgeDistanceToChunk(GameTestHelper helper) {
@@ -303,149 +192,6 @@ public final class DirectorGameTests {
         helper.assertTrue(Math.abs(com.yayuy.overgrownvegetation.director.ForestEdge.toChunk(new Vec3(19, 0, -4), 0, 0) - 5.0D) < 1.0E-9D, "角までの距離が違う");
         helper.assertTrue(Math.abs(com.yayuy.overgrownvegetation.director.ForestEdge.toChunk(new Vec3(-35, 0, -24), -2, -2) - 3.0D) < 1.0E-9D, "負の升で距離が違う");
         helper.succeed();
-    }
-
-    /** 判断: 根付きの姿の無い種・予算が値段に足りないときは根付きを選べない。足りていれば選ばれる。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void rootedNeedsBudgetAndRootedForm(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        RandomSource random = RandomSource.create(20261113L);
-        int noForm = 0, poor = 0, rich = 0;
-        for (int i = 0; i < 400; i++) {
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, t.costRooted * 100.0D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.ROOTED) noForm++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, true, t.costRooted - 0.01D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.ROOTED) poor++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, true, t.costRooted, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.ROOTED) rich++;
-        }
-        helper.assertTrue(noForm == 0, "根付きの姿の無い種に根付きを選んだ: " + noForm);
-        helper.assertTrue(poor == 0, "予算が足りないのに根付きを選んだ: " + poor);
-        helper.assertTrue(rich > 0, "予算が足りているのに、400 回で一度も根付きを選ばない");
-        helper.succeed();
-    }
-
-    /**
-     * 根付き: 森から離れる向きへ歩き、決めた長さだけ離れたら立ち止まって根を下ろし、根付きの姿に入れ替わる。
-     * 根付きの姿はまだ組み込んでいないので、ここでは代わりに豚を出す。
-     */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 600)
-    public static void walksAwayFromForestThenRootsDown(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = spawnWalker(helper, new Vec3(1.5, 2.0, 3.5));
-        double edgeX = helper.absoluteVec(new Vec3(0.0, 2.0, 0.0)).x;
-        G1Fate fate = zombie.fate();
-        fate.setForestForTests(forestToTheWest(helper));
-        fate.setRootedFormForTests(() -> net.minecraft.world.entity.EntityType.PIG);
-        fate.beginRooted();
-        fate.setAwayWantedForTests(4.0D);
-        boolean[] sawRootOmen = {false};
-        double[] omenAt = {Double.NaN};
-        helper.onEachTick(() -> {
-            if (zombie.isAlive() && zombie.omen() == G1Fate.OMEN_ROOT && !sawRootOmen[0]) {
-                sawRootOmen[0] = true;
-                omenAt[0] = zombie.getX() - edgeX;
-                helper.assertTrue(zombie.isNoAi(), "根を下ろす間に立ち止まっていない");
-            }
-            if (!zombie.isRemoved()) return;
-            List<net.minecraft.world.entity.animal.Pig> pigs = helper.getLevel().getEntitiesOfClass(
-                    net.minecraft.world.entity.animal.Pig.class, helper.getBounds());
-            helper.assertTrue(sawRootOmen[0], "根を下ろす前兆なしに入れ替わった");
-            helper.assertTrue(omenAt[0] >= 4.0D - 1.0E-6D, "森の縁から 4 ブロック離れる前に根を下ろした: " + omenAt[0]);
-            helper.assertTrue(pigs.size() == 1, "根付きの姿(代わりの豚)が 1 体でない: " + pigs.size());
-            pigs.forEach(net.minecraft.world.entity.Entity::discard);
-            helper.succeed();
-        });
-    }
-
-    /** 根付き: 着けないまま歩く時間を使い切ったら、その場で根を下ろす。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 100)
-    public static void walkTimeoutRootsDownInPlace(GameTestHelper helper) {
-        int timeout = DesignData.director().walkTimeoutTicks;
-        AbstractParasitizedMonster zombie = spawnStageZero(helper, G1Species.ZOMBIE);
-        G1Fate fate = zombie.fate();
-        fate.setForestForTests(forestToTheWest(helper));
-        fate.beginRooted();
-        fate.setAwayWantedForTests(10000.0D);
-        helper.runAfterDelay(10, () -> {
-            helper.assertTrue(zombie.omen() == G1Fate.OMEN_NONE, "着いていないのに根を下ろした");
-            fate.setWalkedForTests(timeout - 3);
-        });
-        helper.runAfterDelay(20, () -> {
-            helper.assertTrue(zombie.omen() == G1Fate.OMEN_ROOT, "歩く時間を使い切っても根を下ろさない(歩いた " + fate.walkedTicks() + ")");
-            zombie.discard();
-            helper.succeed();
-        });
-    }
-
-    /** 根付き: 森から離れて歩いている途中で倒せば、根付きは出ない。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
-    public static void killedWhileWalkingAwayDoesNotRoot(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = spawnWalker(helper, new Vec3(1.5, 2.0, 3.5));
-        G1Fate fate = zombie.fate();
-        fate.setForestForTests(forestToTheWest(helper));
-        fate.setRootedFormForTests(() -> net.minecraft.world.entity.EntityType.PIG);
-        fate.beginRooted();
-        fate.setAwayWantedForTests(4.0D);
-        helper.runAfterDelay(8, () -> {
-            helper.assertTrue(zombie.isAlive() && fate.walkingAway(), "歩いている途中でない");
-            zombie.kill();
-        });
-        helper.runAfterDelay(120, () -> {
-            helper.assertTrue(helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.animal.Pig.class, helper.getBounds()).isEmpty(),
-                    "歩いている途中で倒したのに根付きが出た");
-            helper.succeed();
-        });
-    }
-
-    /** 戦っている最中(標的がいる)の個体には見に来ない: 見に来る時刻が少し先へ延びるだけで、道は決まらない(11-13 ユーザー決定)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 40)
-    public static void notVisitedWhileFighting(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = spawnStageZero(helper, G1Species.ZOMBIE);
-        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new Vec3(5.5, 2.0, 5.5));
-        long before = ForestDirector.get(helper.getLevel()).decidedCount(ForestDirector.Route.NONE);
-        helper.runAfterDelay(3, () -> {
-            zombie.setTarget(cow);
-            helper.assertTrue(G1Fate.inCombat(zombie), "標的がいるのに戦っている最中でない");
-            zombie.fate().setNextVisit(helper.getLevel().getGameTime());
-        });
-        helper.runAfterDelay(6, () -> {
-            long wait = zombie.fate().nextVisit() - helper.getLevel().getGameTime();
-            helper.assertTrue(zombie.fate().route() == ForestDirector.Route.NONE && zombie.omen() == G1Fate.OMEN_NONE, "戦っている最中に道が決まった");
-            helper.assertTrue(wait > 0 && wait <= 100, "戦っている最中の見直しの待ちが違う(司令塔が見に来た?): " + wait);
-            zombie.setTarget(null);
-            helper.assertTrue(!G1Fate.inCombat(zombie), "標的がいなくなっても戦っている最中のまま");
-            zombie.discard();
-            cow.discard();
-            helper.succeed();
-        });
-    }
-
-    /** 森から離れて歩いている途中で殴られたら殴り返す: その間は歩いた時間を数えず、相手がいなくなればまた歩きに戻る(11-13 ユーザー決定)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 60)
-    public static void walkerFightsBackWhenHit(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = spawnStageZero(helper, G1Species.ZOMBIE);
-        net.minecraft.world.entity.animal.Cow cow = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.COW, new Vec3(5.5, 2.0, 5.5));
-        G1Fate fate = zombie.fate();
-        fate.setForestForTests(forestToTheWest(helper));
-        fate.beginRooted();
-        fate.setAwayWantedForTests(10000.0D);
-        int[] walked = {0};
-        helper.runAfterDelay(5, () -> {
-            helper.assertTrue(!G1Fate.retaliating(zombie) && fate.walkedTicks() > 0, "殴られる前から歩いていない");
-            zombie.hurt(helper.getLevel().damageSources().mobAttack(cow), 1.0F);
-            helper.assertTrue(G1Fate.retaliating(zombie), "殴られたのに殴り返す状態にならない");
-            walked[0] = fate.walkedTicks();
-        });
-        helper.runAfterDelay(15, () -> {
-            helper.assertTrue(fate.walkedTicks() == walked[0], "殴り返している間も歩いた時間を数えた: " + walked[0] + " → " + fate.walkedTicks());
-            cow.discard();
-        });
-        helper.runAfterDelay(25, () -> {
-            helper.assertTrue(!G1Fate.retaliating(zombie), "相手がいなくなっても殴り返す状態のまま");
-            helper.assertTrue(fate.walkedTicks() > walked[0], "相手がいなくなっても歩きに戻らない");
-            zombie.discard();
-            helper.succeed();
-        });
     }
 
     /** 殴り返す時間は 10 秒: バニラが殴ってきた相手の記録を 100 tick で消しても、相手が生きている間は 200 tick 近くまで続く。 */

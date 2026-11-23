@@ -14,29 +14,6 @@
     "overgrown_vegetation:autocannon",
     "overgrown_vegetation:barbed_wire"
   ],
-  "inner": {
-    "_comment": "汚染地帯の内側(台帳に載っていて縁でないチャンク)の守り。多様性が threshold 以上なら湧かない。下回ると (threshold − 多様性) ÷ threshold に比例して最大 capG2・capG3 × フェーズの段の強さ(開くのは縁と同じ G2 F4・G3 F5)。減った升を優先し、無ければまわりの森。予算は払わない。intervalTicks ごとにプレイヤー 1 人あたり triesPerPlayer 回、minBlocks〜maxBlocks。countRadius の中を数え、despawnBlocks よりどのプレイヤーからも遠くなったら消す。",
-    "threshold": 0.7,
-    "capG2": 8,
-    "capG3": 4,
-    "intervalTicks": 20,
-    "triesPerPlayer": 2,
-    "minBlocks": 24,
-    "maxBlocks": 96,
-    "countRadius": 128,
-    "despawnBlocks": 128
-  },
-  "stub": {
-    "_comment": "環境生物の種がそろうまでの仮の種。開発用の操作口(-Dov.devbridge)か GameTest のときだけ湧く(ふつうに遊ぶ人には湧かない)。印の付いた個体だけを環境生物として数える。本物の種が critter_prey・critter_hunter のタグに入ったら空にする。上限は capG2・capG3 × 多様性、升の頭数 ÷ 満員 の確率で湧く。",
-    "prey": ["minecraft:frog"],
-    "hunter": ["minecraft:ocelot"],
-    "capPrey": 8,
-    "capHunter": 3,
-    "intervalTicks": 40,
-    "triesPerPlayer": 2,
-    "minBlocks": 24,
-    "maxBlocks": 64
-  },
   "_comment_behavior": "環境生物の行動の段(2026-11-18。正本は Vault「G2 原生生産種・G3 原生消費種」の 11-18 夜)。種の id ごと。省いた値はコードの既定(ecosystem/life/EcoBehavior)。どれも【仮】。active = day・night・wet(雨か夜)・always。forage = log(倒木の上)・ground・leaf・trunk・none。hungerDays = 満腹から空腹まで。forageBelow・huntBelow = これより満腹度が低いとあさる・狩る。fleeRange = プレイヤー・敵から逃げ出す距離(しゃがむと半分)。prey = 狩る獲物の環境生物。defends = 洞を壊した人を襲う。nestRange = 巣(住む洞)のこの距離に来た人を襲う。rests = 休む Goal を使う。",
   "behavior": {
     "protophasma": { "active": "always", "forage": "leaf", "hungerDays": 1.5, "fleeRange": 7.0 },

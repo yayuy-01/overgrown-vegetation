@@ -391,16 +391,7 @@ public final class WorldDifficultyGameTests {
             check(helper, omen > 0.0D && com.yayuy.overgrownvegetation.director.RaidScales.omenDays(com.yayuy.overgrownvegetation.director.RaidScales.RaidScale.LARGE) == 0.0D,
                     "前触れをオフにしても前触れの日数が 0 にならない: " + omen);
 
-            // 湧く量
-            int cap1 = 0, group = 0;
-            for (int g = 1; g <= 10 && cap1 <= 0; g++) {
-                data.reset(DifficultySetting.MOB_SPAWN_AMOUNT);
-                cap1 = com.yayuy.overgrownvegetation.spawn.EnemySpawns.edgeCap(level, g);
-                group = g;
-            }
-            data.set(DifficultySetting.MOB_SPAWN_AMOUNT, 2.0D);
-            int cap2 = com.yayuy.overgrownvegetation.spawn.EnemySpawns.edgeCap(level, group);
-            check(helper, cap1 <= 0 || Math.abs(cap2 - cap1 * 2) <= 1, "湧く量 200% で縁の上限が倍にならない: " + cap1 + " → " + cap2);
+            // 湧く量(MOB_SPAWN_AMOUNT): 縁・地下の湧きの上限に掛けていた。11-23 片付け E で湧きごと消えたので、今は効く先が無い(確かめも消した)
 
             // 動物の感染・適応・疲労・地割れ・遠くの群れ
             Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, new BlockPos(2, 2, 2));

@@ -76,7 +76,6 @@ public final class HoardGameTests {
             AbstractParasitizedMonster z = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5 + i, 2.0, 3.5));
             z.goalSelector.removeAllGoals(g -> true);
             z.targetSelector.removeAllGoals(g -> true);
-            z.fate().setNoRootedForTests(true);
             mine.add(z);
         }
         ForestMoods.startHoard(level, day, 1.0D);
@@ -86,7 +85,6 @@ public final class HoardGameTests {
             director.setBudget(level, DesignData.director().costEvolve * 3.0D);
             Supplier<EntityType<? extends Mob>> zombie = () -> EntityType.ZOMBIE;
             helper.assertTrue(director.buySpawn(level, RandomSource.create(1L), List.of(zombie)) == null, "貯める間に苗床が孵した");
-            for (AbstractParasitizedMonster z : mine) z.fate().setNextVisit(level.getGameTime());
         } catch (RuntimeException e) {
             ForestMoods.stopHoard(level, day);
             director.setBudget(level, before);
@@ -95,7 +93,7 @@ public final class HoardGameTests {
         helper.runAfterDelay(3, () -> {
             try {
                 for (AbstractParasitizedMonster z : mine) {
-                    helper.assertTrue(z.fate().route() == ForestDirector.Route.NONE && z.fate().nextVisit() > level.getGameTime(),
+                    helper.assertTrue(z.fate().route() == ForestDirector.Route.NONE,
                             "貯める間に道を選んだ");
                 }
                 List<Vec3> around = List.of(mine.get(0).position());

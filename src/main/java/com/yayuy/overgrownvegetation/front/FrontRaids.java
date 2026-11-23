@@ -145,7 +145,7 @@ public final class FrontRaids extends SavedData {
 
     /** 前線から出す作りが働いているか(GameTest のサーバーでは、テストが前線を動かすときだけ)。 */
     public static boolean active(ServerLevel level) {
-        if (!FrontDirector.enabled() || !DesignData.front().raidsFromFronts) return false;
+        if (!FrontDirector.enabled()) return false;
         return FrontDirector.tickInGameTests || !(level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer);
     }
 
@@ -235,7 +235,7 @@ public final class FrontRaids extends SavedData {
     public static int cap(BaseMemory.Base b, double day, RaidScales.RaidScale scale) {
         if (scale == RaidScales.RaidScale.LARGE) return Integer.MAX_VALUE;
         if (BaseMemory.firstRaidPending(b)) return DesignData.director().assault.firstRaid.total();
-        if (scale == RaidScales.RaidScale.MEDIUM) return Math.min(com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive(), mediumTotal(b, day));
+        if (scale == RaidScales.RaidScale.MEDIUM) return Math.min(com.yayuy.overgrownvegetation.director.RaidScales.mediumMaxAlive(), mediumTotal(b, day));
         int n = DesignData.front().raidCapSmall(Math.max(0.0D, day - b.stageSince()));
         int knob = RaidScales.Knobs.maxTotal[RaidScales.RaidScale.SMALL.ordinal()];
         return knob > 0 ? Math.min(n, knob) : n;
@@ -255,7 +255,7 @@ public final class FrontRaids extends SavedData {
      */
     public static int refill(ServerLevel level, VirtualHordes hordes, Raid r, BaseMemory.Base b, int alive, Long2IntOpenHashMap real) {
         if (r.scale != RaidScales.RaidScale.MEDIUM || r.gathering) return 0;
-        int want = Math.min(com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive() - alive, mediumTotal(b, r.startDay) - r.sent);
+        int want = Math.min(com.yayuy.overgrownvegetation.director.RaidScales.mediumMaxAlive() - alive, mediumTotal(b, r.startDay) - r.sent);
         if (want <= 0) return 0;
         Fronts fronts = Fronts.get(level.getServer());
         Fronts.Front nearest = fronts.nearest(b.centerX(), b.centerZ(), -1);

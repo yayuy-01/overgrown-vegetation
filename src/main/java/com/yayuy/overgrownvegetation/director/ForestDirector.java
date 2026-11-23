@@ -25,8 +25,8 @@ import java.util.Locale;
  * <ul>
  *   <li><b>森の予算</b>({@link ForestBudget}): 過繁茂のチャンク(台帳 {@link PhaseData#overgrownLedgerSize})が多いほど速く貯まり、
  *   ハイヴノード({@link PhaseData#hiveNodeSnapshot})の数で上限が上がる。毎 tick は数えず、聞かれたときに前回からの時間ぶんを足す。</li>
- *   <li><b>判断</b>({@link #visit}): 段階 0 の個体が自分の「見に来る時刻」({@link G1Fate})になったら呼ぶ。そのときの状況で
- *   進化 / 何もしない を点で決め、進化なら予算を払う(根付き・苗床は区切り 2 以降でここへ足す)。経路探索はしない・サーバースレッドで軽く。</li>
+ *   <li>2026-11-23 片付け E: 段階 0 の個体を 1 体ずつ見に来て道(進化・根付き・苗床)を選ぶ判断(visit・score)は消した。
+ *   11-21 から前線と部隊(front/)が受け持つ。</li>
  * </ul>
  * 数はどれも {@link DirectorTable}({@code director.json})の【仮】。拠点の記憶・学ぶ・貯めて使う・弱い所を突くは第 2・3 段。
  */
@@ -55,92 +55,9 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         }
     }
 
-    /** 判断の入力(テストは作って {@link #score} に渡す)。 */
-    public record Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
-                         double forestDistance, double baseNear, double dangerNear, double rootDanger) {
-        /** 危ない所を見ない個体(第 2 段の形)。 */
-        public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
-                      double forestDistance, double baseNear) {
-            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, baseNear, 0.0D, 0.0D);
-        }
-
-        /** 拠点を見ない個体(第 1 段のテストの形)。 */
-        public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays,
-                      double forestDistance) {
-            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, forestDistance, 0.0D, 0.0D, 0.0D);
-        }
-
-        /** 苗床を選べない個体(区切り 5 までのテストの形)。 */
-        public Inputs(boolean canEvolve, boolean canRoot, double budget, double playerDistance, double ageDays) {
-            this(canEvolve, canRoot, false, budget, playerDistance, ageDays, 0.0D);
-        }
-
-        /** 森の中(縁からの距離 0)にいる個体。 */
-        public Inputs(boolean canEvolve, boolean canRoot, boolean canNursery, double budget, double playerDistance, double ageDays) {
-            this(canEvolve, canRoot, canNursery, budget, playerDistance, ageDays, 0.0D);
-        }
-    }
-
-    /** 判断の結果と点(選べない道は負の無限大)。 */
-    public record Decision(Route route, double nothing, double evolve, double rooted, double nursery, String summary) {
-    }
-
     /** 段の強さで割った値段(強さ 0.1 未満は 0.1 とみなす)。 */
     public static double stagePrice(double cost, double strength) {
         return cost / Math.max(0.1D, Math.min(1.0D, strength));
-    }
-
-    /** 直前の {@link #visit} で払った値段(変われなかったときに戻す額)。 */
-    private double lastPrice;
-
-    public double lastPrice() {
-        return lastPrice;
-    }
-
-    /** 道が開くゲート。 */
-    public static DirectorGates.Gate gateOf(Route route) {
-        return switch (route) {
-            case EVOLVE -> DirectorGates.Gate.EVOLVE;
-            case ROOTED -> DirectorGates.Gate.ROOTED;
-            case NURSERY, NONE -> DirectorGates.Gate.NURSERY;
-        };
-    }
-
-    /**
-     * 11-21 ユーザー決定: 進化・根付きは「進化先の危険度に応じた追加の費用」= 進化先の値段(危険度と型。mob_class.json)− 段階 0 の生産の値段。
-     * 表に無い進化先は前の決まった値段(costEvolve・costRooted)。苗床化は生産と同じ値段(段階 0 の 1 体 = costStageZero)。
-     */
-    public static double routeCost(DirectorTable t, Route route, AbstractParasitizedMonster mob) {
-        double stageZero = t.largeRaid.costStageZero * ForestEconomy.priceFactor();
-        switch (route) {
-            case EVOLVE -> {
-                com.yayuy.overgrownvegetation.entity.g1.G1Developed dev = G1Fate.developedOf(mob);
-                var e = dev != null ? DesignData.mobClass().get("developed_parasitized_" + dev.key()) : null;
-                return e != null ? Math.max(0.0D, DesignData.mobClass().priceOf(e) * ForestEconomy.priceFactor() - stageZero) : t.costEvolve;
-            }
-            case ROOTED -> {
-                G1Fate fate = mob.fate();
-                var form = fate != null ? fate.rootedForm() : null;
-                var e = form != null ? DesignData.mobClass().get(form.get()) : null;
-                return e != null ? Math.max(0.0D, DesignData.mobClass().priceOf(e) * ForestEconomy.priceFactor() - stageZero) : t.costRooted;
-            }
-            case NURSERY -> {
-                return stageZero;
-            }
-            default -> {
-                return 0.0D;
-            }
-        }
-    }
-
-    /** その道になるときに払う値段。 */
-    public static double cost(DirectorTable t, Route route) {
-        return switch (route) {
-            case EVOLVE -> t.costEvolve;
-            case ROOTED -> t.costRooted;
-            case NURSERY -> t.costNursery;
-            case NONE -> 0.0D;
-        };
     }
 
     private double budget;
@@ -508,60 +425,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
         setDirty();
     }
 
-    // ---------------------------------------------------------------- 判断
-
-    /**
-     * 点を付けて道を選ぶ(純粋な計算。乱数は揺らぎだけ)。
-     * 何もしない = {@code nothingBase}。進化 = 進化体のある種で予算が足りるときだけ、
-     * {@code evolveBase} + 近くのプレイヤー(0〜1)× {@code evolvePlayerNear} + 起き上がってからの日数(0〜1)× {@code evolveAge}。
-     */
-    public static Decision score(DirectorTable t, Inputs in, RandomSource random) {
-        double nothing = jitter(t.nothingBase, t, random);
-        double evolve = Double.NEGATIVE_INFINITY;
-        if (in.canEvolve() && in.budget() + 1.0E-9D >= t.costEvolve) {
-            double near = Math.max(0.0D, 1.0D - in.playerDistance() / t.playerNearBlocks);
-            double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            evolve = jitter(t.evolveBase + t.evolvePlayerNear * near + t.evolveAge * age + t.base.evolveTowardBase * Math.max(0.0D, Math.min(1.0D, in.baseNear()))
-                    + t.kills.evolveTowardDanger * Math.max(0.0D, Math.min(1.0D, in.dangerNear())), t, random); // 学ぶ: 危ない所の近くは進化しやすい(第 3 段)
-        }
-        // 根付き(区切り 2): 根付きの姿のある種で予算が足りるときだけ。rootedBase + 起き上がってからの日数 × rootedAge。
-        // 「拠点と森の間に置く」(D-16)は拠点の記憶(第 2 段)が入ってから点に足す
-        double rooted = Double.NEGATIVE_INFINITY;
-        if (in.canRoot() && in.budget() + 1.0E-9D >= t.costRooted) {
-            double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            // 学ぶ(11-14 ユーザー): 遠距離でない根付きは、危ない所でも「ある程度は」根付く = 点を下げる(遠距離の根付きは離れて根付くので下げない)
-            double danger = 1.0D - t.kills.rootedDangerFactor * Math.max(0.0D, Math.min(1.0D, in.rootDanger()));
-            rooted = jitter((t.rootedBase + t.rootedAge * age) * danger, t, random);
-        }
-        Route route = Route.NONE;
-        double best = nothing;
-        if (evolve > best) {
-            route = Route.EVOLVE;
-            best = evolve;
-        }
-        if (rooted > best) {
-            route = Route.ROOTED;
-            best = rooted;
-        }
-        // 苗床(区切り 6): 苗床の姿のある種で予算が足りるときだけ。nurseryBase + 起き上がってからの日数 × nurseryAge。
-        // 湿った暗がりは要らない(D-17)。森から離れてからなる(歩くのは根付きと同じ)
-        double nursery = Double.NEGATIVE_INFINITY;
-        if (in.canNursery() && in.budget() + 1.0E-9D >= t.costNursery) {
-            double age = Math.min(1.0D, Math.max(0.0D, in.ageDays()) / t.ageRefDays);
-            // 11-14 ユーザー決定(R6-3)「苗床は森から離れれば離れるほど選ばれやすく」: 見に来たときの、その個体と森の縁との距離で点を上げる
-            // (nurseryFarBlocks で頭打ち。森が見当たらない = 十分に遠い)。式と数は【仮】
-            double far = Math.min(1.0D, Math.max(0.0D, in.forestDistance()) / t.nurseryFarBlocks);
-            nursery = jitter(t.nurseryBase + t.nurseryAge * age + t.nurseryFar * far, t, random);
-        }
-        if (nursery > best) {
-            route = Route.NURSERY;
-        }
-        String summary = String.format(Locale.ROOT, "%s(何もしない %.2f / 進化 %s / 根付き %s / 苗床 %s。予算 %.1f・人 %s・起きてから %.1f 日・森の縁から %s)",
-                route.label, nothing, fmt(evolve), fmt(rooted), fmt(nursery),
-                in.budget(), in.playerDistance() == Double.MAX_VALUE ? "なし" : String.format(Locale.ROOT, "%.0f", in.playerDistance()),
-                in.ageDays(), Double.isInfinite(in.forestDistance()) ? "遠い" : String.format(Locale.ROOT, "%.0f", in.forestDistance()));
-        return new Decision(route, nothing, evolve, rooted, nursery, summary);
-    }
+    // ---------------------------------------------------------------- 拠点
 
     /** いちばん近い認識した拠点(真ん中まで evolveBaseBlocks 以内)。無ければ null。 */
     @Nullable
@@ -579,90 +443,6 @@ public final class ForestDirector extends SavedData implements ForestBudget {
             }
         }
         return best;
-    }
-
-    /** 危ない所への近さ(0〜1。学ぶが開いていなければ 0。進化の点に足す)。 */
-    public static double dangerNear(ServerLevel level, double x, double z) {
-        if (!DirectorGates.open(level, DirectorGates.Gate.LEARN)) return 0.0D;
-        return dangerNearRaw(level, x, z);
-    }
-
-    /** 危ない所への近さ(フェーズを見ない。根付きの点に使う = 根付きは F2 から)。 */
-    public static double dangerNearRaw(ServerLevel level, double x, double z) {
-        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
-        return KillMemory.get(level.getServer()).near(x, z, DesignData.director().kills.dangerBlocks, BaseMemory.today(level.getServer()));
-    }
-
-    /** 認識した拠点への近さ(0〜1。真ん中で 1、evolveBaseBlocks で 0)。D-8「拠点の方角で 1 段目へ進化させやすく」。 */
-    public static double baseNear(ServerLevel level, double x, double z) {
-        if (level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return 0.0D;
-        BaseMemory.Base b = nearestRecognized(level, x, z);
-        if (b == null) return 0.0D;
-        double d = Math.sqrt((b.centerX() - x) * (b.centerX() - x) + (b.centerZ() - z) * (b.centerZ() - z));
-        return Math.max(0.0D, 1.0D - d / DesignData.director().base.evolveBaseBlocks);
-    }
-
-    private static String fmt(double v) {
-        return Double.isFinite(v) ? String.format(Locale.ROOT, "%.2f", v) : "-";
-    }
-
-    private static double jitter(double v, DirectorTable t, RandomSource random) {
-        return v * (1.0D + t.jitter * (random.nextDouble() * 2.0D - 1.0D));
-    }
-
-    /**
-     * 升(4×4 チャンク。生態系の台帳と同じ区切り)ごとの根付きの上限(11-17 深夜 ユーザー決定 (b)「升ごとに上限」)。根付きは枯れないので、
-     * 満ちた升では根付きを選べなくして、進化・苗床へ回す。数えるのは読み込まれている根付きだけ。上限は director.json の rootedPerCell【仮】(0 = 上限なし)。
-     */
-    public static boolean rootRoom(ServerLevel level, net.minecraft.core.BlockPos pos) {
-        int cap = DesignData.director().rootedPerCell;
-        if (cap <= 0) return true;
-        int x0 = (pos.getX() >> 6) << 6, z0 = (pos.getZ() >> 6) << 6;
-        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(x0, level.getMinBuildHeight(), z0, x0 + 64, level.getMaxBuildHeight(), z0 + 64);
-        return level.getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.RootedParasitized.class, box, net.minecraft.world.entity.Entity::isAlive).size() < cap;
-    }
-
-    /**
-     * 段階 0 の 1 体を見に来た。道を決め、進化なら予算を払う(前兆の間に倒されても戻さない = 森の損。【仮】)。
-     *
-     * @param bornAt この個体が起き上がった(世界に出た)ゲーム時刻
-     */
-    public Decision visit(ServerLevel level, AbstractParasitizedMonster mob, long bornAt) {
-        DirectorTable t = DesignData.director();
-        Player nearest = level.getNearestPlayer(mob.getX(), mob.getY(), mob.getZ(), -1.0D,
-                p -> !p.isSpectator() && !((Player) p).isCreative());
-        double playerDist = nearest != null ? nearest.distanceTo(mob) : Double.MAX_VALUE;
-        double ageDays = Math.max(0L, level.getGameTime() - bornAt) / 24000.0D;
-        G1Fate fate = mob.fate();
-        // フェーズで開いていない道は選べない(苗床 F1・根付き F2・進化 F3。DirectorGates)
-        Inputs in = new Inputs(G1Fate.developedOf(mob) != null && DirectorGates.open(level, DirectorGates.Gate.EVOLVE),
-                fate != null && fate.rootedForm() != null && DirectorGates.open(level, DirectorGates.Gate.ROOTED) && rootRoom(level, mob.blockPosition()),
-                fate != null && fate.nurseryForm() != null && DirectorGates.open(level, DirectorGates.Gate.NURSERY),
-                available(level), playerDist, ageDays,
-                fate != null ? fate.forest(level).distance(mob.position()) : 0.0D,
-                baseNear(level, mob.getX(), mob.getZ()),
-                dangerNear(level, mob.getX(), mob.getZ()),
-                DesignData.director().kills.isRanged(mob.species().key()) ? 0.0D : dangerNearRaw(level, mob.getX(), mob.getZ()));
-        Decision d = score(t, in, mob.getRandom());
-        // フェーズの小さな段: その道が開いたフェーズの中では、導入でまれ・定着で普通・最盛でいつも通り【仮】。
-        // (1) 選んだ道を強さの確率で通す(見送ったら何もしない = 予算が余っていてもまれ)
-        // (2) 値段を強さで割る(導入の 0.3 なら 3.3 倍。予算で頭打ちのときも、なる数が強さに比べて減る)
-        lastPrice = 0.0D;
-        double strength = d.route() == Route.NONE ? 1.0D : DirectorGates.strength(level, gateOf(d.route()));
-        if (d.route() != Route.NONE && !DirectorGates.roll(strength, mob.getRandom())) {
-            d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary() + "・段で見送り");
-        }
-        double price = d.route() == Route.NONE ? 0.0D : stagePrice(routeCost(t, d.route(), mob), strength);
-        EconomySoak.payRoute = d.route().name(); // 計測の間だけ(「G1 の道ほか」の中身)
-        boolean paidRoute = d.route() == Route.NONE || tryPay(level, price);
-        EconomySoak.payRoute = null;
-        if (!paidRoute) {
-            d = new Decision(Route.NONE, d.nothing(), d.evolve(), d.rooted(), d.nursery(), d.summary());
-        } else if (d.route() != Route.NONE) {
-            lastPrice = price;
-        }
-        record(d.route(), mob.species().key() + " → " + d.summary());
-        return d;
     }
 
     // ---------------------------------------------------------------- 苗床のスポナーの口(区切り 6。D-9・D-14)
@@ -818,9 +598,7 @@ public final class ForestDirector extends SavedData implements ForestBudget {
                 com.yayuy.overgrownvegetation.ecosystem.Ecosystem.incomeFactor(level)));
         out.add(ForestEconomy.describe(level));
         DirectorTable t = DesignData.director();
-        out.add(String.format(Locale.ROOT, "値段: 進化 %.0f・根付き %.0f・苗床 %.0f / これまでの判断: 進化 %d・根付き %d・苗床 %d・何もしない %d",
-                t.costEvolve, t.costRooted, t.costNursery, decided[Route.EVOLVE.ordinal()], decided[Route.ROOTED.ordinal()],
-                decided[Route.NURSERY.ordinal()], decided[Route.NONE.ordinal()]));
+        out.add(String.format(Locale.ROOT, "進化の値段 %.0f / これまでに進化させた %d", t.costEvolve, decided[Route.EVOLVE.ordinal()]));
         out.addAll(recent);
         return out;
     }

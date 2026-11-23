@@ -297,7 +297,7 @@ public final class ForestEconomy {
         if (!(e instanceof Mob m) || m.getHealth() <= 0.0F) return;
         double paid = paid(e);
         if (paid <= 0.0D) return;
-        if (!com.yayuy.overgrownvegetation.spawn.EnemySpawns.spawnedHere(m) && !m.getTags().contains(com.yayuy.overgrownvegetation.spawn.FogLurkers.TAG)) return;
+        if (!m.getTags().contains(com.yayuy.overgrownvegetation.spawn.FogLurkers.TAG)) return;
         e.getPersistentData().remove(PAID_KEY);
         double back = paid * table().despawnRefund;
         if (back <= 0.0D) return;
