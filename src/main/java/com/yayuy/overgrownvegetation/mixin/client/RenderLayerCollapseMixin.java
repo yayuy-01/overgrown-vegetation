@@ -22,6 +22,7 @@ import java.util.Map;
  * 自分のモデルで setupAnim し直すレイヤー(羊の毛など、{@code coloredCutoutModelCopyLayerRender})も、
  * 崩れ落ちの最中は死体の姿勢へ寄せる(2026-10-09)。描き終えたら戻す。
  */
+// 1.20.1: coloredCutoutModelCopyLayerRender の色は int 1 つではなく float 3 つ(赤・緑・青)。手続きの引数だけ合わせた
 @Mixin(RenderLayer.class)
 public abstract class RenderLayerCollapseMixin {
 
@@ -33,7 +34,7 @@ public abstract class RenderLayerCollapseMixin {
     private static <T extends LivingEntity> void overgrown_vegetation$collapseLayer(EntityModel<T> parent, EntityModel<T> model, ResourceLocation texture,
                                                                                     PoseStack poseStack, MultiBufferSource buffer, int packedLight, T entity,
                                                                                     float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw,
-                                                                                    float headPitch, float partialTick, int color, CallbackInfo ci) {
+                                                                                    float headPitch, float partialTick, float red, float green, float blue, CallbackInfo ci) {
         ClientCorpseCollapse.Collapse c = ClientCorpseCollapse.get(entity);
         if (c != null) {
             overgrown_vegetation$saved = CollapsePoser.applyParts(model, c, CollapsePoser.progress(entity, partialTick));
@@ -44,7 +45,7 @@ public abstract class RenderLayerCollapseMixin {
     private static <T extends LivingEntity> void overgrown_vegetation$restoreLayer(EntityModel<T> parent, EntityModel<T> model, ResourceLocation texture,
                                                                                    PoseStack poseStack, MultiBufferSource buffer, int packedLight, T entity,
                                                                                    float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw,
-                                                                                   float headPitch, float partialTick, int color, CallbackInfo ci) {
+                                                                                   float headPitch, float partialTick, float red, float green, float blue, CallbackInfo ci) {
         if (overgrown_vegetation$saved != null) {
             CollapsePoser.restore(overgrown_vegetation$saved);
             overgrown_vegetation$saved = null;

@@ -21,7 +21,9 @@ public class BucketItemNetherWaterMixin {
 
     @WrapOperation(
             method = "emptyContents(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/BlockHitResult;Lnet/minecraft/world/item/ItemStack;)Z",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/dimension/DimensionType;ultraWarm()Z"))
+            // 5 引数の emptyContents は Forge が足した物(SRG の名前が無い)ので remap = false。中の ultraWarm はバニラなので remap する。
+            remap = false,
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/dimension/DimensionType;ultraWarm()Z", remap = true))
     private boolean overgrown_vegetation$keepWaterInOvergrownNether(DimensionType type, Operation<Boolean> original,
                                                                     @Local(argsOnly = true) Level level,
                                                                     @Local(argsOnly = true) BlockPos pos) {

@@ -6,7 +6,7 @@ import com.yayuy.overgrownvegetation.research.Research;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.ResultContainer;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
  *
  * <p>バニラの「レシピ本に無い作り方は作れない」({@code doLimitedCrafting})と同じ所 ── {@code CraftingMenu.slotChangedCraftingGrid} の
  * {@code ResultContainer.setRecipeUsed} が false を返すと結果の枠が空になる ── に、研究の鍵を足す。持ち物の 2×2({@code InventoryMenu})も
- * 同じ関数を呼ぶ。クラフター(自動の作業台)は {@link CrafterResearchLockMixin} が塞ぐ(11-18 ユーザー決定 5)。
+ * 同じ関数を呼ぶ。クラフター(自動の作業台)は 1.20.1 に無い(本流の CrafterResearchLockMixin は 1.20.1 版で外した。決定 14)。
  */
 @Mixin(CraftingMenu.class)
 public abstract class CraftingMenuResearchLockMixin {
@@ -24,10 +24,10 @@ public abstract class CraftingMenuResearchLockMixin {
     @WrapOperation(
             method = "slotChangedCraftingGrid",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/inventory/ResultContainer;setRecipeUsed(Lnet/minecraft/world/level/Level;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/item/crafting/RecipeHolder;)Z"))
-    private static boolean overgrown$researchLock(ResultContainer result, Level level, ServerPlayer player, RecipeHolder<?> recipe,
+                    target = "Lnet/minecraft/world/inventory/ResultContainer;setRecipeUsed(Lnet/minecraft/world/level/Level;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/item/crafting/Recipe;)Z"))
+    private static boolean overgrown$researchLock(ResultContainer result, Level level, ServerPlayer player, Recipe<?> recipe,
                                                  Operation<Boolean> original) {
-        if (level.getServer() != null && Research.recipeLocked(level.getServer(), recipe.id())) {
+        if (level.getServer() != null && Research.recipeLocked(level.getServer(), recipe.getId())) {
             return false;
         }
         return original.call(result, level, player, recipe);

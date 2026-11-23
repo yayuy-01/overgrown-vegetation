@@ -53,8 +53,10 @@ public abstract class LevelRendererRainLookMixin {
     }
 
     @WrapOperation(method = "renderSnowAndRain", require = 0, at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/vertex/BufferBuilder;addVertex(FFF)Lcom/mojang/blaze3d/vertex/VertexConsumer;"))
-    private VertexConsumer overgrown_vegetation$rainVertex(BufferBuilder builder, float x, float y, float z, Operation<VertexConsumer> original) {
-        return original.call(builder, RainLook.shiftX(x, y, z), y, RainLook.shiftZ(x, y, z));
+            target = "Lcom/mojang/blaze3d/vertex/BufferBuilder;vertex(DDD)Lcom/mojang/blaze3d/vertex/VertexConsumer;"))
+    // 1.20.1: 本流の addVertex(float×3) は vertex(double×3)(同じくカメラからの相対の位置)。ずらしの計算は float のまま
+    private VertexConsumer overgrown_vegetation$rainVertex(BufferBuilder builder, double x, double y, double z, Operation<VertexConsumer> original) {
+        float fx = (float) x, fy = (float) y, fz = (float) z;
+        return original.call(builder, (double) RainLook.shiftX(fx, fy, fz), y, (double) RainLook.shiftZ(fx, fy, fz));
     }
 }

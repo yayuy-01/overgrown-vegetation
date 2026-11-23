@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 植物側の Mob の地上の経路に、絡む根の縄を上る節を足す(2026-11-20 崖の汚染。{@link RootPath})。
- * 植物側でない Mob の経路は変えない。protected の {@code mob}・{@code currentContext}・{@code getNode} を使うため、親の NodeEvaluator を継いだ形にする。
+ * 植物側でない Mob の経路は変えない。protected の {@code mob}・{@code level}・{@code getNode} を使うため、親の NodeEvaluator を継いだ形にする。
  */
 @Mixin(WalkNodeEvaluator.class)
 public abstract class WalkNodeEvaluatorRootMixin extends NodeEvaluator implements RootPath.NodeSource {
@@ -49,14 +49,14 @@ public abstract class WalkNodeEvaluatorRootMixin extends NodeEvaluator implement
     @Inject(method = "getNeighbors", at = @At("RETURN"), cancellable = true)
     private void overgrown$addRootClimbNodes(Node[] outputArray, Node node, CallbackInfoReturnable<Integer> cir) {
         Mob m = this.mob;
-        if (m == null || this.currentContext == null) return;
+        if (m == null || this.level == null) return;
         if (m != this.overgrown$checkedMob) {
             this.overgrown$checkedMob = m;
             this.overgrown$plantSide = PlantSideRules.isPlantSide(m);
         }
         if (!this.overgrown$plantSide) return;
         int count = cir.getReturnValueI();
-        int added = RootPath.addNeighbors(this.currentContext, node, outputArray, count, this.entityHeight, this);
+        int added = RootPath.addNeighbors(this.level, node, outputArray, count, this.entityHeight, this);
         if (added > 0) cir.setReturnValue(count + added);
     }
 }

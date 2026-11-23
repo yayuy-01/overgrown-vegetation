@@ -23,9 +23,10 @@ public abstract class LevelRendererSkyColorMixin {
 
     @Inject(method = "renderSky", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/VertexBuffer;unbind()V", ordinal = 0, shift = At.Shift.AFTER),
             require = 0)
-    private void overgrown_vegetation$skyColors(Matrix4f frustumMatrix, Matrix4f projectionMatrix, float partialTick, Camera camera, boolean isFoggy,
+    private void overgrown_vegetation$skyColors(com.mojang.blaze3d.vertex.PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera, boolean isFoggy,
                                                 Runnable skyFogSetup, CallbackInfo ci) {
-        SkyColors.draw(frustumMatrix, projectionMatrix, partialTick, camera);
+        // 1.20.1: renderSky の 1 つ目は PoseStack(本流の frustumMatrix = 空の箱を描く時の行列 = poseStack.last().pose())
+        SkyColors.draw(poseStack.last().pose(), projectionMatrix, partialTick, camera);
     }
 
     @WrapOperation(method = "renderSky", at = @At(value = "INVOKE",

@@ -1,7 +1,6 @@
 package com.yayuy.overgrownvegetation.mixin.client;
 
 import com.yayuy.overgrownvegetation.client.atmosphere.EyeAdaptation;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,10 +14,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GameRenderer.class)
 public abstract class GameRendererEyeAdaptMixin {
 
-    @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;)V", shift = At.Shift.AFTER),
+    @Inject(method = "render(FJZ)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(FJLcom/mojang/blaze3d/vertex/PoseStack;)V", shift = At.Shift.AFTER),
             require = 0)
-    private void overgrownvegetation$eyeAdapt(DeltaTracker deltaTracker, boolean renderLevel, CallbackInfo ci) {
+    private void overgrownvegetation$eyeAdapt(float partialTicks, long nanoTime, boolean renderLevel, CallbackInfo ci) {
         // 光るもののにじみ(11-13 仕上げ B)を先に: 目の慣れのまぶしさは、にじみの乗った画面に掛かる。
         // 隙間と根元の陰り(簡易 AO)とフェーズの合図の空のにじみは、ここではなく描画の段 AFTER_LEVEL で掛ける(手の前。ここでは奥行きがもう消されている)。
         com.yayuy.overgrownvegetation.client.atmosphere.GlowBloom.renderPost();

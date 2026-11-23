@@ -35,7 +35,8 @@ public abstract class CreateWorldScreenGameTabMixin {
             return original.call(rows, child, settings);
         }
         int gap = 4;
-        LinearLayout line = LinearLayout.horizontal().spacing(gap);
+        // 1.20.1 の LinearLayout には spacing が無い。元の幅のまま横に並べると、余りの幅(= gap)が子の間に入る。
+        LinearLayout line = new LinearLayout(cycle.getWidth(), cycle.getHeight(), LinearLayout.Orientation.HORIZONTAL);
         cycle.setWidth(cycle.getWidth() - LeafIconButton.SIZE - gap);
         line.addChild(cycle);
         line.addChild(ClientWorldDifficulty.createWorldButton());

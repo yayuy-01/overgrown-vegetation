@@ -37,7 +37,7 @@ public abstract class ExtraLayerCollapseMixin {
         if (entity instanceof LivingEntity living) {
             ClientCorpseCollapse.Collapse c = ClientCorpseCollapse.get(living);
             if (c != null) {
-                float pt = net.minecraft.client.Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+                float pt = net.minecraft.client.Minecraft.getInstance().getPartialTick();
                 overgrown_vegetation$saved = CollapsePoser.applyParts(model, c, CollapsePoser.progress(living, pt));
             }
         }

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(ItemStack.class)
 public abstract class ItemStackDirtWearMixin {
 
-    @ModifyVariable(method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
+    @ModifyVariable(method = "hurtAndBreak(ILnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private int overgrown_vegetation$dirtyGearWearsFaster(int amount) {
         return GearDirt.wearAmount((ItemStack) (Object) this, amount);

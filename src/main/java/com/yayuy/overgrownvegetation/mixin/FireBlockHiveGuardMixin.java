@@ -37,7 +37,8 @@ public abstract class FireBlockHiveGuardMixin {
     @org.spongepowered.asm.mixin.Unique
     private static final ThreadLocal<BlockState> overgrown_vegetation$burning = new ThreadLocal<>();
 
-    @Inject(method = "checkBurnOut", at = @At("HEAD"), cancellable = true)
+    // 1.20.1: 本流の checkBurnOut は Forge が tryCatchFire に名を変えて面の引数を足した物(SRG の名前が無い)ので remap = false。
+    @Inject(method = "tryCatchFire", at = @At("HEAD"), cancellable = true, remap = false)
     private void overgrown_vegetation$burnOut(Level level, BlockPos pos, int chance, RandomSource random, int age, Direction face,
                                               CallbackInfo ci) {
         if (!(level instanceof ServerLevel server)) return;
@@ -65,7 +66,7 @@ public abstract class FireBlockHiveGuardMixin {
     }
 
     /** 原木が燃え尽きたら(火が残っても消えても)、幹が焼け切れたかを見る(段 B)。 */
-    @Inject(method = "checkBurnOut", at = @At("RETURN"))
+    @Inject(method = "tryCatchFire", at = @At("RETURN"), remap = false)
     private void overgrown_vegetation$afterBurnOut(Level level, BlockPos pos, int chance, RandomSource random, int age, Direction face,
                                                    CallbackInfo ci) {
         BlockState before = overgrown_vegetation$burning.get();

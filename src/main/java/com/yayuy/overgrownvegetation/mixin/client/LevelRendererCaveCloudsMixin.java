@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LevelRendererCaveCloudsMixin {
 
     private static final String RENDER_CLOUDS =
-            "Lnet/minecraft/client/renderer/LevelRenderer;renderClouds(Lcom/mojang/blaze3d/vertex/PoseStack;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;FDDD)V";
+            "Lnet/minecraft/client/renderer/LevelRenderer;renderClouds(Lcom/mojang/blaze3d/vertex/PoseStack;Lorg/joml/Matrix4f;FDDD)V";
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = RENDER_CLOUDS), require = 0)
     private void overgrown_vegetation$surfaceFogForClouds(CallbackInfo ci) {

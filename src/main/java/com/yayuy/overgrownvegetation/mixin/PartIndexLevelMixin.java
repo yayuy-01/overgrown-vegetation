@@ -29,14 +29,14 @@ public abstract class PartIndexLevelMixin implements PartIndex.Holder {
     }
 
     @WrapOperation(method = "getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;)Ljava/util/List;",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getPartEntities()Ljava/util/Collection;"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getPartEntities()Ljava/util/Collection;", remap = false))
     private Collection<PartEntity<?>> overgrown_vegetation$nearPartsA(Level level, Operation<Collection<PartEntity<?>>> original,
                                                                       @Local(argsOnly = true) AABB box) {
         return this.overgrown_vegetation$partIndex.candidates(level, original.call(level), box);
     }
 
     @WrapOperation(method = "getEntities(Lnet/minecraft/world/level/entity/EntityTypeTest;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;Ljava/util/List;I)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getPartEntities()Ljava/util/Collection;"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getPartEntities()Ljava/util/Collection;", remap = false))
     private Collection<PartEntity<?>> overgrown_vegetation$nearPartsB(Level level, Operation<Collection<PartEntity<?>>> original,
                                                                       @Local(argsOnly = true) AABB box) {
         return this.overgrown_vegetation$partIndex.candidates(level, original.call(level), box);

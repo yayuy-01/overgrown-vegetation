@@ -19,9 +19,9 @@ import java.util.function.Consumer;
 @Mixin(ItemStack.class)
 public abstract class ArmorAttachBreakMixin {
 
-    @Inject(method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
+    @Inject(method = "hurtAndBreak(ILnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;shrink(I)V"))
-    private void overgrown_vegetation$dropAttachmentsOnBreak(int amount, ServerLevel level, LivingEntity entity, Consumer<Item> onBreak, CallbackInfo ci) {
+    private void overgrown_vegetation$dropAttachmentsOnBreak(int amount, LivingEntity entity, Consumer<LivingEntity> onBreak, CallbackInfo ci) {
         ItemStack self = (ItemStack) (Object) this;
         if (!ArmorAttachments.hasAny(self)) return;
         ArmorAttachments.giveBack(entity, ArmorAttachments.detachAll(self));

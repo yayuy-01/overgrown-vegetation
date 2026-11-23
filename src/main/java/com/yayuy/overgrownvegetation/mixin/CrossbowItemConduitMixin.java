@@ -17,8 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(CrossbowItem.class)
 public abstract class CrossbowItemConduitMixin {
 
-    @Inject(method = "getChargeDuration", at = @At("RETURN"), cancellable = true)
-    private static void overgrown_vegetation$conduitFastLoad(ItemStack stack, LivingEntity shooter, CallbackInfoReturnable<Integer> cir) {
+    @Inject(method = "getChargeDuration(Lnet/minecraft/world/item/ItemStack;)I", at = @At("RETURN"), cancellable = true)
+    private static void overgrown_vegetation$conduitFastLoad(ItemStack stack, CallbackInfoReturnable<Integer> cir) {
         int vanilla = cir.getReturnValueI();
         int ours = ConduitWeapons.chargeDuration(stack, vanilla);
         if (ours != vanilla) cir.setReturnValue(ours);
