@@ -1,3 +1,3 @@
 # 移植の元(本流 main のコミット)。次の追い付きは「git diff --name-status -M <この SHA> <新しい印> -- src/main」で差分を出す。
-a4be9460ab64abb698a7d13d027e7c04c0e5c174
-# 取り込んだ日: 2026-11-23(82f05fcc)・追い付き 2026-11-23 夜(a4be9460、port-tools/catchup-merge.sh)。data/ は取り込んでいない(port-tools/DataPort.java が作る)。1.20.1 だけの物: 起動クラス・META-INF・mixins.json・pack.mcmeta
+e7015a2f609dcf05ab0d38f3efd9cc48fbd79d9a
+# 取り込んだ日: 2026-11-23(82f05fcc)・追い付き 2026-11-23 夜(a4be9460 → e7015a2f の README・版、port-tools/catchup-merge.sh)。data/ は取り込んでいない(port-tools/DataPort.java が作る)。1.20.1 だけの物: 起動クラス・META-INF・mixins.json・pack.mcmeta
