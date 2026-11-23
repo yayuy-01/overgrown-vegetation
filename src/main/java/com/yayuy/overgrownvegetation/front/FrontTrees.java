@@ -477,7 +477,7 @@ public final class FrontTrees extends SavedData {
     private static double averagePrice(VirtualHordes hordes, Fronts.Front f) {
         double sum = 0.0D;
         int n = 0;
-        for (VirtualHordes.Swarm u : hordes.swarms()) {
+        for (VirtualHordes.Swarm u : hordes.ofFront(f.id)) {
             if (u.front() != f.id) continue;
             sum += value(u);
             n += u.size();
@@ -499,7 +499,7 @@ public final class FrontTrees extends SavedData {
         FrontTable t = DesignData.front();
         int total = 0, defend = 0;
         List<VirtualHordes.Swarm> src = new ArrayList<>();
-        for (VirtualHordes.Swarm u : hordes.swarms()) {
+        for (VirtualHordes.Swarm u : hordes.ofFront(f.id)) {
             if (u.front() != f.id) continue;
             int n = u.size() + real.get(u.id());
             total += n;

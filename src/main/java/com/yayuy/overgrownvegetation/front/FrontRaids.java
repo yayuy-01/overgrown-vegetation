@@ -349,7 +349,7 @@ public final class FrontRaids extends SavedData {
     static int raidable(VirtualHordes hordes, Fronts.Front f, Long2IntOpenHashMap real) {
         FrontTable t = DesignData.front();
         int total = 0, defend = 0, defendVirtual = 0, expand = 0;
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id) continue;
             int n = s.size() + real.get(s.id());
             total += n;
@@ -369,7 +369,7 @@ public final class FrontRaids extends SavedData {
         FrontTable t = DesignData.front();
         int total = 0, defend = 0;
         List<VirtualHordes.Swarm> src = new ArrayList<>();
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id) continue;
             int n = s.size() + real.get(s.id());
             total += n;

@@ -190,11 +190,15 @@ public final class ForestUpkeep {
     /** 仮想の群れの頭数(本物になった分は読み込まれた Mob として数える)。 */
     static void sampleVirtualHordes(ServerLevel level, Sink sink) {
         if (level.dimension() != Level.OVERWORLD || level.getServer() == null) return;
+        // 種ごとの値段はこの数えの間は変わらない(器官の一覧をなめる苗床の倍率を、数万の部隊 × 種ごとに数え直していた。11-23 サーバーの tick の軽量化)
+        java.util.Map<net.minecraft.resources.ResourceLocation, Double> prices = new java.util.HashMap<>();
         for (com.yayuy.overgrownvegetation.horde.VirtualHordes.Swarm s : com.yayuy.overgrownvegetation.horde.VirtualHordes.get(level.getServer()).swarms()) {
             boolean in = ForestEconomy.inForest(level, s.x(), s.z());
             for (var c : s.counts().entrySet()) {
-                EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(c.getKey());
-                double p = unitPrice(type, com.yayuy.overgrownvegetation.front.FrontDirector.isG1(type)); // 段階 0 の G1 は生産の値段(100)
+                double p = prices.computeIfAbsent(c.getKey(), id -> {
+                    EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(id);
+                    return unitPrice(type, com.yayuy.overgrownvegetation.front.FrontDirector.isG1(type)); // 段階 0 の G1 は生産の値段(100)
+                });
                 if (p > 0.0D && c.getValue() > 0) sink.add(p * c.getValue(), in);
             }
         }

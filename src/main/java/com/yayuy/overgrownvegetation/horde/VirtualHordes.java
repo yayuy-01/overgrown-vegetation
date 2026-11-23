@@ -345,6 +345,7 @@ public final class VirtualHordes extends SavedData {
         }
 
         public void setFront(int front) {
+            if (this.front != front) layoutChanged();
             this.front = front;
         }
 
@@ -364,8 +365,58 @@ public final class VirtualHordes extends SavedData {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
     }
 
+    /** 全部の群れ・部隊(並びは足した順)。並びを変えるとき(足す・抜く・前線を替える)は {@link #layoutChanged()} を呼ぶ(下の索引のため)。 */
     public List<Swarm> swarms() {
         return swarms;
+    }
+
+    // ---- 11-23 サーバーの tick の軽量化: 前線ごとの部隊の索引(数万の部隊を樹域ごとに何度もなめていた。結果は全部なめるのと同じ)
+    /** swarms の並び・部隊の前線が変わるたびに上げる(全部の VirtualHordes で共通。上がったら索引を作り直す)。 */
+    private static long layoutVersion;
+    private long frontIndexVersion = -1L;
+    private final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<List<Swarm>> byFront = new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
+
+    static void layoutChanged() {
+        layoutVersion++;
+    }
+
+    /**
+     * 前線 front の部隊を swarms() と同じ並びで(= swarms() を front で絞ったもの)。返した並びは後から書き換えない
+     * (並びが変わると新しい並びを作る)ので、なめている途中に部隊を足し引きしても壊れない。書き換えない。
+     */
+    public List<Swarm> ofFront(int front) {
+        if (frontIndexVersion != layoutVersion) {
+            byFront.clear();
+            for (Swarm s : swarms) {
+                List<Swarm> l = byFront.get(s.front);
+                if (l == null) byFront.put(s.front, l = new ArrayList<>());
+                l.add(s);
+            }
+            frontIndexVersion = layoutVersion;
+        }
+        List<Swarm> l = byFront.get(front);
+        if (l == null) l = List.of();
+        // 検算: GameTest のサーバーでは毎回、全部なめた答えと比べる(食い違えば落とす)
+        if (net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer() instanceof net.minecraft.gametest.framework.GameTestServer) {
+            List<Swarm> brute = new ArrayList<>();
+            for (Swarm s : swarms) if (s.front == front) brute.add(s);
+            if (!brute.equals(l)) throw new IllegalStateException("前線 " + front + " の部隊の索引が食い違う: 索引 " + l.size() + " / 全部 " + brute.size());
+        }
+        return java.util.Collections.unmodifiableList(l);
+    }
+
+    /** 末尾に部隊を足す(索引が今のものなら作り直さずに足す。前の並びは書き換えない)。 */
+    private void append(Swarm s) {
+        boolean current = frontIndexVersion == layoutVersion;
+        swarms.add(s);
+        layoutChanged();
+        if (!current) return;
+        List<Swarm> old = byFront.get(s.front);
+        List<Swarm> l = old == null ? new ArrayList<>(1) : new ArrayList<>(old.size() + 1);
+        if (old != null) l.addAll(old);
+        l.add(s);
+        byFront.put(s.front, l);
+        frontIndexVersion = layoutVersion;
     }
 
     public static boolean enabled() {
@@ -405,7 +456,7 @@ public final class VirtualHordes extends SavedData {
             n += k;
         }
         if (n == 0) return null;
-        swarms.add(s);
+        append(s);
         setDirty();
         return s;
     }
@@ -430,7 +481,7 @@ public final class VirtualHordes extends SavedData {
         s.purpose = purpose;
         s.purposeSince = now;
         s.arrivedAt = now; // 作った所 = 持ち場
-        swarms.add(s);
+        append(s);
         setDirty();
         return s;
     }
@@ -475,7 +526,10 @@ public final class VirtualHordes extends SavedData {
 
     /** 部隊を消す(使い切った・合わさった)。 */
     public void removeUnit(Swarm s) {
-        if (swarms.remove(s)) setDirty();
+        if (swarms.remove(s)) {
+            layoutChanged();
+            setDirty();
+        }
     }
 
     /** 変えたことを保存に知らせる(前線の側から)。 */
@@ -621,8 +675,13 @@ public final class VirtualHordes extends SavedData {
         Iterator<Swarm> it = swarms.iterator();
         while (it.hasNext()) {
             Swarm s = it.next();
+            // 着いた部隊は何もしない(下の 2 つの分かれ道のどちらでも continue)。頭数を数える前に抜ける(11-23 サーバーの tick の軽量化: 数万の部隊の大半がこれ)
+            if (s.front >= 0 && s.arrivedAt >= 0L) continue;
             if (s.size() <= 0) {
-                if (!s.unit()) it.remove(); // 部隊の空は前線の側が片付ける(実物が戻る先)
+                if (!s.unit()) {
+                    it.remove();
+                    layoutChanged();
+                } // 部隊の空は前線の側が片付ける(実物が戻る先)
                 continue;
             }
             if (s.arrivedAt >= 0L) {
@@ -631,6 +690,7 @@ public final class VirtualHordes extends SavedData {
                 if (now - s.arrivedAt > t.virtualLifeAfterArriveTicks) {
                     expired += s.size();
                     it.remove();
+                    layoutChanged();
                 }
                 continue;
             }
@@ -640,6 +700,7 @@ public final class VirtualHordes extends SavedData {
                 if (s.retreating) {
                     retreated += s.size(); // 引き返して森に着いた: 消える
                     it.remove();
+                    layoutChanged();
                     continue;
                 }
                 s.arrivedAt = now;
@@ -699,8 +760,10 @@ public final class VirtualHordes extends SavedData {
         // 襲撃の上限の数え(拠点ごとの攻め手)はこの回に 1 度だけ数え、出した分を足していく(11-18 見直し ③6。前は群れごとに全エンティティを数え直した)
         it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap raidCount = new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
         // 11-21 戦っている部隊を先に出す: 行進する部隊(狩る・襲う・古い行進)→ ほか(守る・広げる・建てる)の順。同じ順の中は前の並びのまま
-        List<Swarm> order = new ArrayList<>(swarms);
-        order.sort(java.util.Comparator.comparingInt(s -> s.purpose.marches ? 0 : 1));
+        // 安定な並べ替えと同じ並び(行進する部隊 → ほか、それぞれ前の並びのまま)を 2 回の振り分けで作る(11-23 サーバーの tick の軽量化: 数万件の並べ替えをやめた)
+        List<Swarm> order = new ArrayList<>(swarms.size());
+        for (Swarm s : swarms) if (s.purpose.marches) order.add(s);
+        for (Swarm s : swarms) if (!s.purpose.marches) order.add(s);
         for (Swarm s : order) {
             s.waiting = false;
             if (s.retreating || nearestPlayerSq(level, s.x, s.z) > near) continue;
@@ -774,7 +837,7 @@ public final class VirtualHordes extends SavedData {
             if (raidKey != null && raidCount.containsKey(raidKey.intValue())) raidCount.addTo(raidKey.intValue(), placed);
             materialized += placed;
             if (s.size() <= 0) {
-                if (!s.unit()) swarms.remove(s); // 部隊は空になっても残す(実物が戻る先・補充の先)
+                if (!s.unit() && swarms.remove(s)) layoutChanged(); // 部隊は空になっても残す(実物が戻る先・補充の先)
             } else if (placed == 0) {
                 s.failures++;
                 placeFailures++;
@@ -883,7 +946,7 @@ public final class VirtualHordes extends SavedData {
             }
             if (into == null) {
                 into = new Swarm(nextId++, m.getX(), m.getY(), m.getZ(), DesignData.perf().virtualSpeed, baseId, tg.x, tg.z, extra);
-                swarms.add(into);
+                append(into);
             }
             // 本物にした分だけ進む番号は戻らないので、往復を繰り返すと際限なく増え、群れの真ん中から遠くに本物が出た・クライアントの鍵
             // (群れの id × 4096 + 番号)が隣の群れとぶつかった(11-18 見直し ③9)。戻すとき(プレイヤーから遠い)に大きければ 0 からに戻す
@@ -910,7 +973,7 @@ public final class VirtualHordes extends SavedData {
             s.purpose = UnitPurpose.byName(pd.getString(PURPOSE_KEY));
             s.purposeSince = level.getGameTime();
             s.arrivedAt = level.getGameTime();
-            swarms.add(s);
+            append(s);
         }
         if (s.firstIndex > MAX_SWARM) s.firstIndex = 0;
         if (s.size() < MAX_SWARM) {
@@ -926,6 +989,7 @@ public final class VirtualHordes extends SavedData {
     public int clear() {
         int n = virtualHeads();
         swarms.clear();
+        layoutChanged();
         setDirty();
         return n;
     }

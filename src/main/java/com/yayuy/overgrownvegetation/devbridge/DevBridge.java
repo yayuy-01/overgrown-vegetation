@@ -466,6 +466,11 @@ public final class DevBridge {
             }
             case "shot" -> shot(mc, arg);
             case "wait" -> waitUntil = tick + Long.parseLong(arg);
+            case "ticklog" -> { // サーバーの tick の時間を次の N tick ぶん(11-23 サーバーの tick の軽量化)。ticklog <名前> <tick 数>
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null) return "ワールドの中";
+                log(TickLog.start(server, dir, arg, DevBridge::log));
+            }
             case "hold" -> {
                 // 右クリック(使う)を <tick> だけ押し続ける。押し始めは 1 回のクリックとして数える(長押しで使う道具が始まる)。
                 // 次の命令は待たない(押している間に look・shot ができる。待つなら続けて wait)。

@@ -339,7 +339,24 @@ public final class CorruptionRegistry {
      */
     public static boolean hasNoCorruptedForm(BlockState state) {
         init();
-        return resolveTarget(state) == null;
+        // 答えはブロックの状態とタグだけで決まるので覚えておく(砂の覆いの見回りが 1 マスごとにタグを順に引いていた。11-23 サーバーの tick の軽量化)。
+        // タグが読み直されたら忘れる。描画のスレッドからも呼ばれるので ConcurrentHashMap
+        Boolean memo = NO_FORM.get(state);
+        if (memo != null) return memo;
+        int gen = noFormGen;
+        boolean none = resolveTarget(state) == null;
+        if (gen == noFormGen) NO_FORM.put(state, none); // 引いている間にタグが読み直されたら覚えない
+        return none;
+    }
+
+    private static final java.util.concurrent.ConcurrentHashMap<BlockState, Boolean> NO_FORM = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile int noFormGen;
+
+    static {
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.TagsUpdatedEvent e) -> {
+            noFormGen++;
+            NO_FORM.clear();
+        });
     }
 
     /**

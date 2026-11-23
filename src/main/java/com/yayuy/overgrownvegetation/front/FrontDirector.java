@@ -404,19 +404,38 @@ public final class FrontDirector {
         PhaseData pd = PhaseData.get(level);
         it.unimi.dsi.fastutil.longs.LongArrayList[] edges = new it.unimi.dsi.fastutil.longs.LongArrayList[n];
         // 11-22 見直し: いちばん近い樹域は升の索引で引く(チャンク × 樹域の総当たりをやめた。結果は総当たりと同じ)
-        NearestIndex index = new NearestIndex(xs, zs);
-        pd.forEachOvergrownChunk(k -> {
-            int ccx = ChunkPos.getX(k), ccz = ChunkPos.getZ(k);
-            int best = index.nearest(ccx * 16.0D + 8.0D, ccz * 16.0D + 8.0D);
-            counts[best]++;
-            // 縁 = 4 方向のどれかが森でない過繁茂のチャンク(11-22 守りの持ち場)
-            if (!pd.isOvergrownKey(ChunkPos.asLong(ccx + 1, ccz)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx - 1, ccz))
-                    || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz + 1)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz - 1))) {
-                if (edges[best] == null) edges[best] = new it.unimi.dsi.fastutil.longs.LongArrayList();
-                edges[best].add(k);
-                EDGE_ALL.put(k, ids[best]);
+        // 11-23 サーバーの tick の軽量化: 台帳の 80 万チャンクで 1 分ごとに 1 秒止まっていた。台帳の並びを写し、
+        // チャンクごとの「いちばん近い樹域・縁か」(読むだけ)を切れ目ごとに並列で求め、数え・縁の並びは元の順で 1 本の糸で足す(結果は前と同じ)。
+        // 並列の間、主スレッドはここで待つので台帳は書き換わらない
+        long[] keys = new long[pd.overgrownLedgerSize()];
+        int[] m = {0};
+        pd.forEachOvergrownChunk(k -> keys[m[0]++] = k);
+        int total = m[0];
+        int[] bestOf = new int[total];
+        boolean[] edgeOf = new boolean[total];
+        int slices = Math.max(1, Math.min(Runtime.getRuntime().availableProcessors(), total / 16384));
+        java.util.stream.IntStream range = java.util.stream.IntStream.range(0, slices);
+        (slices > 1 ? range.parallel() : range).forEach(si -> {
+            NearestIndex index = new NearestIndex(xs, zs); // 引くたびに中で覚えを書くので切れ目ごとに 1 つ
+            int from = (int) ((long) total * si / slices), to = (int) ((long) total * (si + 1) / slices);
+            for (int i = from; i < to; i++) {
+                long k = keys[i];
+                int ccx = ChunkPos.getX(k), ccz = ChunkPos.getZ(k);
+                bestOf[i] = index.nearest(ccx * 16.0D + 8.0D, ccz * 16.0D + 8.0D);
+                // 縁 = 4 方向のどれかが森でない過繁茂のチャンク(11-22 守りの持ち場)
+                edgeOf[i] = !pd.isOvergrownKey(ChunkPos.asLong(ccx + 1, ccz)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx - 1, ccz))
+                        || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz + 1)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz - 1));
             }
         });
+        for (int i = 0; i < total; i++) {
+            int best = bestOf[i];
+            counts[best]++;
+            if (edgeOf[i]) {
+                if (edges[best] == null) edges[best] = new it.unimi.dsi.fastutil.longs.LongArrayList();
+                edges[best].add(keys[i]);
+                EDGE_ALL.put(keys[i], ids[best]);
+            }
+        }
         for (int i = 0; i < n; i++) {
             TERRITORY.put(ids[i], counts[i]);
             if (counts[i] > PEAK.get(ids[i])) PEAK.put(ids[i], counts[i]);
@@ -595,7 +614,7 @@ public final class FrontDirector {
             if (near.isEmpty()) continue;
             near.sort(java.util.Comparator.comparingDouble(g -> (g.x - f.x) * (g.x - f.x) + (g.z - f.z) * (g.z - f.z)));
             List<VirtualHordes.Swarm> mine = new ArrayList<>();
-            for (VirtualHordes.Swarm s : hordes.swarms()) {
+            for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
                 if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && real.get(s.id()) <= 0 && !REINFORCING.containsKey(s.id())
                         && !atFormingSpot(level, f, s.tx(), s.tz())) mine.add(s);
             }
@@ -755,7 +774,7 @@ public final class FrontDirector {
         for (Fronts.Front g : inner) {
             int all = 0, out = 0;
             List<VirtualHordes.Swarm> home = new ArrayList<>();
-            for (VirtualHordes.Swarm s : hordes.swarms()) {
+            for (VirtualHordes.Swarm s : hordes.ofFront(g.id)) {
                 if (s.front() != g.id || s.purpose() != UnitPurpose.DEFEND || s.size() <= 0) continue;
                 all += s.size();
                 if (REINFORCING.containsKey(s.id())) out += s.size();
@@ -879,7 +898,7 @@ public final class FrontDirector {
         // 作る所 = 前線の真ん中 + 過繁茂になった現地の苗床(出す所。11-21 夜)。作った数で順に回す
         List<double[]> spots = formingSpots(level, f);
         double[] at = spots.get((int) Math.floorMod(produced, (long) spots.size()));
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.size() < max && near(s, at[0], at[1], 8.0D) && near(s.tx(), s.tz(), at[0], at[1], 8.0D)) return s;
         }
         double y = surfaceY(level, at[0], at[1]);
@@ -898,7 +917,10 @@ public final class FrontDirector {
 
     /** (x, z) が前線の作る所(8 ブロック以内)か。 */
     static boolean atFormingSpot(ServerLevel level, Fronts.Front f, double x, double z) {
-        for (double[] p : formingSpots(level, f)) if (near(x, z, p[0], p[1], 8.0D)) return true;
+        // formingSpots と同じ所を、並びを作らずに見る(部隊 1 つごとに呼ばれる。11-23 サーバーの tick の軽量化)
+        if (near(x, z, f.x, f.z, 8.0D)) return true;
+        if (level.getServer() == null) return false;
+        for (FrontNurseries.Nursery n : FrontNurseries.get(level.getServer()).sitesOf(f.id)) if (near(x, z, n.x(), n.z(), 8.0D)) return true;
         return false;
     }
 
@@ -910,7 +932,7 @@ public final class FrontDirector {
         List<VirtualHordes.Swarm> mine = new ArrayList<>();
         int total = 0, defend = 0, expand = 0;
         double value = 0.0D;
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id) continue;
             mine.add(s);
             int n = s.size() + real.get(s.id());
@@ -982,7 +1004,7 @@ public final class FrontDirector {
         ForestDirector dir = ForestDirector.get(level);
         double reserve = reserve(level);
         double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id || s.size() <= 0) continue;
             int done = 0;
             int devNow = 0;
@@ -1083,7 +1105,7 @@ public final class FrontDirector {
         int max = DesignData.front().unitMax(DirectorGates.phase(level));
         double mb = DesignData.front().mergeBlocks;
         List<VirtualHordes.Swarm> at = new ArrayList<>();
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && !atFormingSpot(level, f, s.x(), s.z())) at.add(s);
         }
         for (int i = 0; i < at.size(); i++) {

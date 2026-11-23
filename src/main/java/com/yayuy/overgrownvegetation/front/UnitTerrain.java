@@ -26,7 +26,11 @@ public final class UnitTerrain {
 
     /** チャンク → 地形(覚えておく数の上限を超えたら全部忘れる)。 */
     private static final Long2ByteOpenHashMap CACHE = new Long2ByteOpenHashMap();
-    private static final int CACHE_MAX = 200_000;
+    /** 11-23 サーバーの tick の軽量化: 20 万だと部隊が広がった F7 で毎分のように溢れて全部忘れ、バイオームを引き直していた(答えは同じ。約 20 MB)。 */
+    private static final int CACHE_MAX = 1_000_000;
+    static {
+        CACHE.defaultReturnValue((byte) -1);
+    }
     /** テスト用: 地形の決め打ち(null で本物)。 */
     @Nullable
     public static java.util.function.ToIntBiFunction<Integer, Integer> terrainForTests;
@@ -43,7 +47,8 @@ public final class UnitTerrain {
         int cx = Mth.floor(x) >> 4, cz = Mth.floor(z) >> 4;
         if (terrainForTests != null) return (byte) terrainForTests.applyAsInt(cx, cz);
         long key = ChunkPos.asLong(cx, cz);
-        if (CACHE.containsKey(key)) return CACHE.get(key);
+        byte hit = CACHE.get(key); // 無ければ -1(引くのを 1 回に。11-23 サーバーの tick の軽量化)
+        if (hit >= 0) return hit;
         byte k = sample(level, cx, cz);
         if (CACHE.size() >= CACHE_MAX) CACHE.clear();
         CACHE.put(key, k);

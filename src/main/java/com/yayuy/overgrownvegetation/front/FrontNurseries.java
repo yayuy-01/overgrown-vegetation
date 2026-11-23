@@ -128,12 +128,32 @@ public final class FrontNurseries extends SavedData {
         return null;
     }
 
-    /** 前線 f の過繁茂になった苗床(出す所)。 */
+    /** 前線 f の過繁茂になった苗床(出す所。並びは nurseries と同じ・書き換えない)。11-23 サーバーの tick の軽量化: 部隊 1 つごとに全部の苗床をなめていたので、変わるまで覚えておく。 */
     public List<Nursery> sitesOf(int front) {
-        List<Nursery> out = new ArrayList<>();
-        for (Nursery n : nurseries) if (n.front == front && n.overgrown) out.add(n);
-        return out;
+        if (sitesVersion != version) {
+            sites.clear();
+            for (Nursery n : nurseries) {
+                if (!n.overgrown) continue;
+                List<Nursery> l = sites.get(n.front);
+                if (l == null) sites.put(n.front, l = new ArrayList<>());
+                l.add(n);
+            }
+            sitesVersion = version;
+        }
+        List<Nursery> l = sites.get(front);
+        if (l == null) l = List.of();
+        // 検算: GameTest のサーバーでは毎回、全部なめた答えと比べる
+        if (net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer() instanceof net.minecraft.gametest.framework.GameTestServer) {
+            List<Nursery> brute = new ArrayList<>();
+            for (Nursery n : nurseries) if (n.front == front && n.overgrown) brute.add(n);
+            if (!brute.equals(l)) throw new IllegalStateException("樹域 " + front + " の苗床の覚えが食い違う: " + l.size() + " / " + brute.size());
+        }
+        return java.util.Collections.unmodifiableList(l);
     }
+
+    /** 苗床の並び・森になったかが変わるたびに上げる(sitesOf の覚えを作り直す)。 */
+    private long version, sitesVersion = -1L;
+    private final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<List<Nursery>> sites = new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
 
     /**
      * 着いた広げる部隊 s が升 (cellX, cellZ) に苗床を作る(無ければ)。部隊の段階 0 を 1 体使い、苗床化の値段(生産と同じ)を払う。作れたら true。
@@ -155,6 +175,7 @@ public final class FrontNurseries extends SavedData {
         s.takeHeadsOf(g1, 1);
         Nursery n = new Nursery(cell, s.front(), level.getGameTime());
         nurseries.add(n);
+        version++;
         made++;
         setDirty();
         VirtualHordes.get(level.getServer()).touch();
@@ -170,6 +191,7 @@ public final class FrontNurseries extends SavedData {
         for (Nursery n : new ArrayList<>(nurseries)) {
             if (!n.overgrown && FrontDirector.cellForest(pd, n.cellX(), n.cellZ())) {
                 n.overgrown = true; // 森になった: 萌芽体は生まず、前線の出す所として残る
+                version++;
                 setDirty();
             }
             ensureReal(level, n);
@@ -255,6 +277,7 @@ public final class FrontNurseries extends SavedData {
         Nursery n = data.at(e.getPersistentData().getLong(KEY));
         if (n == null) return;
         data.nurseries.remove(n);
+        data.version++;
         destroyed++;
         data.setDirty();
         ForestUpkeep.invalidate();
@@ -275,6 +298,7 @@ public final class FrontNurseries extends SavedData {
 
     public void clearForTests() {
         nurseries.clear();
+        version++;
         setDirty();
     }
 
