@@ -24,7 +24,7 @@ public final class ForestUpkeepGameTests {
     @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus.MOD)
     public static final class Registration {
         @net.minecraftforge.eventbus.api.SubscribeEvent
-        public static void onRegisterGameTests(net.minecraftforge.event.RegisterGameTestsEvent event) {
+        public static void onRegisterForestUpkeepGameTests(net.minecraftforge.event.RegisterGameTestsEvent event) // 1.20.1: 受け手の名前をクラスごとに {
             event.register(ForestUpkeepGameTests.class);
         }
 

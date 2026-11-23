@@ -2,5 +2,4 @@
 # 2026-11-23 統合 I: 全部にした(F の仮の起動クラス devport/ と ported-sources.d/F-dev.txt は消した)。
 # 頭に ! を付けた行は外す物(Ant 形式)。
 com/yayuy/overgrownvegetation/**
-# G8 GameTest: gametest/ はまだ 1.21 の書き方の物が残っている(probe 264 件、11-23 午後)。G8 の probe が 0 件になったら、下の行を消す。
-!com/yayuy/overgrownvegetation/gametest/**
+# G8 GameTest: 決定 11 で後に回す gametest は ported-sources.d/G8-deferred.txt の ! 行で外す(11-23 G8。probe では gametest/ も全部通る)。

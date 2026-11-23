@@ -44,7 +44,7 @@ public final class F5RaidGameTests {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registration {
         @SubscribeEvent
-        public static void onRegisterGameTests(RegisterGameTestsEvent event) {
+        public static void onRegisterF5RaidGameTests(RegisterGameTestsEvent event) // 1.20.1: Forge の受け手の包みは名前で使い回すので、クラスごとに名前を変える {
             event.register(F5RaidGameTests.class);
         }
 
