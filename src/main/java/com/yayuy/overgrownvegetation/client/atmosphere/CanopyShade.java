@@ -157,12 +157,29 @@ final class CanopyShade {
             vertex(c, x0 + 1.0F, y, z0, k * corner(cell, 0, -1), kr, kg, kb);
         }
         buffers.endBatch(renderType());
+        if (outOfRange != null && !outOfRangeLogged) {
+            outOfRangeLogged = true;
+            OvergrownVegetation.LOGGER.info("[canopy-shade] color clamped to 0..1 (logged once): {} amount={} shade=({}, {}, {})", outOfRange, amount, RGB[0], RGB[1], RGB[2]);
+        }
     }
 
     /** 影の濃さ {@code s}(0〜1)の頂点。色ごとに 1 − 濃さ × (1 − 影の色)。 */
     private static void vertex(VertexConsumer c, float x, float y, float z, float s, float kr, float kg, float kb) {
-        c.vertex(x, y, z).color(1.0F - s * kr, 1.0F - s * kg, 1.0F - s * kb, 1.0F).endVertex();
+        float r = 1.0F - s * kr;
+        float g = 1.0F - s * kg;
+        float b = 1.0F - s * kb;
+        // 2026-11-23 統合 I: 色の float は 1 を超えると 8 bit で折り返す(1.006 → 1/255)。掛け算の板なので、折り返すと地面がその色に化ける。
+        // 本番の Embeddium・Oculus 入りで、影の色の緑が 1.0086(影の色の比 × 明るさが 1 を超える)になり、緑だけ 0 に折り返して
+        // 木の下の草の上面が赤紫になった。0〜1 に収める(最初の 1 回だけ値をログへ)。
+        if (!outOfRangeLogged && (r < 0.0F || r > 1.0F || g < 0.0F || g > 1.0F || b < 0.0F || b > 1.0F)) {
+            outOfRange = String.format(java.util.Locale.ROOT, "s=%.3f k=(%.3f, %.3f, %.3f) color=(%.3f, %.3f, %.3f)", s, kr, kg, kb, r, g, b);
+        }
+        c.vertex(x, y, z).color(Mth.clamp(r, 0.0F, 1.0F), Mth.clamp(g, 0.0F, 1.0F), Mth.clamp(b, 0.0F, 1.0F), 1.0F).endVertex();
     }
+
+    /** 最初に見つけた範囲外の色(ログ用)と、もうログへ出したか。 */
+    private static String outOfRange;
+    private static boolean outOfRangeLogged;
 
     /** 角を囲む 4 マス((x + ox, z + oz) から 2×2)のうち、同じ高さのマスの濃さの平均。まだ見ていない・日が当たるマスは影なし。 */
     private static float corner(Cell cell, int ox, int oz) {
