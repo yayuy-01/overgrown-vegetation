@@ -5,6 +5,7 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import net.minecraft.client.Minecraft;
+import net.minecraftforge.fml.ModList;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceProvider;
@@ -91,6 +92,15 @@ public class OwnShaderInstance extends ShaderInstance {
 
     private static void resolve() {
         resolved = true;
+        // 1.20.1: Oculus の内部の名前は確かめていないので、止めは外さない(決定 9: 1.20.1 の初版は差し込みなし。Oculus の jar で狙い直すのは後)。
+        // シェーダーパック使用中は、この MOD の演出は描かない(設定 effectsWithShaderPack がオンでも)。
+        if (ModList.get().isLoaded("oculus") || !ModList.get().isLoaded("iris")) {
+            broken = true;
+            if (ShaderPacks.active()) {
+                OvergrownVegetation.LOGGER.info("1.20.1 では Oculus の書き込みの止めを外さないので、シェーダーパック使用中はこの MOD の演出を描かない");
+            }
+            return;
+        }
         // 確かめ用: -Dov.irisNoUnmask=true で「外せない」ときの経路を試す
         if (Boolean.getBoolean("ov.irisNoUnmask")) {
             broken = true;

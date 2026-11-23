@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:dusk_motes",
     "fragment": "overgrown_vegetation:dusk_motes",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

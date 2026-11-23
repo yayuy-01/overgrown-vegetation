@@ -1,6 +1,12 @@
 {
     "vertex": "overgrown_vegetation:rain_white",
     "fragment": "overgrown_vegetation:rain_white",
+    "attributes": [
+        "Position",
+        "UV0",
+        "Color",
+        "UV2"
+    ],
     "samplers": [
         { "name": "Sampler0" },
         { "name": "Sampler2" }

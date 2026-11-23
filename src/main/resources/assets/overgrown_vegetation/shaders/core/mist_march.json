@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:mist_march",
     "fragment": "overgrown_vegetation:mist_march",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
         { "name": "DepthTex" },
         { "name": "OvFogMap" },

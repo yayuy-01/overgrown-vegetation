@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:ambient_spores",
     "fragment": "overgrown_vegetation:ambient_spores",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

@@ -23,6 +23,7 @@ uniform int OvCrowdBase;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
+uniform mat3 IViewRotMat;
 uniform int FogShape;
 
 uniform vec3 Light0_Direction;
@@ -55,7 +56,10 @@ void main() {
 
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
-    vertexDistance = fog_distance(pos, FogShape);
+    // 1.20.1 port: the bone matrices come with the camera rotation (the mob PoseStack, as vanilla mobs in 1.20.1), so pos and n are in
+    // view space and ModelViewMat is the identity. The lights are in view space too (Lighting.setupLevel with the camera matrix).
+    // The fog wants the world-aligned position, as the vanilla 1.20.1 entity shaders (IViewRotMat * Position).
+    vertexDistance = fog_distance(IViewRotMat * pos, FogShape);
     vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, n, tint);
     lightMapColor = texelFetch(Sampler2, ivec2(head.xy) / 16, 0);
     overlayColor = texelFetch(Sampler1, ivec2(head.zw), 0);

@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:cirrus",
     "fragment": "overgrown_vegetation:cirrus",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

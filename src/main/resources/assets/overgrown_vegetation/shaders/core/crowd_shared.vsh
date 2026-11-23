@@ -62,7 +62,9 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, n, vec4(1.0));
+    // 1.20.1 port: pos and n are world-aligned here (ModelViewMat carries the camera rotation), but 1.20.1 puts the lights in view space
+    // (Lighting.setupLevel with the camera matrix; 1.21 keeps them in world space), so the normal is turned into view space for the light.
+    vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, mat3(ModelViewMat) * n, vec4(1.0));
     lightMapColor = texelFetch(Sampler2, ivec2(more.zw) / 16, 0);
     overlayColor = texelFetch(Sampler1, ivec2(0, 10), 0);
     texCoord0 = UV0;

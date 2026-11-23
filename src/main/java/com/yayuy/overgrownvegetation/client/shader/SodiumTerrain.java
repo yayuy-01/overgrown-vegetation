@@ -65,12 +65,17 @@ public final class SodiumTerrain {
     private static final Pattern OV_IMPORT = Pattern.compile("#ov_import <(.*)>");
     private static final Pattern SODIUM_IMPORT = Pattern.compile("#import <(.*):(.*)>");
 
-    /** 地形の描画を差し替える MOD がいる(Sodium・Embeddium・Iris)。いなければ全部バニラの描画。 */
+    /**
+     * 地形の描画を差し替える MOD がいる(Sodium・Embeddium・Iris。1.20.1 の Forge では Embeddium・Rubidium・Oculus)。いなければ全部バニラの描画。
+     */
     private static final boolean OTHER_RENDERER = ModList.get().isLoaded("sodium") || ModList.get().isLoaded("embeddium")
-            || ModList.get().isLoaded("iris") || ModList.get().isLoaded("oculus");
-    /** Sodium 0.8.x だけで、Embeddium がおらず、切ってもいない。 */
-    private static final boolean SODIUM_OK = OTHER_RENDERER && !ModList.get().isLoaded("embeddium")
-            && !"false".equals(System.getProperty("ov.sodium.shaders")) && sodiumVersionOk();
+            || ModList.get().isLoaded("rubidium") || ModList.get().isLoaded("iris") || ModList.get().isLoaded("oculus");
+    /**
+     * Sodium 0.8.x だけで、Embeddium がおらず、切ってもいない。
+     * <b>1.20.1 では使わない</b>(決定 9、2026-11-22: 1.20.1 の初版は差し込みなし。Embeddium・Oculus の jar で狙い直すのは後)。
+     * それで Embeddium・Rubidium・Oculus がいる間は {@link #unsupported()} がいつも true になり、地形のシェーダーの演出は止まってバニラの見た目に戻る。
+     */
+    private static final boolean SODIUM_OK = false;
     /** Iris の「シェーダーパックを使っているか」(無ければ null)。 */
     @Nullable
     private static final MethodHandle IRIS_PACK_IN_USE = irisPackInUseHandle();

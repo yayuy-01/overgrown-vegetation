@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:gpu_motes",
     "fragment": "overgrown_vegetation:gpu_motes",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

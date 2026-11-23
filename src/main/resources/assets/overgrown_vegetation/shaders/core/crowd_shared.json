@@ -1,6 +1,12 @@
 {
     "vertex": "overgrown_vegetation:crowd_shared",
     "fragment": "overgrown_vegetation:crowd_shared",
+    "attributes": [
+        "Position",
+        "UV0",
+        "Normal",
+        "UV1"
+    ],
     "samplers": [
         { "name": "Sampler0" },
         { "name": "Sampler1" },

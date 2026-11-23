@@ -18,6 +18,7 @@ uniform vec4 OvFogI;
 in float vertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
+in vec4 normal;
 in vec4 ovFog;
 in vec3 ovPos;
 in vec3 ovNormal;

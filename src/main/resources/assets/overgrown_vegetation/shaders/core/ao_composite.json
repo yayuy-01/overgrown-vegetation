@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:mist_composite",
     "fragment": "overgrown_vegetation:ao_composite",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
         { "name": "AoTex" }
     ],

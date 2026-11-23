@@ -23,6 +23,7 @@ uniform int FogShape;
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
+out vec4 normal;
 out vec3 ovPos;
 out vec3 ovNormal;
 out vec2 ovLight;
@@ -43,10 +44,11 @@ void main() {
     pos += ovDisplace(pos, Normal, color.a);
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
-    vertexDistance = fog_distance(pos, FogShape);
+    vertexDistance = fog_distance(ModelViewMat, pos, FogShape);
     // The giant trees seen from outside the forest read the lightmap at a sky light floor (ov_giant.glsl, 11-13).
     vertexColor = color * minecraft_sample_lightmap(Sampler2, ivec2(UV2.x, max(UV2.y, int(ovGiantFloor(pos) * 240.0))));
     texCoord0 = UV0;
+    normal = ProjMat * ModelViewMat * vec4(Normal, 0.0);
     ovPos = pos;
     ovNormal = Normal;
     ovLight = clamp(vec2(UV2) / 240.0, 0.0, 1.0);

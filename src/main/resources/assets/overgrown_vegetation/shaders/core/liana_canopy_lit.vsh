@@ -4,9 +4,10 @@
 
 // Overgrown Vegetation: the climbing vines (client/ClimbingVineRenderer.java). The same as vanilla rendertype_text, plus the
 // camera-relative position and the light levels for the canopy light of the terrain (ov_light.glsl), so a vine gets the same
-// canopy shade, forest hue, sky tint and night colour as the trunk it climbs (11-05, light inspection 6). Block entities are drawn
-// with only the translation in the pose (the camera rotation is in ModelViewMat), so Position is already camera-relative like
-// Position + ChunkOffset of the terrain. Keep this file ASCII-only.
+// canopy shade, forest hue, sky tint and night colour as the trunk it climbs (11-05, light inspection 6). Keep this file ASCII-only.
+// 1.20.1 port: block entities are drawn with the camera rotation in the pose (1.21: only the translation, the rotation in
+// ModelViewMat), so Position comes rotated into view space. IViewRotMat (the inverse of the camera rotation) turns it back into
+// the camera-relative, world-aligned position of the terrain (Position + ChunkOffset), as the vanilla 1.20.1 entity shaders do.
 
 in vec3 Position;
 in vec4 Color;
@@ -17,6 +18,7 @@ uniform sampler2D Sampler2;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
+uniform mat3 IViewRotMat;
 uniform int FogShape;
 
 out float vertexDistance;
@@ -28,9 +30,10 @@ out vec2 ovLight;
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
-    vertexDistance = fog_distance(Position, FogShape);
+    vec3 pos = IViewRotMat * Position;
+    vertexDistance = fog_distance(pos, FogShape);
     vertexColor = Color * texelFetch(Sampler2, UV2 / 16, 0);
     texCoord0 = UV0;
-    ovPos = Position;
+    ovPos = pos;
     ovLight = clamp(vec2(UV2) / 240.0, 0.0, 1.0);
 }

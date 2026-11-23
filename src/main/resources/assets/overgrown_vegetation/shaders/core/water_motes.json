@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:water_motes",
     "fragment": "overgrown_vegetation:water_motes",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

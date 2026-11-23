@@ -21,6 +21,7 @@ uniform int FogShape;
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
+out vec4 normal;
 out vec4 ovFog;
 out vec3 ovPos;
 out vec3 ovNormal;
@@ -42,9 +43,10 @@ void main() {
     }
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
-    vertexDistance = fog_distance(pos, FogShape);
+    vertexDistance = fog_distance(ModelViewMat, pos, FogShape);
     vertexColor = vec4(Color.rgb, ovNoGlint > 0.5 ? 1.0 : Color.a) * minecraft_sample_lightmap(Sampler2, UV2);
     texCoord0 = UV0;
+    normal = ProjMat * ModelViewMat * vec4(Normal, 0.0);
     ovPos = pos;
     ovNormal = Normal;
     ovLight = clamp(vec2(UV2) / 240.0, 0.0, 1.0);

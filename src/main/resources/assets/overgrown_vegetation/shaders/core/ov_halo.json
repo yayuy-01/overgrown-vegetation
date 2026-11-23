@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:sky_dome",
     "fragment": "overgrown_vegetation:ov_halo",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
     ],
     "uniforms": [

@@ -1,6 +1,11 @@
 {
     "vertex": "overgrown_vegetation:voxel_clouds",
     "fragment": "overgrown_vegetation:voxel_clouds",
+    "attributes": [
+        "Position",
+        "UV0",
+        "Color"
+    ],
     "samplers": [
         { "name": "Sampler0" }
     ],

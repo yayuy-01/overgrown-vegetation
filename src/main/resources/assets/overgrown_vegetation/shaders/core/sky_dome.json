@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:sky_dome",
     "fragment": "overgrown_vegetation:sky_dome",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [],
     "uniforms": [
         { "name": "InvViewProj", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },

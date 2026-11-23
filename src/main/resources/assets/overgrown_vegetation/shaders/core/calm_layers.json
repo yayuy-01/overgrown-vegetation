@@ -1,6 +1,9 @@
 {
     "vertex": "overgrown_vegetation:mist_composite",
     "fragment": "overgrown_vegetation:calm_layers",
+    "attributes": [
+        "Position"
+    ],
     "samplers": [
         { "name": "DepthTex" }
     ],

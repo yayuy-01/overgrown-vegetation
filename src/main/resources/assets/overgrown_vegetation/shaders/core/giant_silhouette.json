@@ -1,6 +1,10 @@
 {
     "vertex": "overgrown_vegetation:giant_silhouette",
     "fragment": "overgrown_vegetation:giant_silhouette",
+    "attributes": [
+        "Position",
+        "Color"
+    ],
     "samplers": [
         { "name": "OvFogMap" }
     ],
