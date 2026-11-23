@@ -151,6 +151,29 @@ public final class WorldEventSchedule {
 
     // ---------------------------------------------------------------- 回す
 
+    /**
+     * 実験的要素の「ワールドイベント」がオフの間の 1 tick(2026-11-23 夜)。くじ・待ち・フェーズの合図を回さず、オンに戻したら
+     * その日から間を数え直す(溜まった合図や過ぎたくじの日を一度に出さない)。
+     * 起きている物(コマンドで起こした物・オフにする前から起きていた物)は止めずに最後まで回すので、そのときは false を返し、呼ぶ側が {@link #step} を回す。
+     *
+     * @return 日程を止めたなら true(この tick は {@link #step} を回さない)
+     */
+    public boolean dormant(long t, int phase) {
+        if (state == State.ACTIVE || omenOn) {
+            while (omenQueue.size() > (omenOn ? 1 : 0)) omenQueue.pollLast();
+            return false;
+        }
+        if (state != State.IDLE) toIdle();
+        omenQueue.clear();
+        omenStart = omenEnd = NONE;
+        omenCarry = 0;
+        nextDueDay = NONE;
+        skip = null;
+        lastPhase = phase;
+        lastT = t;
+        return true;
+    }
+
     /** 1 tick 進める。送り直しが要る変化(種・始まり・終わり・状態)があれば true。 */
     public boolean step(long t, long seed, WorldEventTable tab, Env env) {
         WorldEventKind a0 = active();

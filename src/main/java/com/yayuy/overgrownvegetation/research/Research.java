@@ -67,8 +67,15 @@ public final class Research {
 
     // ---- 作り方の鍵 ----
 
-    /** この作り方が研究で閉じているか(開く節があり、まだ開いていない)。 */
+    /**
+     * この作り方が研究で閉じているか(開く節があり、まだ開いていない)。
+     * 実験的要素の「研究」がオフのワールドでは、研究で開く作り方は最初から全部開き、研究の道具(研究台・拡大鏡・共鳴器)の作り方だけが閉じる(11-23 夜)。
+     */
     public static boolean recipeLocked(MinecraftServer server, ResourceLocation recipe) {
+        if (!com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.enabled(server,
+                com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.Feature.RESEARCH)) {
+            return ResearchGate.GEAR_RECIPES.contains(recipe);
+        }
         ResearchTree tree = ResearchTree.get();
         String node = tree.lockedBy(recipe);
         return node != null && !ResearchData.get(server).isDone(tree, node);
@@ -139,6 +146,7 @@ public final class Research {
         ResearchData data = ResearchData.get(level.getServer());
         ResearchTree.Node n = tree.node(nodeId);
         if (n == null || n.isRoot()) return Component.translatable("research.overgrown_vegetation.why.unknown");
+        if (!ResearchGate.on(level.getServer())) return Component.translatable("research.overgrown_vegetation.experimental_off"); // 11-23 夜
         if (data.active() != null) return Component.translatable("research.overgrown_vegetation.why.busy");
         State s = state(tree, id -> data.isDone(tree, id), nodeId);
         if (s == State.DONE) return Component.translatable("research.overgrown_vegetation.why.done");

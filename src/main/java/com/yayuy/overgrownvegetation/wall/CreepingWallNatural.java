@@ -67,8 +67,10 @@ public final class CreepingWallNatural {
     }
 
     /** 世界の側の条件(フェーズ・難易度・動いている壁・休み)。 */
-    static boolean allowed(ServerLevel level, long now) {
-        if (level.getDifficulty() == Difficulty.PEACEFUL || PhaseData.get(level).getPhase() < WallTuning.naturalMinPhase) {
+    public static boolean allowed(ServerLevel level, long now) {
+        if (level.getDifficulty() == Difficulty.PEACEFUL || PhaseData.get(level).getPhase() < WallTuning.naturalMinPhase
+                || !com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.enabled(level.getServer(),
+                        com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.Feature.CREEPING_WALL)) { // 実験的要素(11-23 夜)。/ov wall は動く
             return false;
         }
         Long last = LAST.get(level.dimension());

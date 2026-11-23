@@ -27,7 +27,7 @@ public abstract class CraftingMenuResearchLockMixin {
                     target = "Lnet/minecraft/world/inventory/ResultContainer;setRecipeUsed(Lnet/minecraft/world/level/Level;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/item/crafting/RecipeHolder;)Z"))
     private static boolean overgrown$researchLock(ResultContainer result, Level level, ServerPlayer player, RecipeHolder<?> recipe,
                                                  Operation<Boolean> original) {
-        if (level.getServer() != null && Research.recipeLocked(level.getServer(), recipe.id())) {
+        if (level.getServer() != null && com.yayuy.overgrownvegetation.difficulty.ExperimentalRecipes.locked(level.getServer(), recipe.id())) {
             return false;
         }
         return original.call(result, level, player, recipe);

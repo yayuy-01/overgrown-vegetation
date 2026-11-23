@@ -147,22 +147,32 @@ public enum DifficultySetting {
     QUAKE("quake", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
     /** 地形を壊す要素(地割れが地面を裂く {@code EarthquakeFissure})。オフなら揺れるだけ。襲撃が壁を壊すかは襲撃の節。 */
     TERRAIN_DAMAGE("terrain_damage", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
-    /**
-     * 実験的要素(2026-10-09)。2026-11-12 から新しいネザーの汚染。既定はオフ。効かせ方は {@link ExperimentalFeatures}。
-     */
-    EXPERIMENTAL("experimental", Section.WORLD, Kind.TOGGLE, 0.0D, 1.0D, false, false),
-
     // ------------------------------------------------------------ ⑧ 重さ
     /** 遠くの群れを本物の Mob にするときの、本物の上限(perf.json の realCap)。 */
     REAL_CAP("real_cap", Section.PERF, Kind.COUNT, 10.0D, 2000.0D, false, false),
     /** 遠くの群れ(身代わりで描く数)の上限(perf.json の virtualCap)。 */
     VIRTUAL_CAP("virtual_cap", Section.PERF, Kind.COUNT, 0.0D, 20000.0D, false, false),
     /** 遠くの群れを使うか(オフなら群れは全部本物の Mob)。既定は COMMON の virtualHordeEnabled。 */
-    VIRTUAL_HORDES("virtual_hordes", Section.PERF, Kind.TOGGLE, 0.0D, 1.0D, false, false);
+    VIRTUAL_HORDES("virtual_hordes", Section.PERF, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+
+    // ------------------------------------------------------------ ⑨ 実験的要素(11-23 夜に 1 つずつへ。どれも既定オフ。効かせ方は ExperimentalFeatures)
+    /**
+     * 新しいネザーの汚染(2026-10-09 に「実験的要素」として作り、11-12 からネザー)。保存の名前は前の 1 つのスイッチのまま
+     * ({@code experimental})なので、前の「実験的要素オン」のワールドはネザーのオンとして読む。
+     */
+    EXPERIMENTAL_NETHER("experimental", Section.EXPERIMENTAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** ワールドイベントが自然に起きるか(日程を回す。{@code WorldEvents#onServerTick})。 */
+    EXPERIMENTAL_EVENTS("experimental_events", Section.EXPERIMENTAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 蠢く壁が自然に起きるか({@code CreepingWallNatural#allowed})。 */
+    EXPERIMENTAL_WALL("experimental_wall", Section.EXPERIMENTAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 研究台などの研究の要素(オフなら研究の道具は作れず置けず、研究で開く作り方は最初から開く)。 */
+    EXPERIMENTAL_RESEARCH("experimental_research", Section.EXPERIMENTAL, Kind.TOGGLE, 0.0D, 1.0D, false, false),
+    /** 防具の付け物(口覆いの布以外)と付け物の台。 */
+    EXPERIMENTAL_ATTACHMENTS("experimental_attachments", Section.EXPERIMENTAL, Kind.TOGGLE, 0.0D, 1.0D, false, false);
 
     /** 設定のページの節(11-19 全体管理の一覧の番号順。今は項目のある節だけが画面に出る)。 */
     public enum Section {
-        SPREAD("spread"), FOREST("forest"), RAID("raid"), MOBS("mobs"), SURVIVAL("survival"), WORLD("world"), PERF("perf");
+        SPREAD("spread"), FOREST("forest"), RAID("raid"), MOBS("mobs"), SURVIVAL("survival"), WORLD("world"), PERF("perf"), EXPERIMENTAL("experimental");
 
         private final String id;
 
@@ -285,7 +295,7 @@ public enum DifficultySetting {
             case QUAKE_DAY -> DesignData.phases().startWorldAgeTicks() / (double) TICKS_PER_DAY;
             case QUAKE_ADVANCEMENTS -> DesignData.phases().startAdvancements();
             case LARGE_RAID_MAX_ALIVE -> LargeRaids.configuredMaxAlive();
-            case EXPERIMENTAL -> 0.0D; // オフ(GameTest のサーバーだけはオン扱い —— ExperimentalFeatures#enabled)
+            case EXPERIMENTAL_NETHER, EXPERIMENTAL_EVENTS, EXPERIMENTAL_WALL, EXPERIMENTAL_RESEARCH, EXPERIMENTAL_ATTACHMENTS -> 0.0D; // オフ(GameTest のサーバーだけはオン扱い —— ExperimentalFeatures#enabled)
             case PHASE_CAP -> com.yayuy.overgrownvegetation.data.PhaseTable.MAX_PHASE;
             case BUILD_CORROSION -> OvergrownVegetationConfig.COMMON.buildCorrosion.get() ? 1.0D : 0.0D;
             case PORTAL_CROSSING, ORGANS, GIANT_TREES, RAIDS, RAID_BREACH, RAID_OMEN, MOB_INFECTION, ADAPTATION, TERRAIN_DAMAGE -> 1.0D;

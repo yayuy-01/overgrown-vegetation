@@ -27,7 +27,7 @@ public abstract class CrafterResearchLockMixin {
                                                CallbackInfoReturnable<Optional<RecipeHolder<CraftingRecipe>>> cir) {
         Optional<RecipeHolder<CraftingRecipe>> found = cir.getReturnValue();
         if (found != null && found.isPresent() && level.getServer() != null
-                && Research.recipeLocked(level.getServer(), found.get().id())) {
+                && com.yayuy.overgrownvegetation.difficulty.ExperimentalRecipes.locked(level.getServer(), found.get().id())) {
             cir.setReturnValue(Optional.empty());
         }
     }

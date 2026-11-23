@@ -32,6 +32,7 @@ public final class ModArmorAttach {
 
     /** MOD の構築子から呼ぶ。 */
     public static void init() {
+        com.yayuy.overgrownvegetation.gear.attach.MouthClothRecipe.init(); // 作業台の「兜 + 口覆いの布」(11-23 夜)
     }
 
     // ---- コンポーネント ----
@@ -87,8 +88,11 @@ public final class ModArmorAttach {
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
     public static void acceptItems(CreativeModeTab.Output output) {
-        output.accept(BENCH_ITEM.get());
         output.accept(MOUTH_CLOTH.get());
+        // 実験的要素の「防具の付け物」がオフのワールドでは、台と布以外の付け物を並べない(11-23 夜 ユーザー決定「オフの物はクリエイティブタブで消える」)
+        if (!com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.enabledAnywhere(
+                com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.Feature.ARMOR_ATTACHMENTS)) return;
+        output.accept(BENCH_ITEM.get());
         output.accept(STORAGE_BELT.get());
         output.accept(BARK_PLATE.get());
         output.accept(CONDUIT_SASH.get());
