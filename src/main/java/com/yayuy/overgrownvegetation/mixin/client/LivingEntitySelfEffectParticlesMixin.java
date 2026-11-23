@@ -20,6 +20,6 @@ public abstract class LivingEntitySelfEffectParticlesMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;addParticle(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V"))
     private boolean overgrown_vegetation$hideOwnSporeParticles(Level level, ParticleOptions particle, double x, double y, double z,
                                                               double dx, double dy, double dz) {
-        return !level.isClientSide() || SelfEffectParticles.shouldSpawn((LivingEntity) (Object) this, particle);
+        return !level.isClientSide() || SelfEffectParticles.shouldSpawn((LivingEntity) (Object) this, particle, dx, dy, dz); // 1.20.1: 効果の粒の色は速度の 3 つ(赤・緑・青)
     }
 }
