@@ -491,6 +491,12 @@ public final class VisualSettingsScreen extends Screen {
             return ROW_WIDTH;
         }
 
+        // 1.20.1: スクロールバーの既定は width / 2 + 124 の固定(広い行の上に重なる)。1.21 と同じく「行の右の端 + 10」にする
+        @Override
+        protected int getScrollbarPosition() {
+            return this.x0 + this.width / 2 + getRowWidth() / 2 + 10;
+        }
+
         @Override
         public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             super.render(graphics, mouseX, mouseY, partialTick);

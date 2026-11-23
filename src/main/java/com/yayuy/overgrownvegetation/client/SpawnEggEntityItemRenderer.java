@@ -148,7 +148,7 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
         // refreshDimensions() が走らず、getBbWidth/Height は<b>素の登録値のまま</b>返ってくる。
         // 絵の大きさも中心合わせも「実際に描かれるモデル」に合わせたいので、ここで自分で掛ける
         // (GeoEntityRenderer 側はちゃんと getScale() を掛けて描く)。
-        float nativeScale = preview instanceof LivingEntity living ? living.getScale() : 1.0F;
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(preview); // 1.20.1: 1.21 の getScale(SCALE 属性だけ)と同じ値
         EntityDimensions dimensions = type.getDimensions();
         float scaledHeight = dimensions.height * nativeScale;
 

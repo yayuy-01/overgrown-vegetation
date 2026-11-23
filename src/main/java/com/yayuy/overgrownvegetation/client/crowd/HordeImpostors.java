@@ -173,23 +173,9 @@ public final class HordeImpostors {
                     }
                 }
             }
-            if (sp.sprites > 0) {
-                // 1.20.1: この段の描画の行列は単位行列(1.21 はカメラの回転入り)。絵の板はカメラからの位置で書くので、回転を積んで描く
-                com.mojang.blaze3d.vertex.PoseStack mv = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
-                mv.pushPose();
-                mv.mulPoseMatrix(modelView);
-                com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
-                boolean drawn;
-                try {
-                    drawn = drawSprites(sp);
-                } finally {
-                    mv.popPose();
-                    com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
-                }
-                if (drawn) {
-                    sprites += sp.sprites;
-                    draws++;
-                }
+            if (sp.sprites > 0 && drawSprites(sp, modelView)) {
+                sprites += sp.sprites;
+                draws++;
             }
         }
         lastModels = models;
@@ -233,7 +219,7 @@ public final class HordeImpostors {
             sp.renderer = geo;
             // 描き手の大きさ × 種の大きさ(属性 SCALE の基礎値。本物は個体差も掛かる)
             sp.scale = (geo instanceof CrowdGeoEntityRenderer<?> c ? c.crowdScale() : 1.0F)
-                    * (sp.dummy instanceof net.minecraft.world.entity.LivingEntity le ? le.getScale() : 1.0F);
+                    * com.yayuy.overgrownvegetation.client.PortRenderScale.of(sp.dummy) /* 1.20.1: 1.21 の getScale と同じ値 */;
             return true;
         } catch (RuntimeException e) {
             OvergrownVegetation.LOGGER.warn("遠くの群れ: {} の描き方を用意できなかったので描かない", BuiltInRegistries.ENTITY_TYPE.getKey(sp.type), e);
@@ -311,7 +297,10 @@ public final class HordeImpostors {
 
     // ------------------------------------------------------------------ 絵の板
 
-    private static boolean drawSprites(Species sp) {
+    // 1.20.1: この段の描画の行列は単位行列で、光の向きは見る向きの空間(1.21 は描画の行列にカメラの回転・光は世界の空間)。
+    // バニラの Mob と同じく、位置と法線にカメラの回転(view)を掛けて書く
+    private static boolean drawSprites(Species sp, Matrix4f camView) {
+        org.joml.Matrix3f viewNormal = new org.joml.Matrix3f(camView);
         if (sp.sheet == null && !buildSheet(sp)) return false;
         SpriteSheet sheet = sp.sheet;
         MultiBufferSource.BufferSource src = Minecraft.getInstance().renderBuffers().bufferSource();
@@ -330,13 +319,19 @@ public final class HordeImpostors {
             float u0 = view / (float) SpriteSheet.VIEWS, u1 = (view + 1) / (float) SpriteSheet.VIEWS;
             int light = Float.floatToRawIntBits(sp.s[at + 4]);
             // 法線は上向き(絵に陰影を焼いてあるので、Mob の 2 灯の陰影を掛け直さない。parked の遠景の身代わりと同じ)
-            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * left, by + bottom, bz + rz * left, c, u0, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * right, by + bottom, bz + rz * right, c, u1, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * right, by + top, bz + rz * right, c, u1, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * left, by + top, bz + rz * left, c, u0, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            spriteVertex(vc, camView, viewNormal, bx + rx * left, by + bottom, bz + rz * left, u0, 1.0F, ov, light);
+            spriteVertex(vc, camView, viewNormal, bx + rx * right, by + bottom, bz + rz * right, u1, 1.0F, ov, light);
+            spriteVertex(vc, camView, viewNormal, bx + rx * right, by + top, bz + rz * right, u1, 0.0F, ov, light);
+            spriteVertex(vc, camView, viewNormal, bx + rx * left, by + top, bz + rz * left, u0, 0.0F, ov, light);
         }
         src.endBatch(sp.spriteType);
         return true;
+    }
+
+    /** 白・上向きの法線の頂点 1 つ(1.20.1: カメラの回転を掛けて書く)。 */
+    private static void spriteVertex(VertexConsumer vc, Matrix4f view, org.joml.Matrix3f viewNormal, float x, float y, float z, float u, float v,
+                                     int overlay, int light) {
+        vc.vertex(view, x, y, z).color(1.0F, 1.0F, 1.0F, 1.0F).uv(u, v).overlayCoords(overlay).uv2(light).normal(viewNormal, 0.0F, 1.0F, 0.0F).endVertex();
     }
 
     /** その種の 8 方向の絵を、レストポーズの形とテクスチャから CPU で描いて GPU へ上げる(種ごとに 1 回)。 */

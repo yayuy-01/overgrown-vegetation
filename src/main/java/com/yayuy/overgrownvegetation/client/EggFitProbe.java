@@ -75,7 +75,7 @@ public final class EggFitProbe {
                     living.yBodyRotO = YAW;
                     living.yHeadRot = YAW;
                     living.yHeadRotO = YAW;
-                    scale = living.getScale();
+                    scale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(living); // 1.20.1: 1.21 の getScale(SCALE 属性だけ)と同じ値
                 }
                 if (preview instanceof EggPreviewPose pose) {
                     pose.prepareEggPreview();

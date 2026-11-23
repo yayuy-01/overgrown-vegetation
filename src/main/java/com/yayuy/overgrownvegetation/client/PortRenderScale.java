@@ -17,8 +17,9 @@ import software.bernie.geckolib.event.GeoRenderEvent;
  * 1 回だけ来て、層の {@code reRender} では来ない)で同じだけ掛ける。当たり判定は互換の層の mixin(getScale に SCALE 属性を掛ける)と G3 の
  * {@code getDimensions} が合わせてある。
  *
- * <p>この MOD の Entity だけに掛ける(ほかの MOD の GeckoLib の Mob は 4.8.4 の前提で作られているので触らない)。1.20.1 の {@code getScale()} は
- * 子どもで 0.5 を返す = 本流(1.21 の getScale = 年齢の倍率 × SCALE)と同じ値。
+ * <p>この MOD の Entity だけに掛ける(ほかの MOD の GeckoLib の Mob は 4.8.4 の前提で作られているので触らない)。
+ * 掛ける値は <b>SCALE 属性の値そのもの</b>: 1.21 の {@code getScale()} は SCALE 属性だけで、年齢の倍率は {@code getAgeScale()} が別に持つ。
+ * 1.20.1 の {@code getScale()}(互換の層の mixin 入り)は子どもで 0.5 も掛かっているので使わない。
  *
  * <p>本流で描き手が {@code applyRotations(…, nativeScale)} の nativeScale で割っていた所は、{@link #of(Entity)} で同じ値を引く
  * (ここで先に拡大してあるので、割る計算はそのまま合う)。
@@ -37,7 +38,8 @@ public final class PortRenderScale {
         if (!OvergrownVegetation.MODID.equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getNamespace())) {
             return 1.0F;
         }
-        return living.getScale();
+        var scale = living.getAttribute(com.yayuy.overgrownvegetation.port.entity.PortAttributes.SCALE.get());
+        return scale == null ? 1.0F : (float) scale.getValue();
     }
 
     @SubscribeEvent
