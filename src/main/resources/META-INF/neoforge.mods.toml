@@ -5,7 +5,7 @@ issueTrackerURL = "https://github.com/yayuy-01/overgrown-vegetation/issues"
 
 [[mods]]
 modId = "overgrown_vegetation"
-version = "0.1.9"
+version = "0.2.0-alpha"
 displayName = "Overgrown Vegetation"
 authors = "yayuy"
 description = '''
