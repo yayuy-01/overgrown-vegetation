@@ -456,6 +456,8 @@ public final class Atmosphere {
     /** 演出 {@code name} を 1 つ動かす。例外が出たらこのセッションではその演出を止める。 */
     /** 確かめ用(DevBridge の wx amute <名前>|clear): その名前の演出を呼ばない。どの演出の見た目かを切り分ける。 */
     public static final java.util.Set<String> DEV_MUTE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** 確かめ用(DevBridge の gpuprobe、11-23 軽量化): 演出 1 つずつを包んで GPU の時間を測る。配布物では null のまま。 */
+    public static volatile java.util.function.BiConsumer<String, Runnable> devGuardWrap;
 
     /**
      * ログアウトで、前のワールドの物を空にする(見直し 第 2 回 ④3・⑥3、11-18): 地脈の地図・卓越風・巨大樹の一覧・巨木の遠景が、前の ClientLevel を
@@ -481,7 +483,12 @@ public final class Atmosphere {
             return;
         }
         try {
-            run.run();
+            java.util.function.BiConsumer<String, Runnable> wrap = devGuardWrap;
+            if (wrap != null) {
+                wrap.accept(name, run);
+            } else {
+                run.run();
+            }
         } catch (RuntimeException e) {
             BROKEN.add(name);
             OvergrownVegetation.LOGGER.error("雰囲気の演出 {} で例外が出たので、このセッションでは止める", name, e);

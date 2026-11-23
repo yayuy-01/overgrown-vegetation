@@ -53,7 +53,7 @@ public final class GlowBloom {
     }
 
     /** 確かめ用: 真なら切る。 */
-    static volatile boolean devOff;
+    public static volatile boolean devOff;
 
     private static boolean broken;
     private static TextureTarget small;

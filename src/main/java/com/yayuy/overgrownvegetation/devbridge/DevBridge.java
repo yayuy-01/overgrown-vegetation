@@ -2493,6 +2493,8 @@ public final class DevBridge {
             }
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
+            // 雰囲気の演出 1 つずつの GPU の時間・雰囲気の重さの段だけの切り替え・光のにじみの止め(2026-11-23 軽量化 GPU、GpuProbe)
+            case "gpuprobe" -> log(GpuProbe.command(arg));
             // 予定の雨と種類(2026-11-12 雨の種類、sky.RainIntensity)。今から 12 日分の雨の始まり・終わり(dayTime)・種類・雷雨。返事は RAINS …
             case "rains" -> {
                 long t0 = mc.level == null ? 0L : mc.level.getDayTime();

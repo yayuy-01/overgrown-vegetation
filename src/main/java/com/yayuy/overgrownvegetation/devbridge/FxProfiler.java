@@ -891,6 +891,8 @@ public final class FxProfiler {
                 benchName, n, seconds, sectionsShort(mc), (double) benchSectionSum / Math.max(1, benchSectionSamples), 1e9 / avg, avg / 1e6, p50 / 1e6, p99 / 1e6, low1 / 1e6, 1e9 / low1, low01 / 1e6, sorted[n - 1] / 1e6,
                 gpuN > 0 ? String.format(Locale.ROOT, "%.2f ms", gpuSum / 1e6 / gpuN) : "-",
                 modCpuAvg / 1e6, on ? "on" : "off", gcCount, gcTime);
+        // 2026-11-23(軽量化 GPU): 速い方の分位。同じ GPU をほかのクライアントが使っていると平均・中央が揺れるので、揺れに強い比べ用に。
+        head += String.format(Locale.ROOT, " / 速い方 10%% %.2f ms・25%% %.2f ms", sorted[n / 10] / 1e6, sorted[n / 4] / 1e6);
         out.append(head).append('\n').append('\n');
         out.append("引数: ").append(benchArg).append('\n');
         out.append("区画(F3 の C: 描いた区画/全部): ").append(mc.levelRenderer.getSectionStatistics()).append('\n');
