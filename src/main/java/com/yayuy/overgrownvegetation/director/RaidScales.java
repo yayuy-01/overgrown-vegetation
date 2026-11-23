@@ -57,7 +57,7 @@ public final class RaidScales {
      *   <li>{@link #skipChanceFactor}: 見送る確率に掛ける(0 で見送らない = いつも小。上は 1 で頭打ち)。</li>
      *   <li>{@link #purseFactor}: 見送った間に貯める量に掛ける(中・大の大きさ)。</li>
      *   <li>{@link #maxSaveDaysFactor}: 貯められる日数の上限に掛ける。</li>
-     *   <li>{@link #countFactor}: 段ごとの出る数の倍率(Mob の値段をこれで割る。添字は {@link RaidScale#ordinal})。</li>
+     *   <li>{@link #countFactor}: 段ごとの出る数の倍率(11-23 から前線の襲撃の上限と出す割合に掛ける = FrontRaids#countFactor。添字は {@link RaidScale#ordinal})。</li>
      *   <li>{@link #maxAlive}: 段ごとの同時の上限(0 = 設計データ)。今効くのは中だけ。大の同時の上限は大きな襲撃と同じ口(LargeRaids.maxAlive = ワールドの設定 → largeRaid.maxAlive)。</li>
      * </ul>
      */

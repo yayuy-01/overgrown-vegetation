@@ -79,11 +79,11 @@ public enum DifficultySetting {
     RAIDS("raids", Section.RAID, Kind.TOGGLE, 0.0D, 1.0D, false, false),
     /** 襲撃の頻度(200% = 機会の間が半分)。 */
     RAID_FREQUENCY("raid_frequency", Section.RAID, Kind.PERCENT, 0.1D, 10.0D, false, false),
-    /** 小(ふだんの送り込み)で来る数の倍率。 */
+    /** 小の襲撃で来る数の倍率(前線の襲撃の上限と樹域から出す割合に掛ける。FrontRaids#countFactor。11-23 つなぎ直し)。 */
     RAID_COUNT_SMALL("raid_count_small", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
-    /** 中(少し貯めた襲撃)で来る数の倍率。 */
+    /** 中の襲撃で来る数の倍率(合計の上限 mediumTotal と樹域から出す割合に掛ける。11-23 つなぎ直し)。 */
     RAID_COUNT_MEDIUM("raid_count_medium", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
-    /** 大(長く貯めた襲撃)で来る数の倍率。 */
+    /** 大の襲撃で来る数の倍率(樹域から出す割合に掛ける。11-23 つなぎ直し)。 */
     RAID_COUNT_LARGE("raid_count_large", Section.RAID, Kind.PERCENT, 0.01D, 10.0D, false, false),
     /** 中の同時の上限。既定は director.json の raidScale の中の maxAlive(40)。 */
     RAID_MAX_ALIVE_MEDIUM("raid_max_alive_medium", Section.RAID, Kind.COUNT, 1.0D, 500.0D, false, false),
@@ -91,6 +91,7 @@ public enum DifficultySetting {
     // ------------------------------------------------------------ ④ 襲撃
     /**
      * 大きな襲撃で同時に出ている攻め手の上限(2026-11-14 に COMMON の設定として作り、11-19 にワールドごとへ移した)。
+     * 11-23 から前線の大きな襲撃の部隊が同時に本物になる数の上限(VirtualRaids#countKey。前の版の群れの印 ATTACKER_TAG も今までどおり)。
      * 既定値は COMMON の {@code largeRaidMaxAlive}(−1 なら director.json の {@code largeRaid.maxAlive})。
      */
     LARGE_RAID_MAX_ALIVE("large_raid_max_alive", Section.RAID, Kind.COUNT, LargeRaids.MAX_ALIVE_MIN, LargeRaids.MAX_ALIVE_MAX, false, false),
@@ -114,7 +115,7 @@ public enum DifficultySetting {
     MOB_DEFENSE("mob_defense", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
     /** Mob の強靭(防具の強靭さの属性に掛ける。もとが 0 の Mob は 0 のまま。バニラの上限 20)。{@link MobStrength}。 */
     MOB_TOUGHNESS("mob_toughness", Section.MOBS, Kind.PERCENT, 0.01D, 256.0D, true, false),
-    /** 森の縁・地下に自然に湧く量(spawns.json の caps・underCap に掛ける。{@code EnemySpawns})。 */
+    /** Mob の湧く量 = 樹域の目標の頭数の倍率(FrontDirector#target。11-23 片付け E で縁・地下の湧きが無くなったので前線へつなぎ直した)。 */
     MOB_SPAWN_AMOUNT("mob_spawn_amount", Section.MOBS, Kind.PERCENT, 0.0D, 10.0D, false, false),
     /** 動物や村人の感染(感染で死んだ生き物が寄生された姿・萌芽体になる。{@code G1Infection#isInfectionDeath})。プレイヤーには関係しない。 */
     MOB_INFECTION("mob_infection", Section.MOBS, Kind.TOGGLE, 0.0D, 1.0D, false, false),

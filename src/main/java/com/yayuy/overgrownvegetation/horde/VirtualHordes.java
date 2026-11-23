@@ -770,9 +770,8 @@ public final class VirtualHordes extends SavedData {
             s.counts.values().removeIf(v -> v <= 0);
             if (placed > 0 && before2 > 0) s.paid -= s.paid * placed / (double) before2;
             budget += rest;
-            if (placed > 0 && raidCount.containsKey(s.baseId) && com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG.equals(s.extraTag)) {
-                raidCount.addTo(s.baseId, placed);
-            }
+            Integer raidKey = placed > 0 ? VirtualRaids.countKey(level, s) : null;
+            if (raidKey != null && raidCount.containsKey(raidKey.intValue())) raidCount.addTo(raidKey.intValue(), placed);
             materialized += placed;
             if (s.size() <= 0) {
                 if (!s.unit()) swarms.remove(s); // 部隊は空になっても残す(実物が戻る先・補充の先)

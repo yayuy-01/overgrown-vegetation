@@ -80,6 +80,14 @@ public final class FrontRaids extends SavedData {
             return new UUID(0x52414944L, id); // "RAID"
         }
 
+        public long id() {
+            return id;
+        }
+
+        public int baseId() {
+            return baseId;
+        }
+
         public int sent() {
             return sent;
         }
@@ -141,6 +149,28 @@ public final class FrontRaids extends SavedData {
 
     public List<Raid> raids() {
         return raids;
+    }
+
+    /** 拠点 baseId へ前線の襲撃(小・中・大。集まり中も)が向かっている・着いているか(寝られない夜。{@code RaidNightSleep})。 */
+    public static boolean raidOn(MinecraftServer server, int baseId) {
+        for (Raid r : get(server).raids) if (r.baseId == baseId) return true;
+        return false;
+    }
+
+    /** 群れ s が前線の大きな襲撃の部隊なら、その襲撃(同時の上限 LARGE_RAID_MAX_ALIVE の数え。{@code VirtualRaids})。 */
+    @Nullable
+    public static Raid largeRaidOf(MinecraftServer server, VirtualHordes.Swarm s) {
+        if (s.purpose() != UnitPurpose.RAID || s.hunt() == null) return null;
+        for (Raid r : get(server).raids) if (r.scale == RaidScales.RaidScale.LARGE && r.group().equals(s.hunt())) return r;
+        return null;
+    }
+
+    /** 襲撃 r の部隊のうち、今本物になっている頭数。 */
+    public static int realHeads(ServerLevel level, Raid r) {
+        Long2IntOpenHashMap real = FrontDirector.realByUnit(level);
+        int n = 0;
+        for (VirtualHordes.Swarm s : unitsOf(VirtualHordes.get(level.getServer()), r)) n += real.get(s.id());
+        return n;
     }
 
     /** 前線から出す作りが働いているか(GameTest のサーバーでは、テストが前線を動かすときだけ)。 */
@@ -205,7 +235,7 @@ public final class FrontRaids extends SavedData {
         for (Fronts.Front f : from) {
             if (capLeft <= 0) break;
             int raidable = raidable(hordes, f, real);
-            int want = Math.min(capLeft, Math.min(raidable, (int) Math.ceil(raidable * share * factor)));
+            int want = Math.min(capLeft, Math.min(raidable, (int) Math.ceil(raidable * share * factor * countFactor(scale))));
             if (want <= 0) continue;
             int h0 = FrontDirector.heads(f.id), t0 = FrontDirector.target(f.id);
             int got = pull(level, hordes, f, real, want, max, raid, gx, gz, now);
@@ -234,16 +264,29 @@ public final class FrontRaids extends SavedData {
      */
     public static int cap(BaseMemory.Base b, double day, RaidScales.RaidScale scale) {
         if (scale == RaidScales.RaidScale.LARGE) return Integer.MAX_VALUE;
-        if (BaseMemory.firstRaidPending(b)) return DesignData.director().assault.firstRaid.total();
+        if (BaseMemory.firstRaidPending(b)) return scaled(DesignData.director().assault.firstRaid.total(), scale);
         if (scale == RaidScales.RaidScale.MEDIUM) return Math.min(com.yayuy.overgrownvegetation.director.RaidScales.mediumMaxAlive(), mediumTotal(b, day));
-        int n = DesignData.front().raidCapSmall(Math.max(0.0D, day - b.stageSince()));
+        int n = scaled(DesignData.front().raidCapSmall(Math.max(0.0D, day - b.stageSince())), RaidScales.RaidScale.SMALL);
         int knob = RaidScales.Knobs.maxTotal[RaidScales.RaidScale.SMALL.ordinal()];
         return knob > 0 ? Math.min(n, knob) : n;
     }
 
-    /** 中(貯めた襲撃)の合計の上限: 認識からの日数の上限 {@link FrontTable#raidCapMedium}(小の 2 倍【仮】)。設定のページで決めたらさらに絞る。 */
+    /**
+     * ワールドの設定「襲撃の数」(RAID_COUNT_SMALL/MEDIUM/LARGE。{@code RaidSettings} が Knobs.countFactor へ写す)。11-23 片付け E の後に前線の襲撃へつなぎ直した:
+     * 小・中・最初の襲撃は上限({@link #cap}・{@link #mediumTotal})に、どの規模も樹域から出す割合(raidShare)に掛ける。既定 1.0 = 今までどおり。
+     */
+    static double countFactor(RaidScales.RaidScale s) {
+        return Math.max(0.0D, RaidScales.Knobs.countFactor[s.ordinal()]);
+    }
+
+    static int scaled(int n, RaidScales.RaidScale s) {
+        double f = countFactor(s);
+        return f == 1.0D ? n : (int) Math.min(Integer.MAX_VALUE / 4, Math.round(n * f));
+    }
+
+    /** 中(貯めた襲撃)の合計の上限: 認識からの日数の上限 {@link FrontTable#raidCapMedium}(小の 2 倍【仮】)× 設定の「襲撃の数」。設定のページで決めたらさらに絞る。 */
     public static int mediumTotal(BaseMemory.Base b, double day) {
-        int n = DesignData.front().raidCapMedium(Math.max(0.0D, day - b.stageSince()));
+        int n = scaled(DesignData.front().raidCapMedium(Math.max(0.0D, day - b.stageSince())), RaidScales.RaidScale.MEDIUM);
         int knob = RaidScales.Knobs.maxTotal[RaidScales.RaidScale.MEDIUM.ordinal()];
         return knob > 0 ? Math.min(n, knob) : n;
     }

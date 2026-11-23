@@ -20,8 +20,9 @@ import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
  *   <li>その拠点の最初の襲撃(まだ送っていない拠点の、送り込みの時刻が次の朝より前)。</li>
  *   <li>貯めた襲撃(継ぎ足しが続いている・貯める間が次の朝より前に明ける)。</li>
  *   <li>大きな襲撃(本番の最中・前触れが次の朝より前に明ける)。</li>
+ *   <li>前線の襲撃(小・中・大。11-23 片付け E の後に足した): 樹域から出た部隊がその拠点へ向かっている・集まっている・着いている間。</li>
  * </ul>
- * ふつうの送り込みの夜は寝られる(ユーザーが挙げたのは上の 3 つ)。範囲 128 ブロックは【仮】(送り込みが個体を探す半径と同じ)。
+ * 前線の襲撃は小さくても、来ている間は寝られない(11-23 ユーザー了承。前は ふつうの送り込みの夜は寝られた)。範囲 128 ブロックは【仮】(送り込みが個体を探す半径と同じ)。
  */
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.GAME)
 public final class RaidNightSleep {
@@ -53,6 +54,7 @@ public final class RaidNightSleep {
             if (dx * dx + dz * dz > RANGE * RANGE) continue;
             near = true;
             if (BaseMemory.firstRaidPending(b) && b.nextWaveDay() <= morning) return true;
+            if (com.yayuy.overgrownvegetation.front.FrontRaids.raidOn(server, b.id())) return true; // 11-23: 前線の襲撃が向かっている・着いている
         }
         if (!near) return false;
         ForestDirector.Mood mood = d.mood();

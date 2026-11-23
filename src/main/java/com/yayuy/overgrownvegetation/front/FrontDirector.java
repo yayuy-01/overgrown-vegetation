@@ -114,6 +114,7 @@ public final class FrontDirector {
 
     /** 1 回まわす(テストからも)。seconds = 前の回からの秒。 */
     public static void run(ServerLevel level, double seconds) {
+        readWorldSettings(level.getServer());
         Fronts fronts = Fronts.get(level.getServer());
         VirtualHordes hordes = VirtualHordes.get(level.getServer());
         sync(level, fronts, hordes);
@@ -322,10 +323,22 @@ public final class FrontDirector {
     private static long territoryAt = Long.MIN_VALUE;
     public static long atTargetSkips, nurseryAtTargetSkips;
 
-    /** 樹域の目標の頭数 = 過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。 */
+    /**
+     * ワールドの設定「Mob の湧く量」(MOB_SPAWN_AMOUNT。11-23 片付け E の後に前線へつなぎ直した)。run が回るたびにワールドの値で書き直す。
+     * 既定 1.0 = 今までどおり、0 = 樹域は部隊を作らない。
+     */
+    public static double targetFactor = 1.0D;
+
+    /** ワールドの設定を読み直す(run の頭・テストから)。 */
+    public static void readWorldSettings(MinecraftServer server) {
+        targetFactor = Math.max(0.0D, com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT));
+    }
+
+    /** 樹域の目標の頭数 = 過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)× 設定の「Mob の湧く量」。 */
     public static int target(int front) {
         FrontTable t = DesignData.front();
-        return Math.max(t.unitTargetMin, (int) Math.ceil(TERRITORY.get(front) * t.unitTargetPerChunk));
+        int n = Math.max(t.unitTargetMin, (int) Math.ceil(TERRITORY.get(front) * t.unitTargetPerChunk));
+        return targetFactor == 1.0D ? n : (int) Math.round(n * targetFactor);
     }
 
     /** 樹域の今の頭数(守る + 広げる。襲撃・狩り・建てるに出た分は数えない)。 */
@@ -699,6 +712,7 @@ public final class FrontDirector {
     public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
         TERRITORY.clear();
         HEADS.clear();
+        targetFactor = 1.0D;
         territoryAt = Long.MIN_VALUE;
         EDGES.clear();
         EDGE_ALL.clear();

@@ -418,4 +418,185 @@ public final class FrontRaidHuntGameTests {
             cleanup(h, fronts, f.id());
         }
     }
+
+    /** 試しの拠点を 1 つ、(x + 600, z) に認識させ、最初の襲撃は済ませる。 */
+    private static BaseMemory.Base recognizedBase(ServerLevel level, BaseMemory memory, double x, double z, double day) {
+        memory.clear();
+        int bcx = ((int) x + 600) >> 4, bcz = (int) z >> 4;
+        memory.addPresence(ChunkPos.asLong(bcx, bcz), DesignData.director().base.rememberScore * 2.0D, day);
+        memory.update(day);
+        BaseMemory.Base b = memory.bases().get(0);
+        memory.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, day);
+        memory.waveSent(b, day, level.getRandom());
+        return b;
+    }
+
+    /**
+     * 11-23 片付け E の後のつなぎ直し: ワールドの設定「Mob の湧く量」は樹域の目標の頭数に、「襲撃の数」は前線の襲撃の上限と出す割合に掛かる。
+     * 既定(100%)なら今までどおり。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void worldSettingsScaleTargetsAndRaids(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        net.minecraft.server.MinecraftServer server = level.getServer();
+        Fronts fronts = Fronts.get(server);
+        VirtualHordes h = VirtualHordes.get(server);
+        BaseMemory memory = BaseMemory.get(server);
+        FrontRaids data = FrontRaids.get(server);
+        com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData wd = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.get(server);
+        double x = 17_000_000.5D, z = 17_000_000.5D;
+        Fronts.Front f = fronts.addSourceForTests(x, z);
+        boolean ticking = FrontDirector.tickInGameTests;
+        try {
+            FrontDirector.tickInGameTests = true;
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            double day = BaseMemory.today(server);
+            BaseMemory.Base b = recognizedBase(level, memory, x, z, day);
+            for (int i = 0; i < 20; i++) {
+                VirtualHordes.Swarm d = h.newUnit(x + 10 + i, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+                d.addHeads(zombie(), 50, 100.0D);
+            }
+            // 湧く量
+            FrontDirector.readWorldSettings(server);
+            int base = FrontDirector.target(f.id());
+            helper.assertTrue(base > 0, "テストの前提: 目標の頭数が 0");
+            wd.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT, 2.0D);
+            FrontDirector.readWorldSettings(server);
+            helper.assertTrue(FrontDirector.target(f.id()) == Math.round(base * 2.0D), "湧く量 200% で目標が 2 倍にならない: " + FrontDirector.target(f.id()) + "(元 " + base + ")");
+            wd.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT, 0.0D);
+            FrontDirector.readWorldSettings(server);
+            helper.assertTrue(FrontDirector.target(f.id()) == 0, "湧く量 0% で目標が 0 にならない: " + FrontDirector.target(f.id()));
+            wd.reset(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT);
+            FrontDirector.readWorldSettings(server);
+            helper.assertTrue(FrontDirector.target(f.id()) == base, "既定に戻しても目標が戻らない");
+            // 襲撃の数
+            int cap1 = FrontRaids.cap(b, day, RaidScales.RaidScale.SMALL), med1 = FrontRaids.mediumTotal(b, day);
+            wd.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_COUNT_SMALL, 2.0D);
+            wd.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_COUNT_MEDIUM, 0.5D);
+            com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+            int cap2 = FrontRaids.cap(b, day, RaidScales.RaidScale.SMALL), med2 = FrontRaids.mediumTotal(b, day);
+            helper.assertTrue(cap2 == Math.round(cap1 * 2.0D), "小の数 200% で上限が 2 倍にならない: " + cap1 + " → " + cap2);
+            helper.assertTrue(med2 == Math.round(med1 * 0.5D), "中の数 50% で合計の上限が半分にならない: " + med1 + " → " + med2);
+            int total = 20 * 50;
+            int raidable = total - (int) Math.ceil(DesignData.front().defendShareQuiet * total);
+            int want = Math.min(cap2, Math.min(raidable, (int) Math.ceil(raidable * DesignData.front().raidShareSmall * FrontRaids.repelFactor(b) * 2.0D)));
+            int sent = FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL);
+            helper.assertTrue(sent == want, "小の数 200% の送り込みの数が違う: " + sent + "(欲しい " + want + ")");
+            helper.succeed();
+        } finally {
+            wd.reset(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT);
+            wd.reset(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_COUNT_SMALL);
+            wd.reset(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.RAID_COUNT_MEDIUM);
+            com.yayuy.overgrownvegetation.difficulty.RaidSettings.push(server);
+            FrontDirector.readWorldSettings(server);
+            FrontDirector.tickInGameTests = ticking;
+            UnitTerrain.terrainForTests = null;
+            memory.clear();
+            data.clearForTests();
+            cleanup(h, fronts, f.id());
+        }
+    }
+
+    /**
+     * 11-23 つなぎ直し: 「大きな襲撃の同時の上限」は前線の大きな襲撃の部隊が同時に本物になる数を抑える(数えるのはその襲撃の本物だけ)。
+     * 小・中の襲撃と守りの部隊には掛からない。
+     */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void largeRaidUnitsRespectMaxAlive(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        net.minecraft.server.MinecraftServer server = level.getServer();
+        Fronts fronts = Fronts.get(server);
+        VirtualHordes h = VirtualHordes.get(server);
+        BaseMemory memory = BaseMemory.get(server);
+        FrontRaids data = FrontRaids.get(server);
+        com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData wd = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.get(server);
+        double x = 18_000_000.5D, z = 18_000_000.5D;
+        Fronts.Front f = fronts.addSourceForTests(x, z);
+        boolean ticking = FrontDirector.tickInGameTests;
+        net.minecraft.world.entity.monster.Zombie real = null;
+        try {
+            FrontDirector.tickInGameTests = true;
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            double day = BaseMemory.today(server);
+            BaseMemory.Base b = recognizedBase(level, memory, x, z, day);
+            VirtualHordes.Swarm defend = null;
+            for (int i = 0; i < 20; i++) {
+                defend = h.newUnit(x + 10 + i, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+                defend.addHeads(zombie(), 50, 100.0D);
+            }
+            helper.assertTrue(com.yayuy.overgrownvegetation.horde.VirtualRaids.countKey(level, defend) == null, "守りの部隊に襲撃の枠が掛かった");
+            helper.assertTrue(FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL) > 0, "小の襲撃が出ない");
+            FrontRaids.Raid small = data.raids().get(data.raids().size() - 1);
+            helper.assertTrue(FrontRaids.send(level, b, day, RaidScales.RaidScale.LARGE) > 0, "大の襲撃が出ない");
+            FrontRaids.Raid large = data.raids().get(data.raids().size() - 1);
+            VirtualHordes.Swarm su = null, lu = null;
+            for (VirtualHordes.Swarm s : h.swarms()) {
+                if (s.purpose() != UnitPurpose.RAID) continue;
+                if (small.group().equals(s.hunt())) su = s;
+                if (large.group().equals(s.hunt())) lu = s;
+            }
+            helper.assertTrue(su != null && lu != null, "襲撃の部隊が見つからない");
+            helper.assertTrue(com.yayuy.overgrownvegetation.horde.VirtualRaids.countKey(level, su) == null, "小の襲撃に大の枠が掛かった");
+            Integer key = com.yayuy.overgrownvegetation.horde.VirtualRaids.countKey(level, lu);
+            helper.assertTrue(key != null && key < 0, "大の襲撃の部隊に枠の鍵が無い: " + key);
+            int max = com.yayuy.overgrownvegetation.director.LargeRaids.maxAlive();
+            int room0 = com.yayuy.overgrownvegetation.horde.VirtualRaids.room(level, lu, new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap());
+            helper.assertTrue(room0 == max, "本物がいないのに枠が上限でない: " + room0 + " / " + max);
+            real = helper.spawn(net.minecraft.world.entity.EntityType.ZOMBIE, 1, 2, 1);
+            real.getPersistentData().putLong(VirtualHordes.UNIT_KEY, lu.id());
+            int room1 = com.yayuy.overgrownvegetation.horde.VirtualRaids.room(level, lu, new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap());
+            helper.assertTrue(room1 == max - 1, "本物になった 1 体を数えない: " + room1 + "(欲しい " + (max - 1) + ")");
+            wd.set(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.LARGE_RAID_MAX_ALIVE, 20.0D);
+            int room2 = com.yayuy.overgrownvegetation.horde.VirtualRaids.room(level, lu, new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap());
+            helper.assertTrue(room2 == 19, "設定の上限 20 が効かない: " + room2);
+            helper.succeed();
+        } finally {
+            if (real != null) real.discard();
+            wd.reset(com.yayuy.overgrownvegetation.difficulty.DifficultySetting.LARGE_RAID_MAX_ALIVE);
+            FrontDirector.tickInGameTests = ticking;
+            UnitTerrain.terrainForTests = null;
+            memory.clear();
+            data.clearForTests();
+            cleanup(h, fronts, f.id());
+        }
+    }
+
+    /** 11-23: 前線の襲撃(小でも)が拠点へ向かっている・着いている間は、その拠点のそばで寝られない。終われば戻る。 */
+    @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
+    public static void cannotSleepWhileFrontRaidIsOn(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        net.minecraft.server.MinecraftServer server = level.getServer();
+        Fronts fronts = Fronts.get(server);
+        VirtualHordes h = VirtualHordes.get(server);
+        BaseMemory memory = BaseMemory.get(server);
+        FrontRaids data = FrontRaids.get(server);
+        double x = 19_000_000.5D, z = 19_000_000.5D;
+        Fronts.Front f = fronts.addSourceForTests(x, z);
+        boolean ticking = FrontDirector.tickInGameTests;
+        try {
+            FrontDirector.tickInGameTests = true;
+            UnitTerrain.terrainForTests = (cx, cz) -> UnitTerrain.LAND;
+            double day = BaseMemory.today(server);
+            BaseMemory.Base b = recognizedBase(level, memory, x, z, day);
+            VirtualHordes.Swarm d = h.newUnit(x + 10, 64, z, f.id(), UnitPurpose.DEFEND, level.getGameTime());
+            d.addHeads(zombie(), 50, 100.0D);
+            double bx = b.centerX(), bz = b.centerZ();
+            boolean before = com.yayuy.overgrownvegetation.spawn.RaidNightSleep.raidTonight(server, bx, bz);
+            helper.assertTrue(!FrontRaids.raidOn(server, b.id()), "テストの前提: 前線の襲撃がもう来ている");
+            helper.assertTrue(FrontRaids.send(level, b, day, RaidScales.RaidScale.SMALL) > 0, "小の襲撃が出ない");
+            helper.assertTrue(FrontRaids.raidOn(server, b.id()), "出した襲撃が拠点へ向かっていると数えない");
+            helper.assertTrue(com.yayuy.overgrownvegetation.spawn.RaidNightSleep.raidTonight(server, bx, bz), "前線の襲撃が来ているのに拠点のそばで寝られる");
+            double far = com.yayuy.overgrownvegetation.spawn.RaidNightSleep.RANGE + 200.0D;
+            helper.assertTrue(!com.yayuy.overgrownvegetation.spawn.RaidNightSleep.raidTonight(server, bx + far, bz), "拠点から遠い所でも寝られない");
+            data.clearForTests();
+            helper.assertTrue(com.yayuy.overgrownvegetation.spawn.RaidNightSleep.raidTonight(server, bx, bz) == before, "襲撃が終わっても寝られない");
+            helper.succeed();
+        } finally {
+            FrontDirector.tickInGameTests = ticking;
+            UnitTerrain.terrainForTests = null;
+            memory.clear();
+            data.clearForTests();
+            cleanup(h, fronts, f.id());
+        }
+    }
 }
