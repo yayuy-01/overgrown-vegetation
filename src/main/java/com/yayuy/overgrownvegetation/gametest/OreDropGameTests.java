@@ -130,12 +130,12 @@ public final class OreDropGameTests {
         return new int[]{min, max};
     }
 
-    /** 1.20 の書き方のアイテムの判定(黙って空の判定になる)がこの mod のルートテーブルに残っていない。 */
-    private static final Pattern OLD_ITEM_PREDICATE = Pattern.compile("\"predicate\":\\{\"(enchantments|stored_enchantments|item|tag|nbt|durability|potion)\"");
+    /** 1.20.1: 逆向き。1.21 の書き方のアイテムの判定(1.20.1 では黙って空の判定になる)がこの mod のルートテーブルに残っていない。 */
+    private static final Pattern OLD_ITEM_PREDICATE = Pattern.compile("\"predicates\":\\{\"minecraft:"); // 1.20.1: 名前は元のまま、中身は 1.21 の形を探す
 
     @GameTest(template = "gametest_empty7")
     public static void lootTablesUseCurrentItemPredicateFormat(GameTestHelper helper) {
-        Map<ResourceLocation, Resource> found = helper.getLevel().getServer().getResourceManager().listResources("loot_table",
+        Map<ResourceLocation, Resource> found = helper.getLevel().getServer().getResourceManager().listResources("loot_tables", // 1.20.1: フォルダは loot_tables
                 rl -> rl.getNamespace().equals(OvergrownVegetation.MODID) && rl.getPath().endsWith(".json"));
         List<String> offenders = new ArrayList<>();
         for (Map.Entry<ResourceLocation, Resource> entry : found.entrySet()) {
@@ -155,7 +155,7 @@ public final class OreDropGameTests {
         if (found.isEmpty()) {
             helper.fail("この mod のルートテーブルが 1 つも見つからない(探し方の誤り)");
         } else if (!offenders.isEmpty()) {
-            helper.fail("1.20 の書き方のアイテムの判定が残っている(1.21 は \"predicates\": {\"minecraft:enchantments\": ...}): " + offenders);
+            helper.fail("1.21 の書き方のアイテムの判定が残っている(1.20.1 は \"predicate\": {\"enchantments\": ...}): " + offenders);
         } else {
             helper.succeed();
         }

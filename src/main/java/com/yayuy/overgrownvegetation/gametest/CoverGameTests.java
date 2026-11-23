@@ -135,8 +135,8 @@ public final class CoverGameTests {
     public static void corruptionLeavesBuildingBlocksInPlace(GameTestHelper helper) {
         Set<String> dedicated = Set.of("stone", "deepslate", "cobbled_deepslate", "bricks", "netherrack", "end_stone");
         Set<Block> table = CoverInPlace.blocks();
-        if (table.size() != 367 + 36 + 49) { // 蝋引きの銅 36 個も。テラコッタ 17・色付きガラス 16・色付きガラス板 16(2026-11-03)
-            helper.fail("記録で覆うブロックの一覧が 452 件でない: " + table.size());
+        if (table.size() != (367 - 33) + (36 - 20) + 49) { // 蝋引きの銅 36 個も。テラコッタ 17・色付きガラス 16・色付きガラス板 16(2026-11-03)。1.20.1: G2 が 1.20.1 に無い 33 個(凝灰岩 13・銅 20)を外し、その蝋引き 20 も無い(決定 4)= 399
+            helper.fail("記録で覆うブロックの一覧が 399 件(1.21 は 452)でない: " + table.size());
             return;
         }
         double chance = DesignData.cover().chance();

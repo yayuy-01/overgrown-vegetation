@@ -42,12 +42,12 @@ public final class RecipeLoadGameTests {
     @GameTest(template = "gametest_empty7")
     public static void everyModRecipeFileLoads(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
-        Map<ResourceLocation, Resource> found = server.getResourceManager().listResources("recipe",
+        Map<ResourceLocation, Resource> found = server.getResourceManager().listResources("recipes", // 1.20.1: フォルダは recipes
                 rl -> rl.getNamespace().equals(OvergrownVegetation.MODID) && rl.getPath().endsWith(".json"));
         List<String> missing = new ArrayList<>();
         for (Map.Entry<ResourceLocation, Resource> entry : found.entrySet()) {
             String path = entry.getKey().getPath();
-            ResourceLocation id = OvergrownVegetation.id(path.substring("recipe/".length(), path.length() - ".json".length()));
+            ResourceLocation id = OvergrownVegetation.id(path.substring("recipes/".length(), path.length() - ".json".length()));
             if (server.getRecipeManager().byKey(id).isPresent()) {
                 continue;
             }
@@ -57,7 +57,7 @@ public final class RecipeLoadGameTests {
                 for (int n; (n = reader.read(buf)) > 0; ) {
                     text.append(buf, 0, n);
                 }
-                if (text.indexOf("neoforge:conditions") >= 0) {
+                if (text.indexOf("\"conditions\"") >= 0) { // 1.20.1: Forge の条件は一番上の "conditions"
                     continue; // 条件付き(条件が合わないと読まれないのが正しい)
                 }
             } catch (Exception e) {
