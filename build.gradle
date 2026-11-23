@@ -208,11 +208,14 @@ tasks.matching { it.name == 'runGameTestServer' }.configureEach { t ->
         }
         dir.mkdirs()
         File props = new File(dir, 'server.properties')
-        List<String> lines = props.isFile() ? props.readLines('UTF-8').findAll { !it.startsWith('level-type=') && !it.startsWith('difficulty=') } : []
+        List<String> lines = props.isFile() ? props.readLines('UTF-8').findAll { !it.startsWith('level-type=') && !it.startsWith('difficulty=') && !it.startsWith('level-seed=') && !it.startsWith('generate-structures=') } : []
         lines << 'level-type=minecraft\\:flat'
         lines << 'difficulty=normal'
+        // 1.21 の GameTestServer と同じ WorldOptions(0L, false, false): 種 0・構造物なし(毎回同じ世界。種が回ごとに変わると結果が揺れる)
+        lines << 'level-seed=0'
+        lines << 'generate-structures=false'
         props.write(lines.join('\n') + '\n', 'UTF-8')
-        logger.lifecycle("OV_GT ${dir}: server.properties に level-type=flat・difficulty=normal")
+        logger.lifecycle("OV_GT ${dir}: server.properties に level-type=flat・difficulty=normal・level-seed=0・generate-structures=false")
     }
 }
 
