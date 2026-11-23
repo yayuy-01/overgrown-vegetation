@@ -78,11 +78,14 @@ public final class EconomySoak {
     }
 
     /** 11-22 樹域から出した襲撃 1 回・継ぎ足し 1 回(FrontRaids から)。どの樹域から何体出したか(from = "#樹域の id=体数 …")・上限。 */
-    public static void frontRaid(ServerLevel level, long raidId, String kind, int baseId, String pick, String from, int sent, int cap) {
+    public static void frontRaid(ServerLevel level, long raidId, String kind, int baseId, String pick, String from, int sent, int cap,
+                                 int srcHeads, int srcTarget, int srcRaidable) {
         if (!on || dir == null) return;
-        append("front-raids.csv", "day,phase,raid,kind,base,pick,sent,cap,from\n", String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d,%s,%d,%d,%s%n",
+        // 11-23 D: 出した樹域の 頭数・目標・出せる頭数の合計(抜く前)。from の各樹域にも (h/t/r) を付けた
+        append("front-raids.csv", "day,phase,raid,kind,base,pick,sent,cap,srcHeads,srcTarget,srcRaidable,from\n",
+                String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s%n",
                 PhaseData.clockNow(level) / 24000.0D, PhaseData.get(level).getPhase(), raidId, kind, baseId, pick, sent,
-                cap >= Integer.MAX_VALUE / 4 ? -1 : cap, from));
+                cap >= Integer.MAX_VALUE / 4 ? -1 : cap, srcHeads, srcTarget, srcRaidable, from));
     }
 
     /** 送り込み 1 回(BaseRaids から)。 */

@@ -148,8 +148,12 @@ public final class FalcimnesGameTests {
         z.setHealth(60.0F);
         float want = 60.0F - bite * 2.0F;
         helper.runAfterDelay(36L, () -> {
-            if (Math.abs(z.getHealth() - want) > 0.01F) {
-                helper.fail("噛みつき 2 回で体力 " + want + " のはずが " + z.getHealth() + "(防具で減っている?)");
+            // 11-23: 噛まれた Mob は傷口から胞子に晒され、満ちると防御無視の胞子感染(mobDamage 20)を受ける(設計どおり)。満ちる tick しだいで
+            // 噛み 2 回の間に入って落ちていた(grabEndsInFinisher の 8d355ccc と同じ)。ここで見たいのは噛みの傷なので、受けた回数ぶんを差し引く
+            float spore = z.hasData(ModAttachments.SPORE_EXPOSURE)
+                    ? (float) (DesignData.sporeField().mobExposureDamage() * z.getData(ModAttachments.SPORE_EXPOSURE).reachedCount) : 0.0F;
+            if (Math.abs(z.getHealth() - (want - spore)) > 0.01F) {
+                helper.fail("噛みつき 2 回で体力 " + want + "(胞子感染 " + spore + " を引いて " + (want - spore) + ")のはずが " + z.getHealth() + "(防具で減っている?)");
                 return;
             }
             helper.succeed();

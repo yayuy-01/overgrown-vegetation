@@ -1099,7 +1099,7 @@ public final class PhaseData extends SavedData {
         }
         // 2026-11-23 ユーザー決定: F1 より前に過繁茂ができたら(萌芽体などで森を作った)、日数・実績を待たずにすぐ F1。
         // 萌芽体が根付く → 半径の汚染 → 地表の割合で過繁茂 → 台帳、の道はフェーズ 0 でも動く(胞子の場・ポイントは F1 から)。
-        // 亀裂の場所は今のまま(advanceToPhase → EarthquakeEvent の通常の抽選)【仮・ユーザーに確認中】。置いた森の所にするなら
+        // 亀裂の場所はいつもの場所(advanceToPhase → EarthquakeEvent の通常の抽選。11-23 ユーザー決定)。置いた森の所にするなら
         // EarthquakeEvent.trigger(overworld, 震央) に台帳のチャンクを渡す。
         // GameTest の世界の本物の PhaseData では見ない(ほかのテストが本物の台帳に載せるので、順番しだいで勝手に F1 になる)。
         if (overgrownLedgerSize() > 0

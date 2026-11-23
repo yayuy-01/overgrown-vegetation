@@ -192,7 +192,7 @@ public final class FrontTable {
         raidsFromFronts = s.raidsFromFronts == null || s.raidsFromFronts;
         raidCapStart = Math.max(0.0D, nn(s.raidCapStart, 40.0D));
         raidCapEnd = Math.max(raidCapStart, nn(s.raidCapEnd, 200.0D));
-        raidCapRampDays = Math.max(0.0D, nn(s.raidCapRampDays, 6.0D));
+        raidCapRampDays = Math.max(0.0D, nn(s.raidCapRampDays, 12.0D)); // 11-23: 6 → 12(緩やかに)
         raidCapMediumFactor = Math.max(0.0D, nn(s.raidCapMediumFactor, 2.0D));
         raidRetryDays = Math.max(0.005D, nn(s.raidRetryDays, 0.1D));
         raidRetryMax = Math.max(0, s.raidRetryMax != null ? s.raidRetryMax : 3);

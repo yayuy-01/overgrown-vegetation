@@ -157,7 +157,7 @@ public final class FrontRaids extends SavedData {
 
     /**
      * 拠点 b へ襲う部隊を出す(RaidScales と BaseRaids の口から)。出した頭数を返す(0 なら出せる部隊が無い)。
-     * 小・中: いちばん近い樹域から出す。そこに出せる部隊が無ければ、raidRangeBlocks の中で次に近い樹域から(11-22 全体管理了承)。
+     * 小・中: raidRangeBlocks の中の樹域から拠点に近い順に、上限に届くまで集める(11-23 ユーザー決定。前は いちばん近い 1 つの樹域だけ)。
      */
     public static int send(ServerLevel level, BaseMemory.Base b, double day, RaidScales.RaidScale scale) {
         FrontTable t = DesignData.front();
@@ -173,18 +173,15 @@ public final class FrontRaids extends SavedData {
             for (Fronts.Front f : fronts.fronts()) if (FrontDirector.near(f.x, f.z, b.centerX(), b.centerZ(), t.raidRangeBlocks)) from.add(f);
             if (from.isEmpty()) from.add(nearest);
         } else {
-            List<Fronts.Front> near = new ArrayList<>();
-            for (Fronts.Front f : fronts.fronts()) {
-                if (f == nearest || FrontDirector.near(f.x, f.z, b.centerX(), b.centerZ(), t.raidRangeBlocks)) near.add(f);
-            }
-            near.sort(Comparator.comparingDouble(f -> (f.x - b.centerX()) * (f.x - b.centerX()) + (f.z - b.centerZ()) * (f.z - b.centerZ())));
+            // 11-23 ユーザー決定 A: 小・中も raidRangeBlocks の中の樹域から近い順に、上限に届くまで集める(1 つの樹域が細っても大きさを保つ)
+            List<Fronts.Front> near = sourcesNear(fronts, b, nearest, t.raidRangeBlocks);
             for (Fronts.Front f : near) {
                 if (raidable(hordes, f, real) > 0) {
                     aim = f;
                     break;
                 }
             }
-            from.add(aim);
+            from.addAll(near);
         }
         double share = switch (scale) {
             case SMALL -> t.raidShareSmall;
@@ -204,15 +201,17 @@ public final class FrontRaids extends SavedData {
         int max = t.unitMax(com.yayuy.overgrownvegetation.director.DirectorGates.phase(level));
         int cap = cap(b, day, scale), capLeft = cap; // 11-22 ユーザー決定 案 3: 割合は上限の中で使う
         StringBuilder byFront = new StringBuilder();
+        int[] src = new int[3];
         for (Fronts.Front f : from) {
             if (capLeft <= 0) break;
             int raidable = raidable(hordes, f, real);
             int want = Math.min(capLeft, Math.min(raidable, (int) Math.ceil(raidable * share * factor)));
             if (want <= 0) continue;
+            int h0 = FrontDirector.heads(f.id), t0 = FrontDirector.target(f.id);
             int got = pull(level, hordes, f, real, want, max, raid, gx, gz, now);
             raid.sent += got;
             capLeft -= got;
-            if (got > 0) byFront.append(byFront.length() > 0 ? " " : "").append('#').append(f.id).append('=').append(got);
+            if (got > 0) noteSource(byFront, src, f, got, h0, t0, raidable);
         }
         if (raid.sent <= 0) return 0;
         data.raids.add(raid);
@@ -221,7 +220,7 @@ public final class FrontRaids extends SavedData {
         headsSent += raid.sent;
         boolean first = BaseMemory.firstRaidPending(b);
         com.yayuy.overgrownvegetation.director.EconomySoak.frontRaid(level, raid.id, first ? "first" : scale.name(), b.id(),
-                aim == nearest ? "nearest" : "next", byFront.toString(), raid.sent, cap);
+                aim == nearest ? "nearest" : "next", byFront.toString(), raid.sent, cap, src[0], src[1], src[2]);
         ForestDirector.get(level).note(String.format(Locale.ROOT, "樹域から襲う部隊を出した(拠点 #%d・%s・%d 体・樹域 %s・撃退 %d 回 → ×%.2f)",
                 b.id(), scale.name(), raid.sent, byFront, b.repelled(), factor));
         return raid.sent;
@@ -229,7 +228,7 @@ public final class FrontRaids extends SavedData {
 
     /**
      * 1 回の襲撃で前線から出す頭数の上限(11-22 ユーザー決定 案 3 = 11-16 の数と 11-20 夜の「予算だけで決める」を合わせた形)。
-     * 最初の襲撃 = assault.firstRaid の計(15)・小 = 認識からの日数の上限 {@link FrontTable#raidCapSmall}(【仮】40 → 6 日後に 200)・
+     * 最初の襲撃 = assault.firstRaid の計(15)・小 = 認識からの日数の上限 {@link FrontTable#raidCapSmall}(【仮】40 → 12 日後に 200)・
      * 中 = 同時 hoardMaxAlive(40)の 1 回目(継ぎ足しは {@link #refill} で {@link #mediumTotal} まで)・大 = 上限なし(重さは同時の上限で抑える)。
      * 設定のページの RAID_MAX_TOTAL_*(入れたときだけ)はさらに絞る。出す数そのものは 前線の出せる頭数 × raidShare(この上限の中)。
      */
@@ -251,23 +250,56 @@ public final class FrontRaids extends SavedData {
 
     /**
      * 中の継ぎ足し(11-16 ユーザー「同時に湧くのは 40、そこから継ぎ足し継ぎ足しで最大 80 体」): 拠点へ進み出した後、hoardRefillTicks ごとに
-     * 生きている頭数が同時の上限より少なければ、いちばん近い前線から差を足して拠点へ向かわせる。合計 mediumTotal(襲撃を始めた日の上限)まで。足した数を返す。
+     * 生きている頭数が同時の上限より少なければ、raidRangeBlocks の中の樹域から近い順に差を足して拠点へ向かわせる。合計 mediumTotal(襲撃を始めた日の上限)まで。
+     * 全部倒されたときも終わる前にこれを呼ぶ(11-23 ユーザー決定 C)。足した数を返す。
      */
     public static int refill(ServerLevel level, VirtualHordes hordes, Raid r, BaseMemory.Base b, int alive, Long2IntOpenHashMap real) {
         if (r.scale != RaidScales.RaidScale.MEDIUM || r.gathering) return 0;
         int want = Math.min(com.yayuy.overgrownvegetation.director.HoardRaids.maxAlive() - alive, mediumTotal(b, r.startDay) - r.sent);
         if (want <= 0) return 0;
-        Fronts.Front f = Fronts.get(level.getServer()).nearest(b.centerX(), b.centerZ(), -1);
-        if (f == null) return 0;
-        want = Math.min(want, raidable(hordes, f, real));
-        if (want <= 0) return 0;
-        int got = pull(level, hordes, f, real, want, DesignData.front().unitMax(com.yayuy.overgrownvegetation.director.DirectorGates.phase(level)),
-                r, b.centerX(), b.centerZ(), level.getGameTime());
+        Fronts fronts = Fronts.get(level.getServer());
+        Fronts.Front nearest = fronts.nearest(b.centerX(), b.centerZ(), -1);
+        if (nearest == null) return 0;
+        // 11-23 ユーザー決定 C: 継ぎ足しも raidRangeBlocks の中の樹域から近い順に(A と同じ集め方)
+        int max = DesignData.front().unitMax(com.yayuy.overgrownvegetation.director.DirectorGates.phase(level));
+        int got = 0;
+        StringBuilder byFront = new StringBuilder();
+        int[] src = new int[3];
+        for (Fronts.Front f : sourcesNear(fronts, b, nearest, DesignData.front().raidRangeBlocks)) {
+            if (got >= want) break;
+            int raidable = raidable(hordes, f, real);
+            int k = Math.min(want - got, raidable);
+            if (k <= 0) continue;
+            int h0 = FrontDirector.heads(f.id), t0 = FrontDirector.target(f.id);
+            int g = pull(level, hordes, f, real, k, max, r, b.centerX(), b.centerZ(), level.getGameTime());
+            got += g;
+            if (g > 0) noteSource(byFront, src, f, g, h0, t0, raidable);
+        }
         r.sent += got;
         headsSent += got;
         if (got > 0) get(level.getServer()).setDirty();
-        if (got > 0) com.yayuy.overgrownvegetation.director.EconomySoak.frontRaid(level, r.id, "MEDIUM_REFILL", b.id(), "nearest", "#" + f.id + "=" + got, got, mediumTotal(b, r.startDay));
+        if (got > 0) com.yayuy.overgrownvegetation.director.EconomySoak.frontRaid(level, r.id, "MEDIUM_REFILL", b.id(), "nearest", byFront.toString(), got,
+                mediumTotal(b, r.startDay), src[0], src[1], src[2]);
         return got;
+    }
+
+    /** 拠点 b から raidRangeBlocks の中の樹域(いちばん近い樹域は範囲の外でも入れる)を、拠点に近い順に。 */
+    static List<Fronts.Front> sourcesNear(Fronts fronts, BaseMemory.Base b, Fronts.Front nearest, double range) {
+        List<Fronts.Front> near = new ArrayList<>();
+        for (Fronts.Front f : fronts.fronts()) {
+            if (f == nearest || FrontDirector.near(f.x, f.z, b.centerX(), b.centerZ(), range)) near.add(f);
+        }
+        near.sort(Comparator.comparingDouble(f -> (f.x - b.centerX()) * (f.x - b.centerX()) + (f.z - b.centerZ()) * (f.z - b.centerZ())));
+        return near;
+    }
+
+    /** 襲撃の CSV 用(11-23 D): 出した樹域ごとに「#id=出した数(頭数 h/目標 t/出せる頭数 r)」と、その合計 {頭数, 目標, 出せる頭数}。値は抜く前。 */
+    private static void noteSource(StringBuilder byFront, int[] sum, Fronts.Front f, int got, int heads, int target, int raidable) {
+        byFront.append(byFront.length() > 0 ? " " : "").append('#').append(f.id).append('=').append(got)
+                .append("(h").append(heads).append("/t").append(target).append("/r").append(raidable).append(')');
+        sum[0] += heads;
+        sum[1] += target;
+        sum[2] += raidable;
     }
 
     /** 前線 f から出せる頭数(守りの下限を超えた守り + 広げる。仮想の頭数だけ)。 */
@@ -360,6 +392,9 @@ public final class FrontRaids extends SavedData {
             int alive = 0;
             for (VirtualHordes.Swarm s : units) alive += s.size() + real.get(s.id());
             BaseMemory.Base b = memory.byId(r.baseId);
+            // 11-23 ユーザー決定 C: 中は全部倒されても、先に継ぎ足してから終わるかを見る(合計の上限・長さ・出せる樹域が尽きるまで続く)
+            boolean raidTimeUp = !r.gathering && !Double.isNaN(r.advanceDay) && day - r.advanceDay > RaidScales.maxDays(r.scale, 1.0D);
+            if (alive <= 0 && b != null && !raidTimeUp) alive += refill(level, hordes, r, b, alive, real);
             if (alive <= 0 || b == null) {
                 finish(level, data, memory, r, b, units, day, alive <= 0 ? "全部倒された" : "拠点を忘れた");
                 continue;
