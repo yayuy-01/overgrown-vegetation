@@ -9,7 +9,6 @@ import com.yayuy.overgrownvegetation.entity.GestatrixEntity;
 import com.yayuy.overgrownvegetation.entity.GregariaEntity;
 import com.yayuy.overgrownvegetation.phase.PhaseStage;
 import com.yayuy.overgrownvegetation.registry.ModCrawlers;
-import com.yayuy.overgrownvegetation.spawn.EnemySpawns;
 import com.yayuy.overgrownvegetation.spawn.SpawnTable;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -143,7 +142,6 @@ public final class GestatrixGameTests {
         DirectorGates.setPhaseForTests(5);
         DirectorGates.setStageForTests(PhaseStage.PEAK);
         GestatrixEntity g = spawn(helper);
-        g.addTag(EnemySpawns.EDGE_TAG);
         List<Supplier<? extends EntityType<? extends Mob>>> pool = List.of(() -> EntityType.PIG);
         g.setSpawnPoolForTests(pool);
         helper.runAfterDelay(2, () -> {
@@ -153,7 +151,6 @@ public final class GestatrixGameTests {
         int rootedAt = 2 + 1 + GestatrixEntity.BIRTH_T + GestatrixEntity.ROOT_T + 4;
         helper.runAfterDelay(rootedAt, () -> {
             helper.assertTrue(g.rooted() && g.births() == t.birthsToRoot && g.sacs() == 0, "決めた回数産んでも根を下ろさない: 状態 " + g.state() + "・産んだ回 " + g.births());
-            helper.assertFalse(g.getTags().contains(EnemySpawns.EDGE_TAG), "根付いたのに縁の印が残っている(縁の上限に数え、遠くで片付けてしまう)");
             brood(helper).forEach(net.minecraft.world.entity.Entity::discard);
             director.setBudget(level, ForestDirector.cap(level));
             g.setRootedTimersForTests(99999, 1);
@@ -182,36 +179,4 @@ public final class GestatrixGameTests {
         });
     }
 
-    /** 縁の湧き: G4 の送り込みのゲートは F6 でも、ゲスタトリクスは種の open で F4 から湧き、上限は edge.caps の 6 × 段の強さ。 */
-    @GameTest(template = TEMPLATE, batch = "gestatrix_open", timeoutTicks = 20)
-    public static void opensAtF4OnTheEdge(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        Integer phaseBefore = DirectorGates.phaseOverride();
-        PhaseStage stageBefore = DirectorGates.stageOverride();
-        try {
-            DirectorGates.setPhaseForTests(3);
-            DirectorGates.setStageForTests(PhaseStage.PEAK);
-            helper.assertTrue(EnemySpawns.edgeCap(level, 4) == 0, "F3 で G4 の枠が開いている: " + EnemySpawns.edgeCap(level, 4));
-            DirectorGates.setPhaseForTests(4);
-            int cap = EnemySpawns.edgeCap(level, 4);
-            helper.assertTrue(cap >= 1 && cap <= DesignData.spawns().cap(4), "F4 で G4 の枠が開かない: " + cap);
-            int[] counts = new int[11];
-            boolean picked = false;
-            net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(9L);
-            for (int i = 0; i < 400 && !picked; i++) {
-                SpawnTable.Species sp = EnemySpawns.pick(level, counts, rnd, false);
-                if (sp != null && sp.type() == ModCrawlers.GESTATRIX.get()) picked = true;
-            }
-            helper.assertTrue(picked, "F4 でゲスタトリクスが選ばれない");
-            counts[4] = cap;
-            for (int i = 0; i < 400; i++) {
-                SpawnTable.Species sp = EnemySpawns.pick(level, counts, rnd, false);
-                helper.assertTrue(sp == null || sp.type() != ModCrawlers.GESTATRIX.get(), "上限なのにゲスタトリクスを選んだ");
-            }
-            helper.succeed();
-        } finally {
-            DirectorGates.setPhaseForTests(phaseBefore);
-            DirectorGates.setStageForTests(stageBefore);
-        }
-    }
 }

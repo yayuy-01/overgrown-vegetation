@@ -333,6 +333,13 @@ public final class CaveLights {
     static void tick(ClientLevel level, Vec3 eye, long ticks) {
         if (!VisualQuality.caveLight()) {
             clear();
+            // 段の「なし」でも地下の音は前と同じに鳴らす(11-23)。地下モードの見た目だけを切ったときは前のまま(音も地上の扱い)。
+            if (!VisualQuality.effects()) {
+                soundTick(level, eye, ticks);
+            } else {
+                soundMix = 0.0F;
+                soundTarget = 0.0F;
+            }
             return;
         }
         AtmosphereCave.CaveParams p = DesignData.atmosphere().cave();
@@ -349,6 +356,8 @@ public final class CaveLights {
         // 黒い霧・点光源の強さ(シェーダーで × mix)・Mob の明るさがどれもこの値なので、まとめて滑らかになる。
         // 11-07 目の慣れ: 白く飛んでいる(暗く沈んでいる)間は早めに寄せて、つなぎ目を隠す
         mix = ForestPresence.approach(mix, mixTarget, 0.05F, EyeAdaptation.transitionSeconds(DesignData.atmosphere().fog().transitionCaveSeconds()));
+        soundMix = mix;
+        soundTarget = mixTarget;
         // カメラの所の場所の値(地形のシェーダーの OvCaveLocal.y)。段だけ均す 0.3 秒(仮決め)。
         camLocal = ForestPresence.approach(camLocal, mixTarget, 0.05F, devCamSeconds >= 0.0F ? devCamSeconds : 0.3F);
         // 11-07: カメラが洞窟の奥(いちばん近い口から 8〜24 列)にいる度合い。DH の遠景の霧の色を洞窟の色へ寄せるのに使う(MistView)
@@ -600,6 +609,36 @@ public final class CaveLights {
      */
     public static float overgrownMix() {
         return overgrownHere ? mix : 0.0F;
+    }
+
+    /**
+     * 音が読む地下の度合い(2026-11-23)。地下モードの見た目(caveLight)が切られている間・段の「なし」の間も、音のためにこれだけは測り続ける
+     * ({@link #soundTick})。見た目が描かれている間は {@link #mix} と同じ。
+     */
+    public static float soundMix() {
+        return soundMix;
+    }
+
+    /** {@link #soundMix} の過繁茂の地域の分(洞窟の音)。 */
+    public static float overgrownSoundMix() {
+        return overgrownHere ? soundMix : 0.0F;
+    }
+
+    private static float soundMix;
+    private static float soundTarget;
+
+    /** 地下モードの見た目を描かない間の、音のためだけの地下の度合い(カメラの 1 点・2 tick おき。地図や光源は集めない)。 */
+    private static void soundTick(ClientLevel level, Vec3 eye, long ticks) {
+        if (!VisualQuality.atmosphere()) {
+            soundMix = 0.0F;
+            soundTarget = 0.0F;
+            return;
+        }
+        AtmosphereCave.CaveParams p = DesignData.atmosphere().cave();
+        if (ticks % 2 == 1) {
+            soundTarget = target(level, eye, p);
+        }
+        soundMix = ForestPresence.approach(soundMix, soundTarget, 0.05F, DesignData.atmosphere().fog().transitionCaveSeconds());
     }
 
 

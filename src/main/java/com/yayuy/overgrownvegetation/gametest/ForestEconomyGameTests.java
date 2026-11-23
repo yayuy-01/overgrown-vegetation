@@ -120,61 +120,6 @@ public final class ForestEconomyGameTests {
         }
     }
 
-    /**
-     * 試算の表(11-20 夜。ログ「[森の資源の試算]」に書く)。F1〜F7 のふつうの広さ(phases.json の normalArea)と、その半分に押し返したとき。
-     * 井戸と巨大樹の本数は典型の見積もり(井戸 F5 1・F6 1・F7 2、巨大樹 = ハイヴノード F4 5・F5 7・F6〜 10)。値段は送り手が払うのと同じ(段の強さは最盛)。
-     * 送り込み: 満額 = 上限 × waveBudgetShare / 定常 = min(1.5 日の稼ぎ × (1 − ほかの出費 35%【仮】), 上限 × waveBudgetShare)。顔ぶれは 6 日目の段。
-     * 貯めた襲撃: 上限 + 財布(稼ぎ × purseShare × 1.5 日)+ 1 日の稼ぎ。大きな襲撃: 上限 + 財布(稼ぎ × purseShare × 貯められる日数)+ 1 日の稼ぎ。
-     * F5 のふつうの広さで送り込みが 25〜60 体に入ることだけ確かめる(全体管理の目安 40 前後)。
-     */
-    @GameTest(template = "gametest_empty7", batch = "director_economy_estimate", timeoutTicks = 20)
-    public static void estimateTable(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        EconomyTable e = ForestEconomy.table();
-        var dt = DesignData.director();
-        Integer phaseBefore = DirectorGates.phaseOverride();
-        var stageBefore = DirectorGates.stageOverride();
-        int[] ley = {0, 0, 0, 0, 0, 1, 1, 2};
-        int[] trees = {0, 0, 0, 1, 5, 7, 10, 10};
-        int f5Wave = -1;
-        try {
-            DirectorGates.setStageForTests(com.yayuy.overgrownvegetation.phase.PhaseStage.PEAK);
-            for (int p = 1; p <= 7; p++) {
-                DirectorGates.setPhaseForTests(p);
-                int area = DesignData.phases().normalArea(p);
-                for (int half = 0; half <= 1; half++) {
-                    int chunks = half == 0 ? area : area / 2;
-                    double income = e.incomePerDay(chunks, ley[p], 0, trees[p]);
-                    double cap = dt.cap(trees[p]); // 11-22: 基礎値 + ハイヴノード
-                    var w6 = dt.base.waveFor(6.0D);
-                    double perWave = income * e.waveIncomeDays; // 1 回は 1 日の稼ぎの waveIncomeDays 日分まで
-                    int full = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, w6, Math.min(cap * e.waveBudgetShare, perWave)).total();
-                    double steadyB = Math.min(Math.min(1.5D * income * 0.65D, cap * e.waveBudgetShare), perWave);
-                    int steady = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, w6, steadyB).total();
-                    var hoardW = new com.yayuy.overgrownvegetation.data.BaseMemoryTable.Wave(0.0D, w6.stageZero(),
-                            (int) Math.round(w6.developed() * dt.assault.hoardShareFactor), w6.g2(), (int) Math.round(w6.g3plus() * dt.assault.hoardShareFactor));
-                    double purse = income * dt.raidScale.purseShare;
-                    int medium = com.yayuy.overgrownvegetation.director.BaseRaids.sizeByBudget(level, hoardW, purse * 1.5D + income * e.hoardIncomeDays).total();
-                    double largeAvg = (1.0D - dt.largeRaid.developedShare - dt.largeRaid.plantShare) * dt.largeRaid.costStageZero
-                            + dt.largeRaid.developedShare * (dt.costEvolve + dt.largeRaid.costStageZero) + dt.largeRaid.plantShare * 12.0D;
-                    int large = p >= 6 ? (int) ((cap + purse * dt.raidScale.maxSaveDays(p) + income) / largeAvg) : 0;
-                    if (p == 5 && half == 0) f5Wave = steady;
-                    OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT,
-                            "[森の資源の試算] F%d %s: 過繁茂 %d・井戸 %d・巨大樹 %d → 稼ぎ %.0f/日・上限 %.0f / 送り込み 定常 %d 体(予算 %.0f)・満額 %d 体 / 貯めた襲撃 %d 体 / 大きな襲撃 %s",
-                            p, half == 0 ? "ふつう" : "半分に押し返す", chunks, ley[p], trees[p], income, cap, steady, steadyB, full, medium,
-                            p >= 6 ? large + " 体" : "-"));
-                }
-            }
-            // 11-21 稼ぎを広さに比例にしたので、F5 のふつうの広さ(30 万チャンク)では予算から決める送り込みは上限 maxWave まで膨らむ。
-            // 襲撃は前線と部隊の区切り 3 で「前線から襲う部隊を出す」1 本に置き換えるので、ここは少なくとも目安の下(25)を割らないことだけ見る
-            helper.assertTrue(f5Wave >= 25, "F5 のふつうの広さの送り込みが目安(40 前後)の下を割った: " + f5Wave);
-            helper.succeed();
-        } finally {
-            DirectorGates.setPhaseForTests(phaseBefore);
-            DirectorGates.setStageForTests(stageBefore);
-        }
-    }
-
     /** 生き物が汎用の感染体に変わると、元の最大体力に応じた量がまとまって入る。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void infectionPaysTheForest(GameTestHelper helper) {
@@ -204,7 +149,7 @@ public final class ForestEconomyGameTests {
         }
     }
 
-    /** 自然湧きは値段を払う(払えなければ湧かない)。消えたら戻り、森の中で倒されたら一部が戻り、森の外では戻らない。 */
+    /** 自然湧き(霧の中の本物)は値段を払う(払えなければ湧かない)。消えたら戻り、森の中で倒されたら一部が戻り、森の外では戻らない(11-23 片付け E: 縁の湧きから霧の中の本物の口に替えた)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH, timeoutTicks = 20)
     public static void naturalSpawnsPayAndRefund(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -217,13 +162,12 @@ public final class ForestEconomyGameTests {
         try {
             EntityType<?> type = com.yayuy.overgrownvegetation.spawn.DirectorHooks.pickG1(level.getRandom()).entityType();
             dir.setBudget(level, 0.0D);
-            EnemySpawns.Miss miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
-            helper.assertTrue(miss == EnemySpawns.Miss.NO_BUDGET, "予算 0 でも湧いた: " + miss);
+            Mob m = placeLurker(level, type, at);
+            helper.assertTrue(m == null, "予算 0 でも湧いた");
 
             dir.setBudget(level, 1000.0D);
-            miss = EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
-            helper.assertTrue(miss == EnemySpawns.Miss.SPAWNED, "予算があるのに湧かない: " + miss);
-            Mob m = EnemySpawns.lastPlaced();
+            m = placeLurker(level, type, at);
+            helper.assertTrue(m != null, "予算があるのに湧かない");
             double price = ForestEconomy.paid(m);
             helper.assertTrue(price > 0.0D && Math.abs(dir.available(level) - (1000.0D - price)) < 1.0E-6D, "自然湧きが払っていない: " + price);
             // デスポーン = 森へ戻る
@@ -232,16 +176,14 @@ public final class ForestEconomyGameTests {
 
             // 森の外で倒される → 戻らない
             if (wasForest) pd.forgetOvergrownChunk(chunk);
-            EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
-            m = EnemySpawns.lastPlaced();
+            m = placeLurker(level, type, at);
             double afterPay = dir.available(level);
             m.kill();
             helper.assertTrue(Math.abs(dir.available(level) - afterPay) < 1.0E-6D, "森の外で倒されたのに戻った");
 
             // 森の中で倒される → refundShare だけ戻る
             pd.markOvergrownChunks(level, List.of(chunk));
-            EnemySpawns.place(level, type, at, SpawnTable.Habitat.GROUND, EnemySpawns.EDGE_TAG, 1);
-            m = EnemySpawns.lastPlaced();
+            m = placeLurker(level, type, at);
             price = ForestEconomy.paid(m);
             afterPay = dir.available(level);
             m.kill();
@@ -254,6 +196,20 @@ public final class ForestEconomyGameTests {
             else pd.markOvergrownChunks(level, List.of(chunk));
             dir.setBudget(level, before);
         }
+    }
+
+    /** 自然湧き(霧の中の本物と同じ口)を 1 体: 作って払い、印を付けて置く。払えなければ null。 */
+    @javax.annotation.Nullable
+    private static Mob placeLurker(ServerLevel level, EntityType<?> type, BlockPos at) {
+        Mob m = com.yayuy.overgrownvegetation.spawn.EnemySpawns.create(level, type, at, net.minecraft.world.entity.MobSpawnType.EVENT, level.getRandom());
+        if (m == null) return null;
+        if (!ForestEconomy.payNatural(level, m)) {
+            m.discard();
+            return null;
+        }
+        m.addTag(com.yayuy.overgrownvegetation.spawn.FogLurkers.TAG);
+        level.addFreshEntity(m);
+        return m;
     }
 
     /** 苗床の群体は全体の値段を軽くし(下限あり)、Mob から苗床になった物の口は値段に倍率を掛ける。 */

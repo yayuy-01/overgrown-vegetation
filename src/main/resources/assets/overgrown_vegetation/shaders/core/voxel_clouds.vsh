@@ -53,6 +53,21 @@ void main() {
         float zndc = ((f + n) - 2.0 * f * n / d) / (f - n);
         gl_Position.z = zndc * gl_Position.w;
     }
+    // 11-23 (user report: clouds flickered where a storm met the ordinary clouds, in 1.21.1 and 1.20.1): the cloud floor (24 / 8 block
+    // columns, 4 block steps) and the storm boxes (16 / 48 blocks) share planes wherever their grids meet (every 48 blocks across, every
+    // 16 up), so a floor face lying in a storm face fought it pixel by pixel and the stripes changed as the camera moved. Storm vertices
+    // (same tag test as voxel_clouds.fsh: storm, giant, nest, far storm) are pushed a few depth steps toward the camera, so on a shared
+    // plane the storm always wins. Only the depth moves (nothing shifts on screen) and the push is far smaller than any real gap between
+    // the meshes (the lifted storm base sits 2 blocks above the floor under it, which still wins there). Depth steps: the far pass has
+    // its own fine depth range, the near pass the coarse normal one, so the near pass gets a smaller push.
+    // Floor columns that reach into a storm are drawn as the storm (VoxelClouds.stormColumnTags: 0.91, 0.976, 0.851 near and 0.165, 0.2
+    // far) but get no push: pushed like the storm they would fight its faces again on the shared planes.
+    bool floorInStorm = (Color.a > 0.905 && Color.a < 0.915) || (Color.a > 0.966 && Color.a < 0.979) || (Color.a > 0.845 && Color.a < 0.857)
+            || (Color.a > 0.16 && Color.a < 0.17) || (Color.a > 0.195 && Color.a < 0.205);
+    bool stormVertex = !floorInStorm && (Color.a >= 0.9 || (Color.a > 0.72 && Color.a < 0.9) || Color.a < 0.22);
+    if (stormVertex) {
+        gl_Position.z -= (Split.y > 0.5 ? 1.0e-6 : 2.5e-7) * gl_Position.w;
+    }
     ovInfo = Color;
     ovUv = UV0;
 }

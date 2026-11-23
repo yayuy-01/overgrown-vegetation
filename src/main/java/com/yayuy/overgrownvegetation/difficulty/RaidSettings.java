@@ -17,8 +17,8 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
  * <ul>
  *     <li>襲撃があるか → {@code raidsEnabled}</li>
  *     <li>頻度(%) → {@code intervalFactor} = 1 ÷ 頻度(200% なら間が半分)</li>
- *     <li>規模ごとの数(%) → {@code countFactor}</li>
- *     <li>中の同時の上限 → {@code maxAlive[中]}(大の同時の上限は {@link DifficultySetting#LARGE_RAID_MAX_ALIVE} = LargeRaids.maxAlive)</li>
+ *     <li>規模ごとの数(%) → {@code countFactor}(前線の襲撃の上限と出す割合に掛かる = {@code FrontRaids#countFactor})</li>
+ *     <li>中の同時の上限 → {@code maxAlive[中]}(大の同時の上限は {@link DifficultySetting#LARGE_RAID_MAX_ALIVE} = LargeRaids.maxAlive。前線の大きな襲撃の部隊が本物になる数 = VirtualRaids)</li>
  *     <li>規模ごとの 1 回の合計の上限 → {@code maxTotal}(画面の 0 = 上限なし → Knobs の −1)</li>
  * </ul>
  * 前触れ・壁を壊すかは Knobs に口が無いので、読む所({@code RaidScales#omenDays}・{@code BreachGoal})が直に読む。

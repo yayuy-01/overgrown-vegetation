@@ -464,6 +464,11 @@ public final class DevBridge {
             }
             case "shot" -> shot(mc, arg);
             case "wait" -> waitUntil = tick + Long.parseLong(arg);
+            case "ticklog" -> { // サーバーの tick の時間を次の N tick ぶん(11-23 サーバーの tick の軽量化)。ticklog <名前> <tick 数>
+                IntegratedServer server = mc.getSingleplayerServer();
+                if (server == null) return "ワールドの中";
+                log(TickLog.start(server, dir, arg, DevBridge::log));
+            }
             case "hold" -> {
                 // 右クリック(使う)を <tick> だけ押し続ける。押し始めは 1 回のクリックとして数える(長押しで使う道具が始まる)。
                 // 次の命令は待たない(押している間に look・shot ができる。待つなら続けて wait)。
@@ -2486,6 +2491,8 @@ public final class DevBridge {
             }
             // 重さを測る(2026-10-18、FxProfiler)。bench は終わるまで次の命令へ進まない。
             case "fxprof" -> log(FxProfiler.command(arg));
+            // 雰囲気の演出 1 つずつの GPU の時間・雰囲気の重さの段だけの切り替え・光のにじみの止め(2026-11-23 軽量化 GPU、GpuProbe)
+            case "gpuprobe" -> log(GpuProbe.command(arg));
             // 予定の雨と種類(2026-11-12 雨の種類、sky.RainIntensity)。今から 12 日分の雨の始まり・終わり(dayTime)・種類・雷雨。返事は RAINS …
             case "rains" -> {
                 long t0 = mc.level == null ? 0L : mc.level.getDayTime();
@@ -2580,6 +2587,18 @@ public final class DevBridge {
                     }
                 }
                 log("VISUALSETTINGS 開いた");
+            }
+            case "rendertier" -> {
+                // この MOD の演出の段(2026-11-23)。rendertier none|low|medium|high で書き込み、引数なしは今の段。videosettings はビデオ設定を開く
+                String a = arg.trim().toUpperCase(java.util.Locale.ROOT);
+                if (a.equals("VIDEO")) {
+                    mc.setScreen(new net.minecraft.client.gui.screens.VideoSettingsScreen(mc.screen, mc.options));
+                } else if (!a.isEmpty()) {
+                    com.yayuy.overgrownvegetation.config.QualityPreset.valueOf(a).writeToConfig();
+                    com.yayuy.overgrownvegetation.client.GeoStaticGeometry.applyDetailChange();
+                }
+                var now = com.yayuy.overgrownvegetation.config.QualityPreset.current();
+                log("RENDERTIER " + (now == null ? "CUSTOM" : now.name()));
             }
             case "impostor" -> {
                 // 遠景の身代わりの重さ比べ(devbridge/impostor/ImpostorBench、2026-11-18)

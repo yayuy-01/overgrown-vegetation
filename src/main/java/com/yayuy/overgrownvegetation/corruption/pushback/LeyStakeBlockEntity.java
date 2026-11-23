@@ -14,12 +14,24 @@ import net.minecraftforge.energy.IEnergyStorage;
 /**
  * 地脈の杭の中身: FE をためて、立っているだけで {@code ring.stakeFePerTick} 使う。止めるたびに {@code ring.stakeFePerBlock}({@link #pay})。
  * FE が尽きたら {@link LeyStakeBlock#POWERED} が落ち、範囲の場が消える。
+ *
+ * <p>留守の間(11-23 夕方 ユーザー決定): 状態を {@link AbsentWards} に書き写し、チャンクが外れても覚えで範囲を守る。留守の間に使う FE/t は
+ * 「立っているだけの分 + 最後に読み込まれていた間に止めて払った FE の平均」。読み込まれて最初に回ったとき、覚えから出した今の FE に揃える({@link #awayTick})。
  */
 public class LeyStakeBlockEntity extends BlockEntity {
 
     private int energy;
     /** 使う FE の端数(MOD の設定「押し返す道具の効き」で小数になる分)。 */
     private double feCarry;
+    /** 留守の見積もり(11-23 AbsentWards): 受け取った FE・発電機のつながり。 */
+    private final AwayMeter meter = new AwayMeter();
+    /** 最後に覚えへ書き写した tick(読み込み直すと最初から)。 */
+    private long lastMirror = Long.MIN_VALUE;
+    /** この読み込みの間に止めて払った FE と、その数え始め。 */
+    private long paidSession;
+    private long sessionStart = Long.MIN_VALUE;
+    /** 止めた分の平均(FE/t。最後に読み込まれていた間)。保存する。 */
+    private double payAvg;
 
     private final IEnergyStorage port = new IEnergyStorage() {
         @Override
@@ -27,6 +39,7 @@ public class LeyStakeBlockEntity extends BlockEntity {
             int n = Math.max(0, Math.min(toReceive, RingWards.table().stakeBuffer - energy));
             if (!simulate && n > 0) {
                 energy += n;
+                meter.received(n);
                 setChanged();
             }
             return n;
@@ -84,18 +97,79 @@ public class LeyStakeBlockEntity extends BlockEntity {
 
     /** 止めた分を払う。 */
     void pay(int fe) {
+        int before = energy;
         energy = Math.max(0, energy - scaled(fe));
+        paidSession += before - energy;
         setChanged();
         sync();
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, LeyStakeBlockEntity be) {
+        if (level instanceof ServerLevel server) be.awayTick(server);
         int use = RingWards.table().stakeFePerTick;
         if (be.energy > 0 && use > 0) {
             be.energy = Math.max(0, be.energy - be.scaled(use));
             be.setChanged();
         }
         if (level.getGameTime() % 10 == 0) be.sync();
+    }
+
+    // ---------------------------------------------------------------- 留守(11-23)
+
+    /**
+     * 毎 tick の最初: 留守だった(覚えが留守の印)なら精算し、{@link AbsentWards#MIRROR_TICKS} ごとに覚えへ書き写す。精算したら true。
+     * 精算は「今の FE と覚えから出した FE の小さい方」に揃えるだけなので、何度呼んでも二重には減らない。
+     */
+    public boolean awayTick(ServerLevel level) {
+        long now = level.getGameTime();
+        meter.tick(level, energy, RingWards.table().stakeBuffer, slack(), worldPosition);
+        AbsentWards.Machine m = AbsentWards.touch(level, worldPosition, false);
+        boolean settled = false;
+        if (m.isAway(now)) {
+            int at = m.energyAt(now);
+            if (at < energy) {
+                energy = at;
+                setChanged();
+            }
+            if (m.drainPerTick > 0.0D) payAvg = Math.max(0.0D, m.drainPerTick - baseDrain());
+            meter.reset();
+            sessionStart = now;
+            paidSession = 0;
+            settled = true;
+            sync();
+        }
+        if (sessionStart == Long.MIN_VALUE) sessionStart = now;
+        if (settled || lastMirror == Long.MIN_VALUE || now - lastMirror >= AbsentWards.MIRROR_TICKS) mirror(level, m, now);
+        return settled;
+    }
+
+    private void mirror(ServerLevel level, AbsentWards.Machine m, long now) {
+        long span = now - sessionStart;
+        if (span > 0 && span >= com.yayuy.overgrownvegetation.data.DesignData.pushBack().absent.stakePayMinSeconds * 20L) {
+            payAvg = paidSession / (double) span;
+        }
+        m.energy = energy;
+        m.drainPerTick = baseDrain() + payAvg;
+        m.inflowPerTick = meter.inflow(now);
+        m.producerLinked = meter.linked();
+        m.supplied = meter.supplied(energy, RingWards.table().stakeBuffer, slack());
+        AbsentWards.mirrored(level, m);
+        lastMirror = now;
+    }
+
+    /** 「器がほぼ満ちている」の幅(1 回に減りうる量 = 止めて払う分・立っているだけの分の 2 倍)。 */
+    private static int slack() {
+        return 2 * Math.max(RingWards.table().stakeFePerBlock, RingWards.table().stakeFePerTick);
+    }
+
+    /** 立っているだけで使う FE/t(効きの設定で割った値)。 */
+    private static double baseDrain() {
+        return RingWards.table().stakeFePerTick / com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.pushbackEfficiency();
+    }
+
+    /** テスト用: 今すぐ覚えへ書き写す。 */
+    public void mirrorForTests() {
+        if (level instanceof ServerLevel server) mirror(server, AbsentWards.touch(server, worldPosition, false), server.getGameTime());
     }
 
     /** MOD の設定「押し返す道具の効き」(11-19): 使う FE ÷ %。小数の端数は次へ持ち越す(保存しない)。 */
@@ -134,7 +208,12 @@ public class LeyStakeBlockEntity extends BlockEntity {
     @Override
     public void onChunkUnloaded() {
         super.onChunkUnloaded();
-        if (level instanceof ServerLevel server) RingWards.setStakePowered(server, worldPosition, false);
+        if (level instanceof ServerLevel server) {
+            AbsentWards.Machine m = AbsentWards.find(server, worldPosition, false);
+            if (m != null && !m.isAway(server.getGameTime())) mirror(server, m, server.getGameTime()); // 外れる直前の FE を覚えて留守へ
+            AbsentWards.markAway(server, worldPosition, false);
+            RingWards.setStakePowered(server, worldPosition, false);
+        }
     }
 
     public Component info(ServerLevel level) {
@@ -146,11 +225,13 @@ public class LeyStakeBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putInt("energy", energy);
+        tag.putDouble("payAvg", payAvg);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
         energy = Math.max(0, tag.getInt("energy"));
+        payAvg = Math.max(0.0D, tag.getDouble("payAvg"));
     }
 }

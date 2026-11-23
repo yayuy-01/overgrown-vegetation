@@ -97,6 +97,10 @@ public final class SodiumTerrain {
      * チャンクを組むスレッド(葉の色のハンドラ)からも呼ばれる。シェーダーパックの切り替えに付いていくよう、Iris は毎回聞く。
      */
     public static boolean unsupported() {
+        // 段「なし」で起動した(11-23): バニラの地形のシェーダーの差し替えも Sodium への差し込みも無いので、地形のシェーダーの演出は無い
+        if (TerrainShaderSwitch.stripped()) {
+            return true;
+        }
         if (!OTHER_RENDERER) {
             return false;
         }
@@ -172,7 +176,7 @@ public final class SodiumTerrain {
     /** Sodium のシェーダーの中身を差し替えるなら、その中身を返す(差し替えないなら null)。描画のスレッドで呼ばれる。 */
     @Nullable
     public static String patchSource(ResourceLocation name) {
-        if (!SODIUM_OK || failed) {
+        if (!SODIUM_OK || failed || TerrainShaderSwitch.stripped()) {
             return null;
         }
         if (VSH.equals(name)) {

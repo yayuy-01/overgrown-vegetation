@@ -143,7 +143,11 @@ public class G1StrikeGoal extends Goal {
                 repath += 5;
             }
             Path path = nav.createPath(target, 0);
-            if (path == null || !path.canReach() && path.getNodeCount() <= 1) {
+            if (com.yayuy.overgrownvegetation.corruption.cliff.RootClimb.touching(mob)
+                    && com.yayuy.overgrownvegetation.spore.PlantSideRules.isPlantSide(mob)) {
+                // 縄に取り付いている間は「経路が無い」を数えない(11-23 ユーザー決定「4」。縄の上で経路が付いたり消えたりして、
+                // 100 tick で相手をあきらめ、上の縁の手前で止まっていた)
+            } else if (path == null || !path.canReach() && path.getNodeCount() <= 1) {
                 noPath += repath;
             } else {
                 noPath = 0;

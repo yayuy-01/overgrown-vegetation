@@ -30,7 +30,7 @@ final class EventLight {
     }
 
     static boolean drawToMainTarget() {
-        if (!Minecraft.useShaderTransparency() || ShaderPacks.active()) {
+        if (!Minecraft.useShaderTransparency() || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return false;
         }
         Minecraft.getInstance().getMainRenderTarget().bindWrite(false);

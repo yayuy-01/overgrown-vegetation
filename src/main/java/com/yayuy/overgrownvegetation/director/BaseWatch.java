@@ -79,14 +79,12 @@ public final class BaseWatch {
         // 送り込み・危ない所へ送るのを止める: 大きな襲撃の前触れ・本番の間と、貯めている間。偵察は止めない(11-14 ユーザー T1 = 2)
         ForestDirector.Mood mood = ForestDirector.get(level).mood();
         boolean omen = DirectorGates.largeRaidOmen(level) || ForestDirector.hoarding() || mood == ForestDirector.Mood.LARGE
-                || HoardRaids.active() // 貯めた襲撃の継ぎ足しの間も、ふつうの送り込みは止める(11-16)
                 || DirectorGates.peaceful(level); // ピースフルの間は送り込まない(時計も進めない。見直し ②9)
         if (DirectorGates.open(level, DirectorGates.Gate.SCOUT) && !DirectorGates.peaceful(level)) {
             dispatchScouts(level, memory, day);
             ScoutSearch.get(server).tick(level, day, BaseMemory.timeOfDay(server)); // 探りの偵察(11-20。手がかり A・B・殺された所・D 広がる探し方)
         }
         if (!omen && DirectorGates.open(level, DirectorGates.Gate.RAID)) BaseRaids.dispatch(level, memory, day);
-        if (!omen && DirectorGates.open(level, DirectorGates.Gate.LEARN) && !com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) DangerWatch.dispatch(level, day); // 11-21 前線と部隊の狩りに置き換え(前線が動いている間は送らない) // 学ぶ: 危ない所へ進化体(F3 から)
     }
 
     /**
@@ -121,7 +119,6 @@ public final class BaseWatch {
                 continue;
             }
             pick.fate().scout().begin(b);
-            com.yayuy.overgrownvegetation.spawn.EnemySpawns.release(pick); // 縁・地下の印を外す(縁の上限・片付けから外す。見直し ②4)
             memory.scoutSent(b, day, level.getRandom(), !DirectorGates.open(level, DirectorGates.Gate.RECOGNIZE)); // F4 は 1〜2 日おき
             ForestDirector.get(level).note(String.format(java.util.Locale.ROOT,
                     "%s → 偵察(拠点 #%d へ)", pick.species().key(), b.id()));

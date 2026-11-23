@@ -57,7 +57,12 @@ public final class CurledFernOption {
         return instance;
     }
 
-    private static void apply(boolean showAll) {
+    /** 立体で描くか(Sodium の画面 client/compat/SodiumOptionsPage からも)。 */
+    public static boolean showAll() {
+        return GeoStaticGeometry.detail() == CurledFernDetail.FULL;
+    }
+
+    public static void apply(boolean showAll) {
         if (!OvergrownClientConfig.SPEC.isLoaded()) {
             return;
         }

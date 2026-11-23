@@ -6,12 +6,11 @@ import com.yayuy.overgrownvegetation.director.BaseMemory;
 import com.yayuy.overgrownvegetation.director.BaseRaids;
 import com.yayuy.overgrownvegetation.director.DirectorGates;
 import com.yayuy.overgrownvegetation.director.ForestDirector;
-import com.yayuy.overgrownvegetation.director.HoardRaids;
+import com.yayuy.overgrownvegetation.front.FrontDirector;
 import com.yayuy.overgrownvegetation.director.LargeRaids;
 import com.yayuy.overgrownvegetation.director.RaidScales;
 import com.yayuy.overgrownvegetation.director.RaidScales.RaidScale;
 import com.yayuy.overgrownvegetation.phase.PhaseStage;
-import com.yayuy.overgrownvegetation.spawn.DirectorHooks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -76,11 +75,9 @@ public final class RaidScaleGameTests {
             // 財布へ: 1 日の生産量 × 健康 × 30% × 日数 ÷ 拠点の数
             helper.assertTrue(Math.abs(RaidScales.credit(450.0D, 1.0D, 0.3D, 1.5D, 1) - 202.5D) < 1.0E-9D, "財布へ足す量が違う");
             helper.assertTrue(Math.abs(RaidScales.credit(450.0D, 0.5D, 0.3D, 2.0D, 2) - 67.5D) < 1.0E-9D, "健康・拠点の数で割っていない");
-            // 設定の倍率: 見送らない・数の倍率は値段を割る
+            // 設定の倍率: 見送らない(11-23 片付け E: 数の倍率で値段を割る costFactor は、湧かせ方ごと消した)
             RaidScales.Knobs.skipChanceFactor = 0.0D;
             helper.assertTrue(!RaidScales.decide(7, 0.0D, 0.0D).skip(), "見送りの倍率 0 なのに見送った");
-            RaidScales.Knobs.countFactor[RaidScale.LARGE.ordinal()] = 2.0D;
-            helper.assertTrue(Math.abs(RaidScales.costFactor(RaidScale.LARGE) - 0.5D) < 1.0E-9D, "数の倍率 2 で値段が半分にならない");
         } finally {
             RaidScales.Knobs.reset();
         }
@@ -88,8 +85,9 @@ public final class RaidScaleGameTests {
     }
 
     /**
-     * 世界を通す: F5 で見送る → 財布が貯まる → もう 1 回見送る → 2 日で必ず中が起きて財布から払う → 中は同時 40 で頭打ち・使い残しは後の小が使う。
-     * 財布が少ないと中の数が減る。F6 で 3 日以上なら大になり、大は財布から払って尽きたら終わる(森の予算には手を付けない)。
+     * 世界を通す: F5 で見送る → 財布が貯まる → もう 1 回見送る → 2 日で必ず中が起きる。F6 で 3 日以上なら大になり、大は静かな前触れの後に始まる。
+     * 2026-11-23 片付け E: 中・大・小で実物を湧かせて財布から払う確かめは消した(襲撃の部隊は前線が出す。前線の襲撃は FrontRaidHuntGameTests)。
+     * 前線を動かすのは、見張りの口と大の起こし方を通す間だけ(GameTest のサーバーでは前線が止まっている)。
      */
     @GameTest(template = "gametest_empty7", batch = "raid_scale_world", timeoutTicks = 60)
     public static void skipSaveAndSpend(GameTestHelper helper) {
@@ -99,12 +97,12 @@ public final class RaidScaleGameTests {
         double budgetBefore = director.available(level);
         Integer phaseBefore = DirectorGates.phaseOverride();
         PhaseStage stageBefore = DirectorGates.stageOverride();
+        boolean frontBefore = FrontDirector.tickInGameTests;
         double day = BaseMemory.today(level.getServer());
         BlockPos spot = helper.absolutePos(new BlockPos(3, 2, 3));
         memory.clear();
         try {
             RaidScales.Knobs.reset();
-            HoardRaids.clearForTests();
             memory.addPresence(ChunkPos.asLong(spot.getX() >> 4, spot.getZ() >> 4), DesignData.director().base.rememberScore * 2.0D, day);
             memory.update(day);
             BaseMemory.Base b = memory.bases().get(0);
@@ -112,24 +110,18 @@ public final class RaidScaleGameTests {
             memory.waveSent(b, day, level.getRandom()); // 最初の襲撃は済んだことに
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            DirectorHooks.setSpotForTests(() -> spot);
             RandomSource r = RandomSource.create(7L);
 
-            // (0) 見張りの送り込みの口(BaseRaids.dispatch)を通す: 必ず見送る → 送った回数は増えず貯め始める。見送らない → 小を送って回数が増える
+            // (0) 見張りの送り込みの口(BaseRaids.dispatch)を通す: 必ず見送る → 送った回数は増えず貯め始める
             int sentBefore = b.wavesSent();
             RaidScales.Knobs.skipChanceFactor = 100.0D;
             memory.waveNow(b, day);
+            FrontDirector.tickInGameTests = true;
             BaseRaids.dispatch(level, memory, day);
+            FrontDirector.tickInGameTests = frontBefore;
             helper.assertTrue(b.saving() && b.wavesSent() == sentBefore && b.nextWaveDay() > day, "送り込みの口で見送らない: " + RaidScales.lastNote);
-            RaidScales.Knobs.skipChanceFactor = 0.0D;
-            memory.waveNow(b, day + 0.5D);
-            director.setBudget(level, 500000.0D);
-            BaseRaids.dispatch(level, memory, day + 0.5D);
-            helper.assertTrue(!b.saving() && b.wavesSent() == sentBefore + 1 && RaidScales.lastScale == RaidScale.MEDIUM && HoardRaids.raid(b.id()) != null,
-                    "見送りの後の機会で中が来ない: " + RaidScales.lastNote);
-            HoardRaids.clearForTests();
-            clear(helper);
             RaidScales.Knobs.reset();
+            memory.endSaving(b);
             memory.setPurse(b, 0.0D);
             // (1) 見送る: 貯め始め・財布はまだ 0・次の機会は 2 日以内
             director.setBudget(level, 0.0D);
@@ -148,72 +140,32 @@ public final class RaidScaleGameTests {
             helper.assertTrue(RaidScales.skipOrStart(level, memory, b, day + 1.5D, 0.0D, r), "1.5 日で見送らない(上限 2 日の前)");
             helper.assertTrue(expect > 1.0D && Math.abs(b.purse() - expect) < 1.0E-6D, "財布が貯まっていない: " + b.purse() + " / " + expect);
             helper.assertTrue(b.nextWaveDay() <= day + 2.0D + 1.0E-9D, "次の機会が上限の 2 日を越えた: " + (b.nextWaveDay() - day));
-            // (3) 2 日: 0 を引いても必ず起き、F5 なので中。財布を足して大きくしてから(払う順を見る)
-            memory.setPurse(b, 500000.0D);
-            director.setBudget(level, 0.0D);
+            // (3) 2 日: 0 を引いても必ず起き、F5 なので中
             helper.assertTrue(!RaidScales.skipOrStart(level, memory, b, day + 2.0D, 0.0D, r), "上限の日数で起きない");
-            helper.assertTrue(RaidScales.lastScale == RaidScale.MEDIUM && !b.saving() && HoardRaids.raid(b.id()) != null, "F5 の 2 日で中が起きない: " + RaidScales.lastNote);
-            int alive = HoardRaids.alive(level, b);
-            helper.assertTrue(alive > 0 && alive <= HoardRaids.maxAlive(), "中が同時の上限 40 を守らない: " + alive);
-            double left = b.purse();
-            helper.assertTrue(left < 500000.0D && left > 0.0D, "中が財布から払っていない・使い残しが無い: " + left);
-            HoardRaids.clearForTests();
-            clear(helper);
-            // (4) 使い残しは後の送り込み(小)が使う(森の予算は 0 のまま)
-            director.setBudget(level, 0.0D);
-            BaseRaids.Result next = BaseRaids.sendWave(level, b, day + 3.0D, r);
-            helper.assertTrue(next.total() > 0 && b.purse() < left, "使い残しの財布で次の送り込みが出ない: " + next.summary() + "・財布 " + b.purse());
-            clear(helper);
-            // (5) 財布が少ないと中の数が減る
-            memory.setPurse(b, 2000.0D);
-            director.setBudget(level, 0.0D);
-            int few = HoardRaids.begin(level, b, day + 3.0D, r);
-            HoardRaids.clearForTests();
-            clear(helper);
-            helper.assertTrue(few > 0 && few < alive, "財布 20 の中が、財布 5000 の中より少なくない: " + few + " / " + alive);
+            helper.assertTrue(RaidScales.lastScale == RaidScale.MEDIUM && !b.saving(), "F5 の 2 日で中が起きない: " + RaidScales.lastNote);
 
-            // (6) F6 で 3 日以上 → 大(前触れなし)。財布から払い、尽きたら終わる。森の予算には手を付けない
+            // (4) F6 で 3 日以上 → 大。静かな前触れの後に本番
             DirectorGates.setPhaseForTests(6);
             memory.skipWave(b, day + 3.0D, day, day + 3.5D);
-            memory.setPurse(b, DesignData.director().largeRaid.costStageZero * 6.0D + 0.5D);
-            director.setBudget(level, 0.0D);
-            helper.assertTrue(!RaidScales.skipOrStart(level, memory, b, day + 3.5D, 0.99D, r), "F6 で 3.5 日なのに起きない");
+            FrontDirector.tickInGameTests = true;
+            boolean skipped = RaidScales.skipOrStart(level, memory, b, day + 3.5D, 0.99D, r);
+            FrontDirector.tickInGameTests = frontBefore;
+            helper.assertTrue(!skipped, "F6 で 3.5 日なのに起きない");
             helper.assertTrue(RaidScales.lastScale == RaidScale.LARGE && director.mood() == ForestDirector.Mood.LARGE_OMEN && LargeRaids.scaled(director),
                     "F6 の 3.5 日で大の静かな前触れにならない: " + RaidScales.lastNote + "・" + director.mood());
-            // 静かな前触れ: 森の湧きが止まる・G1 はうろつかない・財布は増減しない・前触れの長さは 2 日
+            // 静かな前触れ: 森の湧きが止まる・G1 はうろつかない・前触れの長さは omenDays
             RaidScales.refreshSaving(level, memory, day + 3.5D);
             helper.assertTrue(DirectorGates.plantSpawnsSuppressed(level) && !RaidScales.holdingOff() && !b.saving(), "大の前触れで静かにならない");
             helper.assertTrue(Math.abs(director.moodUntil() - (day + 3.5D + RaidScales.omenDays(RaidScale.LARGE))) < 1.0E-9D, "前触れの長さが違う");
             LargeRaids.beginScaled(level, b, day + 5.5D);
             helper.assertTrue(director.mood() == ForestDirector.Mood.LARGE && LargeRaids.scaled(director), "前触れの後に大が始まらない");
-            int[] k = {0};
-            LargeRaids.setSpotForTests(() -> helper.absolutePos(new BlockPos(1 + (k[0] % 5), 2, 1 + (k[0]++ / 5) % 5)));
-            int total = 0;
-            for (int i = 0; i < 12 && director.mood() == ForestDirector.Mood.LARGE; i++) {
-                director.setBudget(level, 0.0D);
-                total += LargeRaids.step(level, RandomSource.create(20L + i));
-            }
-            helper.assertTrue(total >= 1 && b.purse() < DesignData.director().largeRaid.costStageZero, "大が財布から払っていない: " + total + "・財布 " + b.purse());
-            helper.assertTrue(director.mood() == ForestDirector.Mood.NORMAL && !LargeRaids.scaled(director), "財布が尽きても大が終わらない");
-            clear(helper);
-            // (7) 設定のページの合計の上限(大 3 体): 財布が残っていても 3 体で終わり、使い残しは財布に残る
-            RaidScales.Knobs.maxTotal[RaidScale.LARGE.ordinal()] = 3;
-            memory.setPurse(b, 100000.0D);
-            LargeRaids.beginScaled(level, b, day + 6.0D);
-            int capped = 0;
-            for (int i = 0; i < 12 && director.mood() == ForestDirector.Mood.LARGE; i++) {
-                director.setBudget(level, 0.0D);
-                capped += LargeRaids.step(level, RandomSource.create(40L + i));
-            }
-            helper.assertTrue(capped >= 1 && capped <= 3 && director.mood() == ForestDirector.Mood.NORMAL && b.purse() > 900.0D,
-                    "大の合計の上限 3 で終わらない: " + capped + "・" + director.mood() + "・財布 " + b.purse());
+            LargeRaids.end(level, day + 5.6D, "テスト");
+            helper.assertTrue(director.mood() == ForestDirector.Mood.NORMAL && !LargeRaids.scaled(director), "大が終わらない");
             helper.succeed();
         } finally {
-            LargeRaids.setSpotForTests(null);
-            if (director.mood() == ForestDirector.Mood.LARGE) LargeRaids.end(level, day, "テスト");
-            HoardRaids.clearForTests();
+            FrontDirector.tickInGameTests = frontBefore;
+            if (director.mood() == ForestDirector.Mood.LARGE || director.mood() == ForestDirector.Mood.LARGE_OMEN) LargeRaids.end(level, day, "テスト");
             RaidScales.Knobs.reset();
-            DirectorHooks.setSpotForTests(null);
             DirectorGates.setPhaseForTests(phaseBefore);
             DirectorGates.setStageForTests(stageBefore);
             memory.clear();

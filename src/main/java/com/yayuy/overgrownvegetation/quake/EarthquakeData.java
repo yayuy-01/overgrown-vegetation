@@ -110,6 +110,8 @@ public final class EarthquakeData extends OvSavedData {
         EarthquakeFissure.ColumnIndex columnIndex;
         /** 強制ロードしたチャンクの読み込みを待ち始めたゲーム内時刻(-1 = 待っていない)。保存しない。 */
         long forceWaitStart = -1L;
+        /** 周りのひびのチャンクの読み込みを待ち始めた時刻(保存しない。11-23)。 */
+        long crackWaitStart = -1L;
     }
 
     /**
@@ -312,7 +314,9 @@ public final class EarthquakeData extends OvSavedData {
                 if (q.forceWaitStart < 0L) {
                     q.forceWaitStart = now;
                 }
-                if (now - q.forceWaitStart < FORCE_LOAD_WAIT_TICKS) {
+                // 11-23 ユーザー了承: 待ちすぎたときの同期の読み込みは、主スレッドを秒の桁で止めていた(D5 の放置で 0.5 秒超え)。
+                // 強制の印が付いているので読み込みは進む: 待つ長さを 10 倍にし、それでも駄目なときだけ前の保険へ
+                if (now - q.forceWaitStart < FORCE_LOAD_WAIT_TICKS * 10L) {
                     return false;
                 }
                 // 保険: 待ちすぎた。以前と同じく、残りをこの場で同期ロードしてから始める。
@@ -419,6 +423,12 @@ public final class EarthquakeData extends OvSavedData {
         // 形成完了: 断面の汚染ブロック化 + 周囲のひび。強制ロードを中心付近だけに縮小。
         if (e >= formEnd && !q.finalizedFissure) {
             EarthquakeFissure f = new EarthquakeFissure(level, q, carveSpan);
+            // 11-23 ユーザー了承: 周りのひびが通るチャンク(周り 8 チャンクも)が読み込み終わるまで仕上げを待つ(最長 FORCE_LOAD_WAIT_TICKS)。
+            // 過ぎたら読み込み終わった所だけ掘る(前はひびが読み込まれていないチャンクをその場で読み込み・生成し、主スレッドが止まっていた)
+            if (terrainDamage(level) && !crackChunksReady(level, f)) {
+                if (q.crackWaitStart < 0L) q.crackWaitStart = now;
+                if (now - q.crackWaitStart < FORCE_LOAD_WAIT_TICKS) return false;
+            }
             while (q.carvedWaves < carveSpan) {
                 if (terrainDamage(level)) f.carveWave(q.carvedWaves); // 11-19 MOD の設定「地形を壊す要素」
                 q.carvedWaves++;
@@ -456,6 +466,16 @@ public final class EarthquakeData extends OvSavedData {
      * この地割れが固定したチャンクがすべて読み込み終わったか({@code getChunkNow} は読み込み途中なら null で、
      * 読み込みを待たない。{@code hasChunk} は読み込み途中でも true なので、ここでは使わない)。
      */
+    /** 周りのひびが通るチャンクと、その周り 8 チャンクがすべて読み込み終わったか(11-23)。 */
+    private static boolean crackChunksReady(ServerLevel level, EarthquakeFissure f) {
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet need = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        f.crackChunks(need);
+        for (long key : need) {
+            if (!com.yayuy.overgrownvegetation.util.LoadedChunks.neighbourhoodLoaded(level, ChunkPos.getX(key), ChunkPos.getZ(key))) return false;
+        }
+        return true;
+    }
+
     private static boolean forcedChunksLoaded(ServerLevel level, ActiveQuake q) {
         for (long key : q.forcedChunks) {
             if (level.getChunkSource().getChunkNow(ChunkPos.getX(key), ChunkPos.getZ(key)) == null) {

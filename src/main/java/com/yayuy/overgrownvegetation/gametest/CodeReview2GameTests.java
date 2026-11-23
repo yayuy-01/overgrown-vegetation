@@ -107,46 +107,6 @@ public final class CodeReview2GameTests {
         helper.succeed();
     }
 
-    /** ①2・①3: 根付きへ歩く個体は背負われない。時間切れの後に背負われた・水に浮いたまま長く経つと取り消して道を外す。 */
-    @GameTest(template = "gametest_empty7", batch = "review2_g1_settle", timeoutTicks = 40)
-    public static void settlingG1HasAnExit(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        if (!DesignData.director().enabled) {
-            helper.succeed();
-            return;
-        }
-        BlockPos at = helper.absolutePos(new BlockPos(3, 2, 3));
-        AbstractParasitizedMonster small = ModG1.PARASITIZED_BABY_ZOMBIE.get().create(level);
-        Boat boat = EntityType.BOAT.create(level);
-        List<net.minecraft.world.entity.Entity> made = new ArrayList<>();
-        try {
-            small.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D);
-            small.setNoAi(true);
-            level.addFreshEntity(small);
-            made.add(small);
-            helper.assertTrue(G1CarryGoal.carriable(small), "道の無い段階 0 のチビゾンビを背負えない");
-            G1Fate fate = small.fate();
-            helper.assertTrue(fate != null, "段階 0 に司令塔の行き先が無い");
-            fate.beginRooted();
-            helper.assertTrue(!G1CarryGoal.carriable(small), "根付きへ歩く個体を背負える");
-            // 背負われた(乗った)まま時間切れを大きく過ぎる → 取り消し
-            boat.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D);
-            level.addFreshEntity(boat);
-            made.add(boat);
-            small.startRiding(boat, true);
-            int timeout = DesignData.director().walkTimeoutTicks;
-            fate.setWalkedForTests(timeout + 10);
-            fate.tick();
-            helper.assertTrue(fate.route() == ForestDirector.Route.ROOTED, "時間切れの直後に取り消した(待つ間が無い)");
-            fate.setWalkedForTests(timeout + G1Fate.STUCK_GIVE_UP + 5);
-            fate.tick();
-            helper.assertTrue(fate.route() == ForestDirector.Route.NONE, "乗ったまま長く経っても根付きの道のまま: " + fate.route());
-            helper.succeed();
-        } finally {
-            for (var e : made) e.discard();
-        }
-    }
-
     /** ③1: 終わった大規模レイドの攻め手は、遠くで仮想へ戻すときに群れへ戻さず消える。今の本番の攻め手は群れへ戻る。前の本番の生き残りも消える。 */
     @GameTest(template = "gametest_empty7", batch = "review2_raid_over", timeoutTicks = 40)
     public static void endedRaidAttackersDoNotReturn(GameTestHelper helper) {

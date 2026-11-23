@@ -23,7 +23,6 @@ public final class EconomyTable {
         public Double phaseSpendPerDay, phaseSpendPointsFactor;
         public Double towerFlightIntervalDays, towerFlightChance, towerFlightCost, towerFlightMassDays, towerFlightMinBudgetShare;
         public Double driftCost, driftPassengerFactor;
-        public Double waveBudgetShare, hoardBudgetShare, waveIncomeDays, hoardIncomeDays;
     }
 
     /** 1 日の秒数(24000 tick = 1200 秒)。稼ぎ・維持費は毎秒で持ち、古い「1 日あたり」の口はこれを掛けて答える。 */
@@ -47,10 +46,6 @@ public final class EconomyTable {
     public final double towerFlightIntervalDays, towerFlightChance, towerFlightCost, towerFlightMassDays, towerFlightMinBudgetShare;
     /** 後で(漂流する擬態 Mob): 出す値段と、乗せる Mob の値段に掛ける倍率。今は使わない(値段の表の行だけ)。 */
     public final double driftCost, driftPassengerFactor;
-    /** 11-20 夜「襲撃の大きさは貯めた予算だけで決める」: 送り込み 1 回・貯めた襲撃の最初の 1 回が使う予算の割合(使える予算 × これ ÷ 顔ぶれの平均の値段 = 体数)。 */
-    public final double waveBudgetShare, hoardBudgetShare;
-    /** 1 回に使ってよいのは 1 日の稼ぎのこの日数分まで(送り込み 1 回・貯めた襲撃の合計は財布 + これ)。上限が巨大樹(ハイヴノード)で何日分にも膨らんでも、1 回が跳ねないように【仮】。 */
-    public final double waveIncomeDays, hoardIncomeDays;
 
     private EconomyTable(Json j) {
         Json s = j != null ? j : new Json();
@@ -78,10 +73,6 @@ public final class EconomyTable {
         towerFlightMinBudgetShare = Math.min(1.0D, nn(s.towerFlightMinBudgetShare, 0.5D));
         driftCost = nn(s.driftCost, 1200.0D);
         driftPassengerFactor = nn(s.driftPassengerFactor, 1.0D);
-        waveBudgetShare = Math.min(1.0D, nn(s.waveBudgetShare, 0.75D));
-        hoardBudgetShare = Math.min(1.0D, nn(s.hoardBudgetShare, 1.0D));
-        waveIncomeDays = nn(s.waveIncomeDays, 0.65D);
-        hoardIncomeDays = nn(s.hoardIncomeDays, 1.2D);
     }
 
     private static double nn(Double v, double fallback) {

@@ -110,7 +110,7 @@ public final class ModCrawlers {
             com.yayuy.overgrownvegetation.entity.GestatrixEntity.ID + "_spawn_egg",
             props -> new DeferredSpawnEggItem(GESTATRIX, 0x3A2A1C, 0xB4D23C, props));
 
-    // --- 環境生物の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/EcoSpawns)へ後でつなぐ。区分は CREATURE ---
+    // --- 環境生物の作り直し 段 1(2026-11-16): 小さな地這いの虫の型で歩くだけ。湧きは生態系の台帳(ecosystem/life/EcoDens)へ後でつなぐ。区分は CREATURE ---
 
     /** プルモノスコルピウス(狩る側の環境生物)。当たりは胴の芯 1.0 × 0.6(尾・脚・鋏ははみ出す。全体 2.46 × 1.11 × 1.04)。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.yayuy.overgrownvegetation.entity.PulmonoscorpiusEntity>> PULMONOSCORPIUS =

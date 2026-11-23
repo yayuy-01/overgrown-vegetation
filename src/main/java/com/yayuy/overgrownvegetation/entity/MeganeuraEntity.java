@@ -42,7 +42,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
  * </ul>
  * 夜と雨は木のてっぺんに止まる(土台のまま。1 匹ずつ = 群れを作らない)。風はあまり受けない(強く飛ぶ虫)。
  * 環境生物は生息しているだけの生き物(胞子を運ばない・亜種なし)。植物側({@link ParasitizedMob}・タグ critter_hunter = ほかの Mob から敵対される)。
- * 自然には湧かない(生態系の台帳 {@code ecosystem/EcoSpawns} へ後でつなぐ)。狩り(chase・bite・chew)は後の段。
+ * 自然には湧かない(生態系の台帳 {@code ecosystem/life/EcoDens} へ後でつなぐ)。狩り(chase・bite・chew)は後の段。
  * 形は 9 月製のまま、絵は MOD の色に塗り直し(翅の黄色は残す。ユーザー決定 11-16)。正本 {@code デスクトップ\blockbench\mobs\meganeura.bbmodel}。
  */
 public class MeganeuraEntity extends SkyFlyer implements GeoEntity, ParasitizedMob {

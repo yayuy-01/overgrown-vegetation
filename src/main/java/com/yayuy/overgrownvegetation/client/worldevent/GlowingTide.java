@@ -147,7 +147,7 @@ public final class GlowingTide {
         }
         float partial = event.getPartialTick();
         WorldEventLooks.Tide p = DesignData.sky().events.tide;
-        float amount = ShaderPacks.active() ? 0.0F : amount(partial) * p.strength;
+        float amount = ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects() ? 0.0F : amount(partial) * p.strength;
         lastShown = amount;
         if (amount <= 0.001F) {
             shader.safeGetUniform("OvTide").set(0.0F, 0.0F, 0.0F, 0.0F);

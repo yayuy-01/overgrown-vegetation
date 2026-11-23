@@ -52,6 +52,13 @@ public final class ModShaders {
         return mistComposite;
     }
 
+    /** 遠くの雲を地形の後に描くときの型({@code client/sky/VoxelClouds}、2026-11-23 parked から戻した)。読み込めなかったら null(前の描き方)。 */
+    private static ShaderInstance cloudSkyMask;
+
+    public static ShaderInstance cloudSkyMask() {
+        return cloudSkyMask;
+    }
+
     /** 霧の向こうの巨大樹のシルエット({@code client/atmosphere/GiantSilhouettes}、2026-10-31)。読み込めなかったら null(描かない)。 */
     private static ShaderInstance giantSilhouette;
 
@@ -119,6 +126,15 @@ public final class ModShaders {
             OvergrownVegetation.LOGGER.error("霧の細部のシェーダーを読み込めなかったので、細部は描かない(土台の霧だけ)", e);
             mistMarch = null;
             mistComposite = null;
+        }
+        try {
+            event.registerShader(new OwnShaderInstance(event.getResourceProvider(),
+                            ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, "cloud_sky_mask"),
+                            DefaultVertexFormat.POSITION),
+                    shader -> cloudSkyMask = shader);
+        } catch (IOException e) {
+            OvergrownVegetation.LOGGER.error("遠くの雲の型のシェーダーを読み込めなかったので、遠くの雲は空と一緒に描く(前の描き方)", e);
+            cloudSkyMask = null;
         }
         try {
             event.registerShader(new OwnShaderInstance(event.getResourceProvider(),

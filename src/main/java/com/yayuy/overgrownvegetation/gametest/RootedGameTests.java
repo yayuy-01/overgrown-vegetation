@@ -199,39 +199,6 @@ public final class RootedGameTests {
         });
     }
 
-    /** 司令塔の道: 根付きに決まった段階 0 のゾンビは、着くと根を下ろし、根付きのゾンビに入れ替わって生え始める。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
-    public static void stageZeroZombieBecomesRootedZombie(GameTestHelper helper) {
-        AbstractParasitizedMonster zombie = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(3.5, 2.0, 3.5));
-        zombie.goalSelector.removeAllGoals(g -> true);
-        zombie.targetSelector.removeAllGoals(g -> true);
-        G1Fate fate = zombie.fate();
-        helper.assertTrue(fate.rootedForm() != null, "ゾンビに根付きの姿が登録されていない");
-        // 森が見当たらない = もう十分に離れている → 最初の見直し(20 tick)で根を下ろす
-        fate.setForestForTests(new com.yayuy.overgrownvegetation.director.ForestEdge() {
-            @Override
-            public double distance(Vec3 pos) {
-                return Double.POSITIVE_INFINITY;
-            }
-
-            @Override
-            public Vec3 away(Vec3 pos) {
-                return null;
-            }
-        });
-        fate.beginRooted();
-        int omen = DesignData.director().rootOmenTicks;
-        helper.runAfterDelay(20 + omen + 6, () -> {
-            helper.assertTrue(zombie.isRemoved(), "根を下ろしても段階 0 が残っている");
-            List<RootedParasitized> found = helper.getLevel().getEntitiesOfClass(RootedParasitized.class, GtCompat.bounds(helper));
-            helper.assertTrue(found.size() == 1, "根付きのゾンビが 1 体でない: " + found.size());
-            RootedParasitized rooted = found.get(0);
-            helper.assertTrue(rooted.rooted() == G1Rooted.ZOMBIE && rooted.isEmerging(), "生え始めていない");
-            rooted.discard();
-            helper.succeed();
-        });
-    }
-
     // ------------------------------------------------------------------ 蔦の柱の残り 4 種の能力(区切り 3)
     /** チビゾンビ: 叩かれると、袋から胞子の煙幕が出る。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 80)
@@ -526,42 +493,4 @@ public final class RootedGameTests {
         });
     }
 
-    /** 着いた所に根付きの姿が入らない(低い天井)とき、諦めずに、根を下ろすのをやめてまた歩く(本物の地形の木の下で止まっていた)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
-    public static void noRoomForPillarWalksOnInsteadOfGivingUp(GameTestHelper helper) {
-        // 段階 0 のゾンビ(高さ 1.95)は入るが、根付きのゾンビ(高さ 4.4)は入らない天井
-        for (int x = 2; x <= 4; x++) {
-            for (int z = 2; z <= 4; z++) helper.setBlock(new net.minecraft.core.BlockPos(x, 5, z), net.minecraft.world.level.block.Blocks.STONE);
-        }
-        AbstractParasitizedMonster zombie = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(3.5, 2.0, 3.5));
-        zombie.goalSelector.removeAllGoals(g -> true);
-        zombie.targetSelector.removeAllGoals(g -> true);
-        G1Fate fate = zombie.fate();
-        fate.setForestForTests(new com.yayuy.overgrownvegetation.director.ForestEdge() {
-            @Override
-            public double distance(Vec3 pos) {
-                return Double.POSITIVE_INFINITY;
-            }
-
-            @Override
-            public Vec3 away(Vec3 pos) {
-                return null;
-            }
-        });
-        fate.beginRooted();
-        int omen = DesignData.director().rootOmenTicks;
-        boolean[] sawOmen = {false};
-        helper.onEachTick(() -> {
-            if (zombie.omen() == G1Fate.OMEN_ROOT) sawOmen[0] = true;
-        });
-        helper.runAfterDelay(20 + omen + 10, () -> {
-            helper.assertTrue(sawOmen[0], "根を下ろそうとしていない");
-            helper.assertTrue(zombie.isAlive(), "入らないのに入れ替わった");
-            helper.assertTrue(helper.getLevel().getEntitiesOfClass(RootedParasitized.class, GtCompat.bounds(helper)).isEmpty(), "入らない所に根付きが出た");
-            helper.assertTrue(fate.route() == com.yayuy.overgrownvegetation.director.ForestDirector.Route.ROOTED && fate.walkingAway(),
-                    "入らなかっただけで根付きを諦めた: " + fate.route() + " / 前兆 " + zombie.omen());
-            zombie.discard();
-            helper.succeed();
-        });
-    }
 }

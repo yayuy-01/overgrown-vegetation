@@ -187,58 +187,6 @@ public final class NurseryGameTests {
         helper.succeed();
     }
 
-    /** 判断: 苗床の姿の無い個体・予算が値段に足りないときは苗床を選べない。足りていれば選ばれる。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void nurseryNeedsBudgetAndForm(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        RandomSource random = RandomSource.create(20261113L);
-        int noForm = 0, poor = 0, rich = 0;
-        for (int i = 0; i < 400; i++) {
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, false, t.costNursery * 100.0D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.NURSERY) noForm++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, true, t.costNursery - 0.01D, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.NURSERY) poor++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, true, t.costNursery, 4.0D, 10.0D), random).route()
-                    == ForestDirector.Route.NURSERY) rich++;
-        }
-        helper.assertTrue(noForm == 0, "苗床の姿の無い個体に苗床を選んだ: " + noForm);
-        helper.assertTrue(t.costNursery <= 0.0D || poor == 0, "予算が足りないのに苗床を選んだ: " + poor);
-        helper.assertTrue(rich > 0, "予算が足りているのに、400 回で一度も苗床を選ばない");
-        helper.succeed();
-    }
-
-    /** 司令塔の道: 苗床に決まった段階 0 の牛は、着くと根を下ろし、牛の苗床に入れ替わって生え始める。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
-    public static void stageZeroCowBecomesNursery(GameTestHelper helper) {
-        AbstractParasitizedMonster cow = helper.spawn(G1Species.COW.entityType(), CENTER);
-        cow.goalSelector.removeAllGoals(g -> true);
-        cow.targetSelector.removeAllGoals(g -> true);
-        G1Fate fate = cow.fate();
-        helper.assertTrue(fate.nurseryForm() != null, "牛に苗床の姿が登録されていない");
-        fate.setForestForTests(new com.yayuy.overgrownvegetation.director.ForestEdge() {
-            @Override
-            public double distance(Vec3 pos) {
-                return Double.POSITIVE_INFINITY;
-            }
-
-            @Override
-            public Vec3 away(Vec3 pos) {
-                return null;
-            }
-        });
-        fate.beginNursery();
-        int omen = DesignData.director().rootOmenTicks;
-        helper.runAfterDelay(20 + omen + 6, () -> {
-            helper.assertTrue(cow.isRemoved(), "根を下ろしても段階 0 が残っている");
-            List<NurseryParasitized> found = helper.getLevel().getEntitiesOfClass(NurseryParasitized.class, GtCompat.bounds(helper));
-            helper.assertTrue(found.size() == 1, "苗床が 1 体でない: " + found.size());
-            NurseryParasitized n = found.get(0);
-            helper.assertTrue(n.nursery() == G1Nursery.COW && n.isEmerging(), "牛の苗床として生え始めていない");
-            n.discard();
-            helper.succeed();
-        });
-    }
-
     /** 枯れて崩れる: 倒してもすぐには消えず、death_wither の長さで消える。動かない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 200)
     public static void nurseryStaysPutAndWithers(GameTestHelper helper) {
@@ -287,24 +235,6 @@ public final class NurseryGameTests {
             rooted.discard();
             helper.succeed();
         });
-    }
-
-    /** 苗床は、森から離れているほど選ばれやすい(11-14 ユーザー決定)。森の中より、縁から遠い個体の方が多く苗床を選ぶ。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void nurseryChosenMoreOftenFarFromForest(GameTestHelper helper) {
-        DirectorTable t = DesignData.director();
-        RandomSource random = RandomSource.create(20261114L);
-        int inside = 0, far = 0;
-        for (int i = 0; i < 2000; i++) {
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, true, t.costNursery, 1.0E9D, 1.0D, 0.0D), random).route()
-                    == ForestDirector.Route.NURSERY) inside++;
-            if (ForestDirector.score(t, new ForestDirector.Inputs(false, false, true, t.costNursery, 1.0E9D, 1.0D, t.nurseryFarBlocks), random).route()
-                    == ForestDirector.Route.NURSERY) far++;
-        }
-        if (t.nurseryFar > 0.0D) {
-            helper.assertTrue(far > inside, "森から遠い個体の方が苗床を選びやすくなっていない: 森の中 " + inside + " / 遠い " + far);
-        }
-        helper.succeed();
     }
 
     // ------------------------------------------------------------------ 寿命(司令塔 第 3 段 区切り 4。11-14 ユーザー N1)

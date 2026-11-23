@@ -21,8 +21,8 @@ import java.util.Set;
 
 /**
  * 印の無い空の種の片付け(2026-11-17 深夜 ユーザー決定 (a)「遠くで片付ける」)。
- * 空の種({@link SkyFlyer} のうち spawns.json の表で habitats に sky を持つ種)は自分では消えない作りで、縁の片付け({@link EnemySpawns#sweep})は
- * 縁・地下の印のある個体しか見ない。F7 の前線の写しで、印の無いヴェロフィル・セミナリアが 27 体ずつたまった回があった(出どころ不明)。
+ * 空の種({@link SkyFlyer} のうち spawns.json の表で habitats に sky を持つ種)は自分では消えない作り(縁・地下の湧きの片付けは 11-23 片付け E で消えた)。
+ * F7 の前線の写しで、印の無いヴェロフィル・セミナリアが 27 体ずつたまった回があった(出どころ不明)。
  * <ul>
  *   <li>{@link #INTERVAL} tick おきに、オーバーワールドの印の無い空の種のうち、どのプレイヤー(観戦を除く)からも {@code despawnBlocks} より
  *   遠いものを消す。名札・紐・乗り物の個体は残す。</li>
@@ -63,7 +63,7 @@ public final class SkyStrays {
 
     /** 片付けの対象か(空の種・印なし・名札や紐なし)。 */
     static boolean stray(Entity e) {
-        return e instanceof SkyFlyer m && skyTypes().contains(m.getType()) && !EnemySpawns.spawnedHere(m)
+        return e instanceof SkyFlyer m && skyTypes().contains(m.getType())
                 && !m.hasCustomName() && !m.isLeashed() && !m.isPassenger() && !m.isVehicle();
     }
 

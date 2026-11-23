@@ -164,8 +164,6 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        // 司令塔が根付きに決めた個体は、森から離れて歩く(1 撃より先。決まっていない個体・1 段目では動かない。2026-11-13)
-        this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1WalkAwayGoal(this));
         // 司令塔の偵察に出された個体は、拠点を眺めに行って帰る(第 2 段、2026-11-14)
         this.goalSelector.addGoal(1, new com.yayuy.overgrownvegetation.director.G1ScoutGoal(this));
         // 森が貯めている間は、襲わず遠巻きにうろつく(第 3 段「貯めて一気に使う」。1 段目も持つ)
@@ -333,7 +331,7 @@ public abstract class AbstractParasitizedMonster extends Monster implements Para
         if (level().isClientSide()) {
             omenClientTicks = omen() != 0 ? omenClientTicks + 1 : 0;
         } else if (fate() != null) {
-            fate.tick(); // 司令塔が見に来る時刻・前兆・入れ替え
+            fate.tick(); // 進化の前兆・入れ替えと偵察
         }
         if (!level().isClientSide()) march.step(position()); // 拠点へ向かう使いの時間と着いたか(第 2 段)
         if (stunTicks > 0 && !level().isClientSide()) {

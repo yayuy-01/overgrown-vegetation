@@ -26,7 +26,13 @@ public final class UnitTerrain {
 
     /** チャンク → 地形(覚えておく数の上限を超えたら全部忘れる)。 */
     private static final Long2ByteOpenHashMap CACHE = new Long2ByteOpenHashMap();
-    private static final int CACHE_MAX = 200_000;
+    /** 11-23 サーバーの tick の軽量化: F7 の部隊の移動で地形のバイオームの引き直しが目立った(溢れると全部忘れる)ので上限を上げる(溢れていたかは数えていない。答えは同じ・覚えは最大で約 20 MB)。 */
+    private static final int CACHE_MAX = 1_000_000;
+    static {
+        CACHE.defaultReturnValue((byte) -1);
+        // 鍵は座標だけなので、ワールドが替わる(サーバーが止まる)ときに忘れる(11-23 Codex の指摘: 前は同じ起動で別のワールドを開くと前の地形を使い回しえた)
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.server.ServerStoppedEvent e) -> CACHE.clear());
+    }
     /** テスト用: 地形の決め打ち(null で本物)。 */
     @Nullable
     public static java.util.function.ToIntBiFunction<Integer, Integer> terrainForTests;
@@ -43,7 +49,8 @@ public final class UnitTerrain {
         int cx = Mth.floor(x) >> 4, cz = Mth.floor(z) >> 4;
         if (terrainForTests != null) return (byte) terrainForTests.applyAsInt(cx, cz);
         long key = ChunkPos.asLong(cx, cz);
-        if (CACHE.containsKey(key)) return CACHE.get(key);
+        byte hit = CACHE.get(key); // 無ければ -1(引くのを 1 回に。11-23 サーバーの tick の軽量化)
+        if (hit >= 0) return hit;
         byte k = sample(level, cx, cz);
         if (CACHE.size() >= CACHE_MAX) CACHE.clear();
         CACHE.put(key, k);

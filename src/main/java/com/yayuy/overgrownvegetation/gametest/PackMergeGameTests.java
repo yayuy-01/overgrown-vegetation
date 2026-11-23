@@ -148,27 +148,4 @@ public final class PackMergeGameTests {
         });
     }
 
-    /** G1 の根付きは升(4×4 チャンク)ごとに rootedPerCell まで(11-17 深夜 ユーザー (b))。満ちたら根付きを選べない。 */
-    @GameTest(template = TEMPLATE, batch = "rooted_cap", timeoutTicks = 20)
-    public static void rootedCapPerCell(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        int cap = com.yayuy.overgrownvegetation.data.DesignData.director().rootedPerCell;
-        if (cap <= 0) {
-            helper.succeed();
-            return;
-        }
-        Vec3 at = new Vec3(3.5, 2.0, 3.5);
-        List<Mob> made = new ArrayList<>();
-        for (int i = 0; i < cap - 1; i++) made.add(helper.spawn(com.yayuy.overgrownvegetation.registry.ModG1.rooted(com.yayuy.overgrownvegetation.entity.g1.G1Rooted.CHICKEN).get(), at));
-        net.minecraft.core.BlockPos pos = helper.absolutePos(new net.minecraft.core.BlockPos(3, 2, 3));
-        helper.runAfterDelay(1, () -> {
-            helper.assertTrue(com.yayuy.overgrownvegetation.director.ForestDirector.rootRoom(level, pos), "上限の手前なのに根付けない");
-            made.add(helper.spawn(com.yayuy.overgrownvegetation.registry.ModG1.rooted(com.yayuy.overgrownvegetation.entity.g1.G1Rooted.CHICKEN).get(), at));
-        });
-        helper.runAfterDelay(3, () -> {
-            helper.assertFalse(com.yayuy.overgrownvegetation.director.ForestDirector.rootRoom(level, pos), "升の根付きが上限 " + cap + " なのにまだ根付ける");
-            for (Mob m : made) m.discard();
-            helper.succeed();
-        });
-    }
 }

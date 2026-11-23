@@ -5,7 +5,7 @@ import com.yayuy.overgrownvegetation.data.DesignData;
 import com.yayuy.overgrownvegetation.director.DirectorGates;
 import com.yayuy.overgrownvegetation.director.ForestDirector;
 import com.yayuy.overgrownvegetation.ecosystem.EcoLedger;
-import com.yayuy.overgrownvegetation.ecosystem.EcoSpawns;
+import com.yayuy.overgrownvegetation.ecosystem.life.EcoDens;
 import com.yayuy.overgrownvegetation.ecosystem.EcoTable;
 import com.yayuy.overgrownvegetation.ecosystem.Ecosystem;
 import com.yayuy.overgrownvegetation.phase.PhaseData;
@@ -84,8 +84,6 @@ public final class EcosystemGameTests {
         helper.assertTrue(l.damagedCells() == 0 && l.health(t0 + back) == 1.0D, "戻った升が消えない・多様性が戻らない");
         // 予算の倍率: 健康 100% で 1、0% で incomeFloor
         helper.assertTrue(EcoLedger.incomeFactor(1.0D, t.incomeFloor) == 1.0D && EcoLedger.incomeFactor(0.0D, t.incomeFloor) == t.incomeFloor, "予算の倍率が違う");
-        // 守りの割合: しきい値以上で 0
-        helper.assertTrue(EcoSpawns.defenseFactor(t.innerThreshold, t.innerThreshold) == 0.0D && EcoSpawns.defenseFactor(0.0D, t.innerThreshold) == 1.0D, "守りの割合が違う");
         helper.succeed();
     }
 
@@ -172,10 +170,10 @@ public final class EcosystemGameTests {
 
     /**
      * 世界を通す確かめ(1 本にまとめる): 数える殺し手(プレイヤーは数え、落下・Mob は数えない)・死の口で升が減る・
-     * 予算の倍率(健康 100% で 1・上限は変わらない)・内側の守り(健康で 0 体・殺しすぎると減った升に G2・内側でない所には湧かない)・仮の種の印。
+     * 予算の倍率(健康 100% で 1・上限は変わらない)・内側の見分け・減った升の選び・仮の種の印。(11-23 片付け E: 内側の守りの湧きの確かめは消した)
      */
     @GameTest(template = "gametest_empty7", batch = "eco_world", timeoutTicks = 60)
-    public static void killsHealthBudgetAndInnerDefense(GameTestHelper helper) {
+    public static void killsHealthAndBudget(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         EcoLedger ledger = EcoLedger.get(level);
         PhaseData data = PhaseData.get(level);
@@ -218,61 +216,31 @@ public final class EcosystemGameTests {
             frog2.hurt(level.damageSources().fall(), 1000.0F);
             helper.assertTrue(ledger.kills(Ecosystem.PREY) == killsBefore, "落下で死んだ獲物の環境生物を数えた");
 
-            // ---- 内側の守り: 5×5 の過繁茂の真ん中は内側、縁は内側でない
+            // ---- 内側: 5×5 の過繁茂の真ん中は内側、縁は内側でない(巣の置き場が使う)
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     ChunkPos p = new ChunkPos(ocx + dx, ocz + dz);
                     if (data.adoptOvergrownChunk(level, p)) added.add(p);
                 }
             }
-            helper.assertTrue(EcoSpawns.inside(data, ocx, ocz) && !EcoSpawns.inside(data, ocx + 2, ocz) && !EcoSpawns.inside(data, ocx + 5, ocz),
+            helper.assertTrue(EcoDens.insideChunk(data, ocx, ocz) && !EcoDens.insideChunk(data, ocx + 2, ocz) && !EcoDens.insideChunk(data, ocx + 5, ocz),
                     "内側の見分けが違う(真ん中は内側・縁と外は内側でない)");
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
             ledger.reset();
             double capBefore = ForestDirector.cap(level); // 面積(過繁茂のチャンク)を足した後に測る。ここから変わるのは健康だけ
-            helper.assertTrue(EcoSpawns.innerCap(level, 2) == 0 && EcoSpawns.innerCap(level, 3) == 0, "健康 100% で内側の守りが開いている");
-            helper.assertTrue(EcoSpawns.tryInner(level, origin.getX(), origin.getZ(), RandomSource.create(1L)) == EcoSpawns.Miss.HEALTHY, "健康なのに守りを試した");
-            // 殺しすぎる: 多様性をしきい値の半分まで下げる(この升で獲物の環境生物を倒す)
-            int need = (int) Math.ceil((1.0D - t.innerThreshold / 2.0D) * t.scale / t.weightPrey);
+            // 殺しすぎる: 多様性を 35% まで下げる(この升で獲物の環境生物を倒す)
+            int need = (int) Math.ceil((1.0D - 0.35D) * t.scale / t.weightPrey);
             for (int i = 0; i < need; i++) ledger.kill(Ecosystem.PREY, ocx, ocz, EcoLedger.now(level));
             double h = Ecosystem.health(level);
-            helper.assertTrue(h <= t.innerThreshold / 2.0D + 1e-6, "多様性が下がりきらない: " + h);
-            int capG2 = EcoSpawns.innerCap(level, 2), capG3 = EcoSpawns.innerCap(level, 3);
-            double f = EcoSpawns.defenseFactor(h, t.innerThreshold);
-            helper.assertTrue(capG2 == (int) Math.round(t.innerCapG2 * f) && capG3 == (int) Math.round(t.innerCapG3 * f) && capG2 > 0,
-                    "内側の上限が設計値と違う: G2 " + capG2 + "・G3 " + capG3);
+            helper.assertTrue(h <= 0.35D + 1e-6, "多様性が下がりきらない: " + h);
             // 予算: 倍率は健康どおり・上限は変わらない
             helper.assertTrue(Math.abs(Ecosystem.incomeFactor(level) - EcoLedger.incomeFactor(h, t.incomeFloor)) < 1e-9, "予算の倍率が健康どおりでない");
             helper.assertTrue(Math.abs(ForestDirector.cap(level) - capBefore) < 1e-9, "健康で上限が変わった");
             // 減った升を優先して選ぶ(この升はプレイヤーの位置から見て 24 ブロックより遠い所にあるとして、遠くから見る)
-            long chunk = EcoSpawns.pickChunk(level, origin.getX() + 200, origin.getZ(), 24, 300, RandomSource.create(3L));
+            long chunk = EcoDens.pickChunk(level, origin.getX() + 200, origin.getZ(), 24, 300, RandomSource.create(3L));
             long cell = EcoLedger.cellOf(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), t.cellShift);
             helper.assertTrue(cell == EcoLedger.cellOf(ocx, ocz, t.cellShift), "減った升を選ばない");
-            // 内側でないチャンクには湧かない
-            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx + 2, ocz, new int[4], capG2, capG3, RandomSource.create(1L)) == EcoSpawns.Miss.NOT_INSIDE, "縁に内側の守りが湧こうとした");
-            helper.assertTrue(EcoSpawns.tryInnerAt(level, ocx, ocz, new int[] {0, 0, capG2, capG3}, capG2, capG3, RandomSource.create(1L)) == EcoSpawns.Miss.FULL, "上限なのに湧こうとした");
-            // 真ん中に湧く(置き場は乱数なので何回か)
-            EcoSpawns.Miss last = null;
-            RandomSource rr = RandomSource.create(9L);
-            for (int i = 0; i < 40 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInnerAt(level, ocx, ocz, new int[4], capG2, capG3, rr);
-            helper.assertTrue(last == EcoSpawns.Miss.SPAWNED, "殺しすぎても内側に守りが湧かない: " + last);
-            // プレイヤーのまわりから選ぶ道(tryInner: 減った升を選ぶ → 置く)も通す
-            last = null;
-            for (int i = 0; i < 60 && last != EcoSpawns.Miss.SPAWNED; i++) last = EcoSpawns.tryInner(level, origin.getX() + 40, origin.getZ(), rr);
-            helper.assertTrue(last == EcoSpawns.Miss.SPAWNED, "tryInner で内側に守りが湧かない: " + last);
-            List<Mob> inner = level.getEntitiesOfClass(Mob.class, new net.minecraft.world.phys.AABB(origin).inflate(160.0D, 256.0D, 160.0D),
-                    m -> m.getTags().contains(EcoSpawns.INNER_TAG));
-            made.addAll(inner);
-            helper.assertTrue(!inner.isEmpty(), "湧いた守りが見つからない");
-            int[] c = EcoSpawns.count(level, origin.getX(), origin.getZ(), 64.0D);
-            helper.assertTrue(c[2] + c[3] >= 1, "湧いた守りが数えられない");
-            // 仮の種: GameTest では湧かせてよい。倒した升(頭数 0)には湧かない
-            helper.assertTrue(EcoSpawns.stubAllowed(level), "GameTest で仮の種が許されていない");
-            for (int i = 0; i < t.fullHunter * 2; i++) ledger.kill(Ecosystem.HUNTER, ocx, ocz, EcoLedger.now(level));
-            helper.assertTrue(ledger.heads(Ecosystem.PREY, ocx, ocz, EcoLedger.now(level)) == 0.0D && ledger.heads(Ecosystem.HUNTER, ocx, ocz, EcoLedger.now(level)) == 0.0D, "頭数が 0 にならない");
-            EcoSpawns.Miss s = EcoSpawns.tryStubAt(level, ocx, ocz, new int[4], RandomSource.create(2L));
-            helper.assertTrue(s == EcoSpawns.Miss.THIN || s == EcoSpawns.Miss.FULL, "頭数 0 の升に仮の種が湧こうとした: " + s);
             helper.succeed();
         } finally {
             for (Mob m : made) m.discard();

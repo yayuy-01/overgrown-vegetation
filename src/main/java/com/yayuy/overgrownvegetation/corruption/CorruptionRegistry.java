@@ -339,7 +339,25 @@ public final class CorruptionRegistry {
      */
     public static boolean hasNoCorruptedForm(BlockState state) {
         init();
-        return resolveTarget(state) == null;
+        // 答えはブロックの状態とタグだけで決まるので覚えておく(砂の覆いの見回りが 1 マスごとにタグを順に引いていた。11-23 サーバーの tick の軽量化)。
+        // タグが読み直されたら忘れる。描画のスレッドからも呼ばれるので ConcurrentHashMap
+        // 覚えには世代を一緒に書き、今の世代のものだけ使う(タグの読み直しと書き込みが重なっても古い答えを使わない)
+        int gen = noFormGen;
+        Integer memo = NO_FORM.get(state);
+        if (memo != null && (memo >> 1) == gen) return (memo & 1) != 0;
+        boolean none = resolveTarget(state) == null;
+        NO_FORM.put(state, (gen << 1) | (none ? 1 : 0));
+        return none;
+    }
+
+    private static final java.util.concurrent.ConcurrentHashMap<BlockState, Integer> NO_FORM = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile int noFormGen;
+
+    static {
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.TagsUpdatedEvent e) -> {
+            noFormGen++;
+            NO_FORM.clear();
+        });
     }
 
     /**

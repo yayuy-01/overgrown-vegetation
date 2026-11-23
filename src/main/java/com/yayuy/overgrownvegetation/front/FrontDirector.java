@@ -103,14 +103,6 @@ public final class FrontDirector {
         return DesignData.front().enabled && DesignData.director().enabled && VirtualHordes.enabled();
     }
 
-    /**
-     * 縁・地下・森の中の湧きと、実物の G1 の進化・根付き・苗床を止めて前線の部隊に任せるか(11-21 区切り 6)。GameTest のサーバーでは、テストが前線を動かすときだけ。
-     */
-    public static boolean replacesOldSpawns(ServerLevel level) {
-        return enabled() && DesignData.front().replaceOldSpawns
-                && (tickInGameTests || !(level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer));
-    }
-
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
@@ -122,6 +114,7 @@ public final class FrontDirector {
 
     /** 1 回まわす(テストからも)。seconds = 前の回からの秒。 */
     public static void run(ServerLevel level, double seconds) {
+        readWorldSettings(level.getServer());
         Fronts fronts = Fronts.get(level.getServer());
         VirtualHordes hordes = VirtualHordes.get(level.getServer());
         sync(level, fronts, hordes);
@@ -154,7 +147,7 @@ public final class FrontDirector {
         FrontNurseries.get(level.getServer()).tick(level, hordes);
         FrontWatchers.get(level.getServer()).tick(level);
         FrontOutposts.get(level.getServer()).tick(level);
-        if (replacesOldSpawns(level) && level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes);
+        if (level.getGameTime() % 200L < 20L) absorbLoose(level, fronts, hordes); // 11-23 片付け E: 前は切り替え replaceOldSpawns を見ていた(いつもオン)
         // 空の部隊(実物も残っていない)を片付ける
         for (VirtualHordes.Swarm s : new ArrayList<>(hordes.swarms())) {
             if (s.unit() && s.size() <= 0 && real.get(s.id()) <= 0) hordes.removeUnit(s);
@@ -236,6 +229,11 @@ public final class FrontDirector {
         if (!(e.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         if (!e.getPersistentData().contains(VirtualHordes.UNIT_KEY)) return;
         int fid = e.getPersistentData().getInt(VirtualHordes.FRONT_KEY);
+        // 11-23 ユーザー決定: 拠点への襲撃で倒された分は「攻められた」に数えない(守り・駆けつけは樹域の縁や巨大樹のまわりで倒されたときだけ)
+        if (raidLoss(level, e)) {
+            raidLossesSkipped++;
+            return;
+        }
         // 11-22 見直し: 駆けつけた予備が倒されたら、駆けつけた先の樹域が攻められたと数える(元の内側の樹域ではなく)
         int[] r = REINFORCING.get(e.getPersistentData().getLong(VirtualHordes.UNIT_KEY));
         if (r != null) fid = r[1];
@@ -244,6 +242,16 @@ public final class FrontDirector {
         decayLosses(level, f, DesignData.front());
         f.losses += Math.max(1.0D, ForestUpkeep.unitPrice(e));
         Fronts.get(level.getServer()).touch();
+    }
+
+    /** 「攻められた」に数えなかった襲撃の部隊の死(計測の確かめ用)。 */
+    public static long raidLossesSkipped;
+
+    /** 倒されたのが拠点を襲う部隊の実物か(今の部隊の役目。部隊がもう無ければ生まれたときの印)。 */
+    public static boolean raidLoss(ServerLevel level, LivingEntity e) {
+        VirtualHordes.Swarm s = VirtualHordes.get(level.getServer()).byId(e.getPersistentData().getLong(VirtualHordes.UNIT_KEY));
+        UnitPurpose p = s != null ? s.purpose() : UnitPurpose.byName(e.getPersistentData().getString("ov_unit_purpose"));
+        return p == UnitPurpose.RAID;
     }
 
     /** 前線が攻められているか(最近倒された値段が前線の値段の attackedLossShare を超えた)。 */
@@ -315,10 +323,22 @@ public final class FrontDirector {
     private static long territoryAt = Long.MIN_VALUE;
     public static long atTargetSkips, nurseryAtTargetSkips;
 
-    /** 樹域の目標の頭数 = 過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)。 */
+    /**
+     * ワールドの設定「Mob の湧く量」(MOB_SPAWN_AMOUNT。11-23 片付け E の後に前線へつなぎ直した)。run が回るたびにワールドの値で書き直す。
+     * 既定 1.0 = 今までどおり、0 = 樹域は部隊を作らない。
+     */
+    public static double targetFactor = 1.0D;
+
+    /** ワールドの設定を読み直す(run の頭・テストから)。 */
+    public static void readWorldSettings(MinecraftServer server) {
+        targetFactor = Math.max(0.0D, com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.MOB_SPAWN_AMOUNT));
+    }
+
+    /** 樹域の目標の頭数 = 過繁茂のチャンク数 × unitTargetPerChunk(下限 unitTargetMin)× 設定の「Mob の湧く量」。 */
     public static int target(int front) {
         FrontTable t = DesignData.front();
-        return Math.max(t.unitTargetMin, (int) Math.ceil(TERRITORY.get(front) * t.unitTargetPerChunk));
+        int n = Math.max(t.unitTargetMin, (int) Math.ceil(TERRITORY.get(front) * t.unitTargetPerChunk));
+        return targetFactor == 1.0D ? n : (int) Math.round(n * targetFactor);
     }
 
     /** 樹域の今の頭数(守る + 広げる。襲撃・狩り・建てるに出た分は数えない)。 */
@@ -384,19 +404,38 @@ public final class FrontDirector {
         PhaseData pd = PhaseData.get(level);
         it.unimi.dsi.fastutil.longs.LongArrayList[] edges = new it.unimi.dsi.fastutil.longs.LongArrayList[n];
         // 11-22 見直し: いちばん近い樹域は升の索引で引く(チャンク × 樹域の総当たりをやめた。結果は総当たりと同じ)
-        NearestIndex index = new NearestIndex(xs, zs);
-        pd.forEachOvergrownChunk(k -> {
-            int ccx = ChunkPos.getX(k), ccz = ChunkPos.getZ(k);
-            int best = index.nearest(ccx * 16.0D + 8.0D, ccz * 16.0D + 8.0D);
-            counts[best]++;
-            // 縁 = 4 方向のどれかが森でない過繁茂のチャンク(11-22 守りの持ち場)
-            if (!pd.isOvergrownKey(ChunkPos.asLong(ccx + 1, ccz)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx - 1, ccz))
-                    || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz + 1)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz - 1))) {
-                if (edges[best] == null) edges[best] = new it.unimi.dsi.fastutil.longs.LongArrayList();
-                edges[best].add(k);
-                EDGE_ALL.put(k, ids[best]);
+        // 11-23 サーバーの tick の軽量化: 台帳の 80 万チャンクで 1 分ごとに 1 秒止まっていた。台帳の並びを写し、
+        // チャンクごとの「いちばん近い樹域・縁か」(読むだけ)を切れ目ごとに並列で求め、数え・縁の並びは元の順で 1 本の糸で足す(結果は前と同じ)。
+        // 並列の間、主スレッドはここで待つので台帳は書き換わらない
+        long[] keys = new long[pd.overgrownLedgerSize()];
+        int[] m = {0};
+        pd.forEachOvergrownChunk(k -> keys[m[0]++] = k);
+        int total = m[0];
+        int[] bestOf = new int[total];
+        boolean[] edgeOf = new boolean[total];
+        int slices = Math.max(1, Math.min(Runtime.getRuntime().availableProcessors() / 2, total / 16384)); // コアの半分まで(1 人用で描画のスレッドの分を残す。切れ目の数で答えは変わらない)
+        java.util.stream.IntStream range = java.util.stream.IntStream.range(0, slices);
+        (slices > 1 ? range.parallel() : range).forEach(si -> {
+            NearestIndex index = new NearestIndex(xs, zs); // 引くたびに中で覚えを書くので切れ目ごとに 1 つ
+            int from = (int) ((long) total * si / slices), to = (int) ((long) total * (si + 1) / slices);
+            for (int i = from; i < to; i++) {
+                long k = keys[i];
+                int ccx = ChunkPos.getX(k), ccz = ChunkPos.getZ(k);
+                bestOf[i] = index.nearest(ccx * 16.0D + 8.0D, ccz * 16.0D + 8.0D);
+                // 縁 = 4 方向のどれかが森でない過繁茂のチャンク(11-22 守りの持ち場)
+                edgeOf[i] = !pd.isOvergrownKey(ChunkPos.asLong(ccx + 1, ccz)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx - 1, ccz))
+                        || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz + 1)) || !pd.isOvergrownKey(ChunkPos.asLong(ccx, ccz - 1));
             }
         });
+        for (int i = 0; i < total; i++) {
+            int best = bestOf[i];
+            counts[best]++;
+            if (edgeOf[i]) {
+                if (edges[best] == null) edges[best] = new it.unimi.dsi.fastutil.longs.LongArrayList();
+                edges[best].add(keys[i]);
+                EDGE_ALL.put(keys[i], ids[best]);
+            }
+        }
         for (int i = 0; i < n; i++) {
             TERRITORY.put(ids[i], counts[i]);
             if (counts[i] > PEAK.get(ids[i])) PEAK.put(ids[i], counts[i]);
@@ -575,7 +614,7 @@ public final class FrontDirector {
             if (near.isEmpty()) continue;
             near.sort(java.util.Comparator.comparingDouble(g -> (g.x - f.x) * (g.x - f.x) + (g.z - f.z) * (g.z - f.z)));
             List<VirtualHordes.Swarm> mine = new ArrayList<>();
-            for (VirtualHordes.Swarm s : hordes.swarms()) {
+            for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
                 if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && real.get(s.id()) <= 0 && !REINFORCING.containsKey(s.id())
                         && !atFormingSpot(level, f, s.tx(), s.tz())) mine.add(s);
             }
@@ -645,6 +684,8 @@ public final class FrontDirector {
     /** 樹域が最後に攻められた tick。 */
     private static final it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap ATTACKED_AT = new it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap();
     public static long reinforcedHeads, reinforcedUnits, reinforceReturned;
+    /** 増援を考えた回数と、止まった訳(縁が無い = 攻められたのが内側の樹域・近くに内側の樹域が無い・予備に空きが無い)。11-23 D4 で増援 0 の訳を見る用。 */
+    public static long reinforceCalls, reinforceNoEdge, reinforceNoInner, reinforceNoRoom;
 
     static boolean hasEdges(int front) {
         var e = EDGES.get(front);
@@ -690,6 +731,7 @@ public final class FrontDirector {
     public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent event) {
         TERRITORY.clear();
         HEADS.clear();
+        targetFactor = 1.0D;
         territoryAt = Long.MIN_VALUE;
         EDGES.clear();
         EDGE_ALL.clear();
@@ -708,7 +750,12 @@ public final class FrontDirector {
      */
     public static void reinforce(ServerLevel level, Fronts fronts, VirtualHordes hordes, Fronts.Front f, Long2IntOpenHashMap real) {
         FrontTable t = DesignData.front();
-        if (t.reinforceShare <= 0.0D || !hasEdges(f.id)) return;
+        if (t.reinforceShare <= 0.0D) return;
+        reinforceCalls++;
+        if (!hasEdges(f.id)) {
+            reinforceNoEdge++;
+            return;
+        }
         var edges = EDGES.get(f.id);
         double max2 = t.reinforceMaxBlocks * t.reinforceMaxBlocks;
         List<Fronts.Front> inner = new ArrayList<>();
@@ -716,14 +763,18 @@ public final class FrontDirector {
             double dx = g.x - f.x, dz = g.z - f.z;
             if (g.id != f.id && !hasEdges(g.id) && dx * dx + dz * dz <= max2) inner.add(g);
         }
-        if (inner.isEmpty()) return;
+        if (inner.isEmpty()) {
+            reinforceNoInner++;
+            return;
+        }
+        long sentBefore = reinforcedUnits;
         inner.sort(java.util.Comparator.comparingDouble(g -> (g.x - f.x) * (g.x - f.x) + (g.z - f.z) * (g.z - f.z)));
         long now = level.getGameTime();
         RandomSource random = level.getRandom();
         for (Fronts.Front g : inner) {
             int all = 0, out = 0;
             List<VirtualHordes.Swarm> home = new ArrayList<>();
-            for (VirtualHordes.Swarm s : hordes.swarms()) {
+            for (VirtualHordes.Swarm s : hordes.ofFront(g.id)) {
                 if (s.front() != g.id || s.purpose() != UnitPurpose.DEFEND || s.size() <= 0) continue;
                 all += s.size();
                 if (REINFORCING.containsKey(s.id())) out += s.size();
@@ -749,6 +800,7 @@ public final class FrontDirector {
                 reinforcedUnits++;
             }
         }
+        if (reinforcedUnits == sentBefore) reinforceNoRoom++;
         hordes.setDirty();
     }
 
@@ -846,7 +898,7 @@ public final class FrontDirector {
         // 作る所 = 前線の真ん中 + 過繁茂になった現地の苗床(出す所。11-21 夜)。作った数で順に回す
         List<double[]> spots = formingSpots(level, f);
         double[] at = spots.get((int) Math.floorMod(produced, (long) spots.size()));
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.size() < max && near(s, at[0], at[1], 8.0D) && near(s.tx(), s.tz(), at[0], at[1], 8.0D)) return s;
         }
         double y = surfaceY(level, at[0], at[1]);
@@ -865,7 +917,10 @@ public final class FrontDirector {
 
     /** (x, z) が前線の作る所(8 ブロック以内)か。 */
     static boolean atFormingSpot(ServerLevel level, Fronts.Front f, double x, double z) {
-        for (double[] p : formingSpots(level, f)) if (near(x, z, p[0], p[1], 8.0D)) return true;
+        // formingSpots と同じ所を、並びを作らずに見る(部隊 1 つごとに呼ばれる。11-23 サーバーの tick の軽量化)
+        if (near(x, z, f.x, f.z, 8.0D)) return true;
+        if (level.getServer() == null) return false;
+        for (FrontNurseries.Nursery n : FrontNurseries.get(level.getServer()).sitesOf(f.id)) if (near(x, z, n.x(), n.z(), 8.0D)) return true;
         return false;
     }
 
@@ -877,7 +932,7 @@ public final class FrontDirector {
         List<VirtualHordes.Swarm> mine = new ArrayList<>();
         int total = 0, defend = 0, expand = 0;
         double value = 0.0D;
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id) continue;
             mine.add(s);
             int n = s.size() + real.get(s.id());
@@ -949,7 +1004,7 @@ public final class FrontDirector {
         ForestDirector dir = ForestDirector.get(level);
         double reserve = reserve(level);
         double stageZero = DesignData.director().largeRaid.costStageZero * com.yayuy.overgrownvegetation.director.ForestEconomy.priceFactor();
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() != f.id || s.size() <= 0) continue;
             int done = 0;
             int devNow = 0;
@@ -1050,7 +1105,7 @@ public final class FrontDirector {
         int max = DesignData.front().unitMax(DirectorGates.phase(level));
         double mb = DesignData.front().mergeBlocks;
         List<VirtualHordes.Swarm> at = new ArrayList<>();
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (s.front() == f.id && s.purpose() == UnitPurpose.DEFEND && s.arrived() && s.size() > 0 && !atFormingSpot(level, f, s.x(), s.z())) at.add(s);
         }
         for (int i = 0; i < at.size(); i++) {

@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": {
+      "translate": "pack.overgrown_vegetation.terrain_shaders.description"
+    },
+    "pack_format": 15
+  }
+}

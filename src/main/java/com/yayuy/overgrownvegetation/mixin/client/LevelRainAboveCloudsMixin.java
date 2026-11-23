@@ -25,7 +25,9 @@ public abstract class LevelRainAboveCloudsMixin {
     // 2026-10-20: 呼ばれる回数が多いので、入れ物を作らない書き方に(答えは同じ)
     @ModifyReturnValue(method = "getRainLevel", at = @At("RETURN"))
     private float overgrown_vegetation$noRainAboveClouds(float rain) {
-        if (rain <= 0.0F || !((Object) this instanceof ClientLevel) || !RenderSystem.isOnRenderThread() || CloudSky.readingRawWeather()) {
+        // 段の「なし」(11-23)ではバニラの雨の強さのまま(雨の種類の強弱も雲の上の晴れも、この MOD の天気の見た目なので切る)。
+        if (rain <= 0.0F || !((Object) this instanceof ClientLevel) || !RenderSystem.isOnRenderThread() || CloudSky.readingRawWeather()
+                || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return rain;
         }
         // 11-12 雨の種類: カメラの所の雨の強さ(小雨・普通・大雨 + 真上の雲)を掛ける({@link com.yayuy.overgrownvegetation.client.atmosphere.RainFeel})。

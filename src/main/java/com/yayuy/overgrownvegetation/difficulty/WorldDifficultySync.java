@@ -96,6 +96,7 @@ public final class WorldDifficultySync {
         if (!changes.isEmpty()) {
             MobStrength.reapplyAll(server);
             RaidSettings.push(server);
+            ExperimentalSync.sendAll(server); // 実験的要素の値をクライアントへ(研究の作り方・タブ。11-23 夜)
         }
         return changes;
     }

@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
  *   <li>機会ごとに {@code skipChance[フェーズ]} で<b>見送る</b>。見送った間は、拠点の「貯めの財布」に
  *   1 日の生産量 × 森の健康 × {@code purseShare} × たった日数(認識した拠点の数で割る)を足す。財布は森の予算の上限の外に別に持つ(上乗せ。予算からは抜かない)。</li>
  *   <li>貯めた日数(見送り始めてから)が {@code maxSaveDays[フェーズ]} に届いたら必ず起こす(次の機会をその日に合わせる)。</li>
- *   <li>起きたら、貯めた日数とフェーズで段を選ぶ({@link #tierFor})。小 = ふだんの送り込み・中 = {@link HoardRaids}・大 = 静かな前触れ {@link LargeRaids#startScaledOmen}(2 日【仮】)の後に {@link LargeRaids#beginScaled}。</li>
+ *   <li>起きたら、貯めた日数とフェーズで段を選ぶ({@link #tierFor})。小 = ふだんの送り込み・中 = 貯めた襲撃・大 = 静かな前触れ {@link LargeRaids#startScaledOmen}(2 日【仮】)の後に {@link LargeRaids#beginScaled}。</li>
  *   <li>見送って貯めている間(貯めの 2 日目から = {@code holdOffFromDays} 日たった後)は、G1 が遠巻きにうろつく({@link #holdingOff})。大の静かな前触れの間はうろつかない。</li>
  *    <li>襲撃はどれも、財布 → 森の予算 の順に払う({@link ForestDirector} の財布の口)。使い残した財布は後の送り込みへ持ち越す。</li>
  * </ul>
@@ -57,7 +57,7 @@ public final class RaidScales {
      *   <li>{@link #skipChanceFactor}: 見送る確率に掛ける(0 で見送らない = いつも小。上は 1 で頭打ち)。</li>
      *   <li>{@link #purseFactor}: 見送った間に貯める量に掛ける(中・大の大きさ)。</li>
      *   <li>{@link #maxSaveDaysFactor}: 貯められる日数の上限に掛ける。</li>
-     *   <li>{@link #countFactor}: 段ごとの出る数の倍率(Mob の値段をこれで割る。添字は {@link RaidScale#ordinal})。</li>
+     *   <li>{@link #countFactor}: 段ごとの出る数の倍率(11-23 から前線の襲撃の上限と出す割合に掛ける = FrontRaids#countFactor。添字は {@link RaidScale#ordinal})。</li>
      *   <li>{@link #maxAlive}: 段ごとの同時の上限(0 = 設計データ)。今効くのは中だけ。大の同時の上限は大きな襲撃と同じ口(LargeRaids.maxAlive = ワールドの設定 → largeRaid.maxAlive)。</li>
      * </ul>
      */
@@ -89,11 +89,6 @@ public final class RaidScales {
         return DesignData.director().raidScale;
     }
 
-    /** この仕組みが入っているか(切ると前の形: 送り込みは毎回・貯めた襲撃と大きな襲撃は前の起こし方)。 */
-    public static boolean enabled() {
-        return table().enabled;
-    }
-
     public static double skipChance(int phase) {
         return Math.max(0.0D, Math.min(1.0D, table().skipChance(phase) * Knobs.skipChanceFactor));
     }
@@ -111,19 +106,17 @@ public final class RaidScales {
         return table().tier(s.key);
     }
 
-    /** その段の Mob の値段の倍率(設計の costFactor ÷ 設定の数の倍率)。 */
-    public static double costFactor(RaidScale s) {
-        RaidScaleTable.Tier t = tier(s);
-        double f = t == null ? 1.0D : t.costFactor();
-        return f / Math.max(0.01D, Knobs.countFactor[s.ordinal()]);
-    }
-
     /** その段の同時の上限(設定 → 設計データ → fallback)。 */
     public static int maxAlive(RaidScale s, int fallback) {
         int k = Knobs.maxAlive[s.ordinal()];
         if (k > 0) return k;
         RaidScaleTable.Tier t = tier(s);
         return t != null && t.maxAlive() > 0 ? t.maxAlive() : fallback;
+    }
+
+    /** 中(貯めた襲撃)の同時の上限(設定 → 段 → assault.hoardMaxAlive)。前線の中の襲撃が使う(11-23 片付け E で HoardRaids から移した)。 */
+    public static int mediumMaxAlive() {
+        return maxAlive(RaidScale.MEDIUM, DesignData.director().assault.hoardMaxAlive);
     }
 
     /** その段の 1 回の合計の上限(設定 → 設計データ → fallback)。0 以下 = 上限なし。 */
@@ -159,7 +152,7 @@ public final class RaidScales {
     public static void refreshSaving(ServerLevel level, BaseMemory memory, double day) {
         boolean any = false;
         ForestDirector.Mood mood = ForestDirector.get(level).mood();
-        if (enabled() && mood != ForestDirector.Mood.LARGE_OMEN && mood != ForestDirector.Mood.LARGE && !DirectorGates.peaceful(level)) {
+        if (mood != ForestDirector.Mood.LARGE_OMEN && mood != ForestDirector.Mood.LARGE && !DirectorGates.peaceful(level)) {
             // 貯めの 1 日目は出さない: どの見送りでも出ると F5 で時間の約 4 割・F7 で約 6 割うろつき、合図として薄まる(11-19 ユーザー)
             double from = holdOffFromDays();
             for (BaseMemory.Base b : memory.bases()) {
@@ -284,25 +277,15 @@ public final class RaidScales {
 
     /** 段の作りで起こす。 */
     public static int start(ServerLevel level, BaseMemory.Base b, double day, RaidScale scale, net.minecraft.util.RandomSource random) {
-        // 11-21 前線と部隊: 湧かせず、前線から襲う部隊を出す(大は前触れの森の気分はそのまま使い、部隊は前触れの間に集まる所へ歩く)
-        if (com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) {
-            if (scale == RaidScale.LARGE) {
-                double omen = omenDays(RaidScale.LARGE);
-                if (omen > 0.0D) LargeRaids.startScaledOmen(level, b, day, omen);
-                else LargeRaids.beginScaled(level, b, day);
-            }
-            return com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, scale);
+        // 11-21 前線と部隊: 湧かせず、前線から襲う部隊を出す(大は前触れの森の気分はそのまま使い、部隊は前触れの間に集まる所へ歩く)。
+        // 11-23 片付け E: 前の形(送り込み・貯めた襲撃・大きな襲撃で実物を湧かせる)は消した。前線が止まっていれば何も出さない(-1 = 試し直さない)
+        if (!com.yayuy.overgrownvegetation.front.FrontRaids.active(level)) return -1;
+        if (scale == RaidScale.LARGE) {
+            // 11-19: 大は決まってから静かな前触れ(omenDays)の後に来る。0 ならすぐ
+            double omen = omenDays(RaidScale.LARGE);
+            if (omen > 0.0D) LargeRaids.startScaledOmen(level, b, day, omen);
+            else LargeRaids.beginScaled(level, b, day);
         }
-        switch (scale) {
-            case SMALL -> BaseRaids.sendWave(level, b, day, random);
-            case MEDIUM -> HoardRaids.begin(level, b, day, random);
-            case LARGE -> {
-                // 11-19: 大は決まってから静かな前触れ(omenDays)の後に来る。0 ならすぐ
-                double omen = omenDays(RaidScale.LARGE);
-                if (omen > 0.0D) LargeRaids.startScaledOmen(level, b, day, omen);
-                else LargeRaids.beginScaled(level, b, day);
-            }
-        }
-        return -1; // 前の形(湧かせる): 数はここでは見ない
+        return com.yayuy.overgrownvegetation.front.FrontRaids.send(level, b, day, scale);
     }
 }

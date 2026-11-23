@@ -31,9 +31,7 @@ public final class FrontTable {
         public Double mergeBlocks, assignIntervalSeconds, expandIntervalSeconds;
         public int[] huntMaxByPhase;
         public Double huntRangeBlocks, huntCooldownSeconds, huntLostSeconds, huntSearchSeconds;
-        public Boolean raidsFromFronts;
         public Boolean treesByForest, treeVisionOnlyManaged;
-        public Boolean replaceOldSpawns;
         public Integer evolvePerUnit, absorbBlocks;
         public Double evolveMaxShare;
         public Integer rootedPerUnit;
@@ -101,12 +99,10 @@ public final class FrontTable {
     /** 狩り(区切り 3): フェーズごとの上限の体数(F0〜F10。ユーザー了承の仮 F1 5〜F7 60)・部隊を探す広さ・同じプレイヤーにあける秒・見失ってから探しに行くまで・最後に見た所で探す秒。 */
     private final int[] huntMaxByPhase;
     public final double huntRangeBlocks, huntCooldownSeconds, huntLostSeconds, huntSearchSeconds;
-    /** 襲撃(区切り 3): 前線から襲う部隊を出す(切ると古い湧き)。出せる頭数のうち 小・中・大 で出す割合・集まる所の拠点からの距離・集まって待つ最長の日数・部隊を探す広さ・撃退 1 回で次を大きくする割合・その上限の倍率・撃退とみなす倒され方(出した頭数の割合)。 */
-    public final boolean raidsFromFronts;
+    /** 襲撃(区切り 3): 前線から襲う部隊を出す(11-23 片付け E: 切り替え raidsFromFronts は消した = いつも前線から)。出せる頭数のうち 小・中・大 で出す割合・集まる所の拠点からの距離・集まって待つ最長の日数・部隊を探す広さ・撃退 1 回で次を大きくする割合・その上限の倍率・撃退とみなす倒され方(出した頭数の割合)。 */
     /** 巨大樹(区切り 4): 森が台帳の上で建てる(切ると古い苗木のくじ…ではなく、建てない)・森の視界の縁は巨大樹に管理された森だけ・管理の広さ(半径)・巨大樹どうしの間・建てる値段・育つ日数・育ち途中のノードを倒されたらその所を休む日数・見直す間(秒)・芽が出るかたまりのチャンク数・かたまりを数える升の一辺(チャンク)。 */
     public final boolean treesByForest, treeVisionOnlyManaged;
-    /** 片付け(区切り 6): 縁・地下・森の中の湧きと、実物の G1 の進化・根付き・苗床を止め、前線の部隊に任せる・部隊の中で 1 回の見直しに進化させる頭数・前線の部隊に入っていない植物側の Mob をプレイヤーからこの距離より遠ければ部隊へ吸い込む。 */
-    public final boolean replaceOldSpawns;
+    /** 片付け(区切り 6。11-23 片付け E で古い湧きを消し、切り替え replaceOldSpawns も消した): 部隊の中で 1 回の見直しに進化させる頭数・前線の部隊に入っていない植物側の Mob をプレイヤーからこの距離より遠ければ部隊へ吸い込む。 */
     public final int evolvePerUnit, absorbBlocks;
     /** 1 部隊のうち進化体(1 段目)はこの割合まで【仮】。 */
     public final double evolveMaxShare;
@@ -189,10 +185,9 @@ public final class FrontTable {
         huntCooldownSeconds = nn(s.huntCooldownSeconds, 180.0D);
         huntLostSeconds = nn(s.huntLostSeconds, 30.0D);
         huntSearchSeconds = nn(s.huntSearchSeconds, 30.0D);
-        raidsFromFronts = s.raidsFromFronts == null || s.raidsFromFronts;
         raidCapStart = Math.max(0.0D, nn(s.raidCapStart, 40.0D));
         raidCapEnd = Math.max(raidCapStart, nn(s.raidCapEnd, 200.0D));
-        raidCapRampDays = Math.max(0.0D, nn(s.raidCapRampDays, 6.0D));
+        raidCapRampDays = Math.max(0.0D, nn(s.raidCapRampDays, 12.0D)); // 11-23: 6 → 12(緩やかに)
         raidCapMediumFactor = Math.max(0.0D, nn(s.raidCapMediumFactor, 2.0D));
         raidRetryDays = Math.max(0.005D, nn(s.raidRetryDays, 0.1D));
         raidRetryMax = Math.max(0, s.raidRetryMax != null ? s.raidRetryMax : 3);
@@ -237,7 +232,6 @@ public final class FrontTable {
         treeIncomeShare = Math.max(0.0D, Math.min(1.0D, nn(s.treeIncomeShare, 0.2D)));
         treeClusterChunks = Math.max(1, s.treeClusterChunks != null ? s.treeClusterChunks : 64);
         treeCellChunks = Math.max(4, s.treeCellChunks != null ? s.treeCellChunks : 12);
-        replaceOldSpawns = s.replaceOldSpawns == null || s.replaceOldSpawns;
         evolvePerUnit = Math.max(0, s.evolvePerUnit != null ? s.evolvePerUnit : 2);
         absorbBlocks = Math.max(32, s.absorbBlocks != null ? s.absorbBlocks : 128);
         evolveMaxShare = Math.min(1.0D, nn(s.evolveMaxShare, 0.4D));

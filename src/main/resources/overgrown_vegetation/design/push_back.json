@@ -25,6 +25,13 @@
     "reviveDays": 1.0
   },
   "vent": {
-    "noSproutRadiusChunks": 2.0
+    "noSproutRadiusChunks": 2.0,
+    "spareFilters": 4,
+    "cloggedSlots": 4
+  },
+  "absent": {
+    "_comment": "留守の間(チャンクが読み込まれていない間)も杭・換気機が守る(11-23 夕方 ユーザー決定)。FE は経った時間で減らし、切れたら守りが切れる。受け取った FE を supplyWindowSeconds 秒の窓で数え、留守の間も同じだけ入る扱い(汲み上げ器などの発電機が網・隣にあるときだけ)。杭が止めるたびに払う FE は、最後に読み込まれていた間の平均(stakePayMinSeconds 秒より短い間なら前の見積もり)。数は仮。",
+    "supplyWindowSeconds": 60,
+    "stakePayMinSeconds": 30
   }
 }

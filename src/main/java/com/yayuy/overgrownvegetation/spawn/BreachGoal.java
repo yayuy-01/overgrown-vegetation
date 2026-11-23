@@ -97,7 +97,7 @@ public final class BreachGoal extends Goal {
 
     /** 壊してよい時か: 拠点へ歩いている・襲撃の印がある個体で、認識した拠点の真ん中から {@link #BASE_RANGE} の中。 */
     private boolean raiding(ServerLevel level) {
-        boolean raider = PlantMarch.active(mob) || mob.getTags().contains(com.yayuy.overgrownvegetation.director.HoardRaids.TAG)
+        boolean raider = PlantMarch.active(mob)
                 || mob.getTags().contains(com.yayuy.overgrownvegetation.director.LargeRaids.ATTACKER_TAG);
         if (!raider) return false;
         for (com.yayuy.overgrownvegetation.director.BaseMemory.Base b : com.yayuy.overgrownvegetation.director.BaseMemory.get(level.getServer()).bases()) {

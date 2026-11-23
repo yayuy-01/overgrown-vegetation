@@ -310,6 +310,15 @@ final class EarthquakeFissure {
      * 起点は中央だけでなく<b>全長にわたってまばらに</b>取る。
      */
     void spawnPeripheralCracks() {
+        spawnPeripheralCracks(null);
+    }
+
+    /** ひびが通るチャンクを数えるだけ(掘らない。乱数は本番と同じ並び。11-23 読み込み終わるまで仕上げを待つ用)。 */
+    void crackChunks(it.unimi.dsi.fastutil.longs.LongSet out) {
+        spawnPeripheralCracks(out);
+    }
+
+    private void spawnPeripheralCracks(@javax.annotation.Nullable it.unimi.dsi.fastutil.longs.LongSet collect) {
         RandomSource r = RandomSource.create(seed ^ 0x9E3779B97F4A7C15L);
         int cracks = 6 + r.nextInt(5);
         for (int c = 0; c < cracks; c++) {
@@ -357,6 +366,13 @@ final class EarthquakeFissure {
                         }
                         int wx = Mth.floor(ex + ax * (u + dx) + px * (v + dv) + 0.5D);
                         int wz = Mth.floor(ez + az * (u + dx) + pz * (v + dv) + 0.5D);
+                        if (collect != null) {
+                            collect.add(net.minecraft.world.level.ChunkPos.asLong(wx >> 4, wz >> 4));
+                            continue;
+                        }
+                        // 11-23 ユーザー了承: ひびは地割れの強制読み込みの外へ出る。読み込み終わっていない所(周り 8 チャンクも)は掘らない
+                        // (前はその場で読み込み・生成を待ち、主スレッドが止まっていた。乱数の引きは変えない)
+                        if (!com.yayuy.overgrownvegetation.util.LoadedChunks.neighbourhoodLoaded(level, wx >> 4, wz >> 4)) continue;
                         int g = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
                         for (int y = columnTop(wx, wz); y > g - d; y--) {
                             carveCell(wx, y, wz);
@@ -365,8 +381,10 @@ final class EarthquakeFissure {
                     }
                 }
                 if (r.nextInt(4) == 0) {
+                    if (collect != null) continue;
                     int wx = Mth.floor(ex + ax * u + px * v + 0.5D);
                     int wz = Mth.floor(ez + az * u + pz * v + 0.5D);
+                    if (!com.yayuy.overgrownvegetation.util.LoadedChunks.neighbourhoodLoaded(level, wx >> 4, wz >> 4)) continue; // 11-23 Codex の指摘: 煙の高さも読み込み終わった所だけ
                     int sy = columnTop(wx, wz);
                     level.sendParticles(ParticleTypes.SMOKE, wx + 0.5D, sy + 0.5D, wz + 0.5D, 2, 0.2D, 0.05D, 0.2D, 0.0D);
                 }

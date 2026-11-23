@@ -72,5 +72,22 @@ public final class PushBackTable {
     public static final class Vent {
         /** 動いている換気機の範囲(チャンク。中心どうしの距離)では胞子が発芽しない。換気機の吸い込みの範囲 {@code spore_field.json vent.radiusChunks} と同じ 2【仮】。 */
         public double noSproutRadiusChunks = 2.0D;
+        /** 差してある 1 枚とは別の予備のフィルター(ホッパーで入れる。11-23 ユーザー決定 4)。 */
+        public int spareFilters = 4;
+        /** 詰まったフィルターを置く場所(下のホッパーで抜く。いっぱいなら詰まった物は差したまま止まる)【仮 4】。 */
+        public int cloggedSlots = 4;
+    }
+
+    public Absent absent = new Absent();
+
+    /**
+     * 留守の間(チャンクが読み込まれていない間)も杭・換気機が守る(11-23 夕方 ユーザー決定)。保存データ {@link AbsentWards} に覚えた状態で範囲を守り、
+     * FE は経った時間で減らす(読み込み直したときに実物へ精算)。値はどれも【仮】。
+     */
+    public static final class Absent {
+        /** 受け取った FE を数える窓(秒)。線・隣の発電機から受け取った量 ÷ この窓 = 留守の間も入り続ける扱いの FE/t。 */
+        public int supplyWindowSeconds = 60;
+        /** 杭が止めるたびに払う FE の、留守の間の見積もり: 最後に読み込まれていた間の平均(FE/t)。読み込まれていた時間がこれより短いと前の見積もりのまま(秒)。 */
+        public int stakePayMinSeconds = 30;
     }
 }

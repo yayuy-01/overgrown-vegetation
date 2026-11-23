@@ -238,9 +238,17 @@ public class VentBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            if (state.getValue(PART) == Part.LOWER && level.getBlockEntity(pos) instanceof VentBlockEntity be && !be.filter().isEmpty()) {
-                Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, be.filter());
-                be.setFilter(ItemStack.EMPTY);
+            if (state.getValue(PART) == Part.LOWER) {
+                if (level.getBlockEntity(pos) instanceof VentBlockEntity be) {
+                    be.settleIfAway();
+                    for (ItemStack s : be.stock().all()) { // 差してある 1 枚・予備・詰まった物(11-23)
+                        Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, s);
+                    }
+                    be.stock().clear();
+                }
+                if (level instanceof net.minecraft.server.level.ServerLevel server) {
+                    com.yayuy.overgrownvegetation.corruption.pushback.AbsentWards.forget(server, pos, true); // 留守の覚えを忘れる(11-23)
+                }
             }
             removeOtherParts(level, pos, state);
         }
@@ -294,12 +302,19 @@ public class VentBlock extends BaseEntityBlock {
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (!level.isClientSide) {
-            ItemStack old = be.filter();
+            be.settleIfAway();
             ItemStack in = stack.copyWithCount(1);
+            ItemStack old = ItemStack.EMPTY;
+            if (be.filter().isEmpty() || AirFilters.clogged(be.filter())) {
+                old = be.filter(); // 空き・詰まった物は差し替える
+                be.setFilter(in);
+            } else if (!be.addSpareByHand(in)) { // 差してある 1 枚が使えるなら予備へ(11-23)。予備がいっぱいなら前と同じく差し替える
+                old = be.filter();
+                be.setFilter(in);
+            }
             if (!player.getAbilities().instabuild) {
                 stack.shrink(1);
             }
-            be.setFilter(in);
             if (!old.isEmpty() && !player.getInventory().add(old)) {
                 player.drop(old, false);
             }
@@ -315,11 +330,13 @@ public class VentBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
         if (!level.isClientSide) {
-            if (player.isShiftKeyDown() && !be.filter().isEmpty()) {
-                ItemStack old = be.filter();
-                be.setFilter(ItemStack.EMPTY);
-                if (!player.getInventory().add(old)) {
-                    player.drop(old, false);
+            be.settleIfAway();
+            java.util.List<ItemStack> taken = player.isShiftKeyDown() ? be.takeByHand() : java.util.List.of();
+            if (!taken.isEmpty()) {
+                for (ItemStack old : taken) {
+                    if (!player.getInventory().add(old)) {
+                        player.drop(old, false);
+                    }
                 }
                 level.playSound(null, base, SoundEvents.ARMOR_EQUIP_LEATHER, SoundSource.BLOCKS, 0.8F, 0.9F);
             }

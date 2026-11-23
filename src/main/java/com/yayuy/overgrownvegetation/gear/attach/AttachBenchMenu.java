@@ -63,7 +63,7 @@ public class AttachBenchMenu extends AbstractContainerMenu {
             addSlot(new Slot(view, i, ATTACH_X + i * 18, ROW_Y) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
-                    return idx < ArmorAttachments.slotCount() && ArmorAttachments.fits(armor(), stack);
+                    return idx < ArmorAttachments.slotCount() && mayAttach(stack) && ArmorAttachments.fits(armor(), stack);
                 }
 
                 @Override
@@ -90,6 +90,14 @@ public class AttachBenchMenu extends AbstractContainerMenu {
     /** 付け物の台の付け物の枠か(枠の物は防具から作った写し。{@link MouthClothItem} の入れ替えを止める)。 */
     public static boolean isAttachmentSlot(Slot slot) {
         return slot.container instanceof View;
+    }
+
+    /**
+     * この台で付けてよいか(11-23 夜)。実験的要素の「防具の付け物」がオフのワールドでは、口覆いの布だけ付けられ、ほかは外すだけ
+     * (もう付いている物は消さず、効き目も残す。ユーザー決定)。
+     */
+    private boolean mayAttach(ItemStack stack) {
+        return stack.is(ModArmorAttach.MOUTH_CLOTH.get()) || AttachGate.on(owner.level());
     }
 
     /** 台に置いた防具(無ければ空)。 */
@@ -120,7 +128,7 @@ public class AttachBenchMenu extends AbstractContainerMenu {
             if (moveItemStackTo(s, ARMOR, ARMOR + 1, false)) slot.setChanged();
             return ItemStack.EMPTY;
         }
-        if (!armor().isEmpty() && ArmorAttachments.isAttachment(s)) { // 付け物を空いた枠へ 1 つ
+        if (!armor().isEmpty() && ArmorAttachments.isAttachment(s) && mayAttach(s)) { // 付け物を空いた枠へ 1 つ
             for (int i = 0; i < ArmorAttachments.slotCount(); i++) {
                 if (ArmorAttachments.attach(armor(), i, s)) {
                     s.shrink(1);

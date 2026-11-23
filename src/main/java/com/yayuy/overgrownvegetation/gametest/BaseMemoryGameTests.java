@@ -282,7 +282,6 @@ public final class BaseMemoryGameTests {
         helper.runAfterDelay(5, () -> {
             var s = z.fate().scout();
             helper.assertTrue(s.phase() == com.yayuy.overgrownvegetation.director.G1Scout.Phase.WATCH, "拠点のそばで眺めていない: " + s.phase());
-            helper.assertTrue(z.fate().nextVisit() > helper.getLevel().getGameTime(), "偵察の間に見に来る");
             s.setTicksForTests(t().scoutWatchMaxTicks);
             helper.runAfterDelay(2, () -> {
                 helper.assertTrue(s.phase() == com.yayuy.overgrownvegetation.director.G1Scout.Phase.LEAVE, "眺め終えても去らない: " + s.phase());
@@ -312,34 +311,6 @@ public final class BaseMemoryGameTests {
             prev = w;
         }
         helper.assertTrue(prev.developed() > first.developed(), "日がたっても進化体が混ざらない");
-        helper.succeed();
-    }
-
-    /** 認識した拠点に近い個体ほど進化を選びやすい(D-8)。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void nearRecognizedBaseEvolvesMore(GameTestHelper helper) {
-        var dt = DesignData.director();
-        net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(11L);
-        int far = 0, near = 0;
-        for (int i = 0; i < 400; i++) {
-            if (ForestDirector.score(dt, new ForestDirector.Inputs(true, false, false, dt.costEvolve * 10.0D, 1.0E9D, 0.0D, 0.0D, 0.0D), random)
-                    .route() == ForestDirector.Route.EVOLVE) far++;
-            if (ForestDirector.score(dt, new ForestDirector.Inputs(true, false, false, dt.costEvolve * 10.0D, 1.0E9D, 0.0D, 0.0D, 1.0D), random)
-                    .route() == ForestDirector.Route.EVOLVE) near++;
-        }
-        helper.assertTrue(near > far, "拠点のそばで進化が増えていない: そば " + near + " / 遠く " + far);
-        helper.succeed();
-    }
-
-    /** 根付きの向き(D-16): 拠点が遠ければ森から離れつつ拠点へ寄る。近すぎれば拠点から離れる。拠点が無ければ森から離れるだけ。 */
-    @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
-    public static void rootedLeansTowardBaseButNotInside(GameTestHelper helper) {
-        Vec3 away = new Vec3(1.0D, 0.0D, 0.0D);
-        Vec3 lean = G1Fate.blendTowardBase(away, Vec3.ZERO, new Vec3(0.0D, 0.0D, 100.0D), t());
-        helper.assertTrue(lean.x > 0.0D && lean.z > 0.0D, "遠い拠点へ寄っていない: " + lean);
-        Vec3 tooClose = G1Fate.blendTowardBase(away, Vec3.ZERO, new Vec3(0.0D, 0.0D, t().rootBaseMinBlocks * 0.5D), t());
-        helper.assertTrue(tooClose.z < 0.0D, "近すぎる拠点から離れていない: " + tooClose);
-        helper.assertTrue(G1Fate.blendTowardBase(away, Vec3.ZERO, null, t()) == away, "拠点が無いのに向きが変わった");
         helper.succeed();
     }
 

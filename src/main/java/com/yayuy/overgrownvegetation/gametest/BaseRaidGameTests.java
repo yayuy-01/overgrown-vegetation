@@ -44,56 +44,6 @@ public final class BaseRaidGameTests {
     }
 
     /**
-     * 認識して 1 日の段: 段階 0 を歩かせ、進化体が足りない分は予算で段階 0 を進化させて送る。予算が無ければ進化させない。
-     * G2・G3〜 は口だけ(まだ出せない)。
-     */
-    @GameTest(template = "gametest_empty7", batch = "base_raid", timeoutTicks = 20)
-    public static void waveSendsStageZeroAndEvolvesWithBudget(GameTestHelper helper) {
-        var level = helper.getLevel();
-        List<AbstractParasitizedMonster> mine = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            AbstractParasitizedMonster z = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5 + i, 2.0, 3.5));
-            z.goalSelector.removeAllGoals(g -> true);
-            z.targetSelector.removeAllGoals(g -> true);
-            mine.add(z);
-        }
-        // 拠点はテスト場から 3 チャンク東(段階 0 が拠点に近すぎない所)
-        BaseMemory m = BaseMemory.createForTests();
-        m.addPresence(ChunkPos.asLong((mine.get(0).getBlockX() >> 4) + 3, mine.get(0).getBlockZ() >> 4),
-                DesignData.director().base.rememberScore * 2.0D, 0.0D);
-        m.update(0.0D);
-        BaseMemory.Base b = m.bases().get(0);
-        m.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, 0.0D);
-        m.waveSent(b, 0.0D, level.getRandom()); // 見直し ④(11-16): 最初の襲撃を済ませてから、ふつうの段(認識して 1 日)を試す
-        ForestDirector director = ForestDirector.get(level);
-        double before = director.available(level);
-        // 11-16: 足りない分を湧かせる所を「無し」に(このテストは、いる個体を歩かせる・進化させる所だけを見る)
-        com.yayuy.overgrownvegetation.spawn.DirectorHooks.setSpotForTests(() -> null);
-        try {
-            BaseMemoryTable.Wave wave = DesignData.director().base.waveFor(1.0D);
-            director.setBudget(level, 0.0D);
-            BaseRaids.Result poor = BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
-            helper.assertTrue(poor.evolved() == 0, "予算が無いのに進化させた");
-            helper.assertTrue(poor.g2() == 0 && poor.g3plus() == 0, "G2 以降はまだ出せないはず");
-            helper.assertTrue(poor.stageZero() == Math.min(wave.stageZero(), 4), "段階 0 を段の数だけ送っていない: " + poor.summary());
-            for (AbstractParasitizedMonster z : mine) z.march().cancel();
-            director.setBudget(level, 100000.0D); // 11-20 夜: 体数は予算で決まるので、進化に回る分が出るだけの予算
-            BaseRaids.Result rich = BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
-            int evolving = 0;
-            for (AbstractParasitizedMonster z : mine) {
-                if (z.fate().route() == ForestDirector.Route.EVOLVE && z.march().active()) evolving++;
-            }
-            helper.assertTrue(rich.evolved() >= 1 && rich.evolved() <= 4 && evolving == rich.evolved(),
-                    "予算があるのに進化させて送らない: " + rich.summary());
-        } finally {
-            com.yayuy.overgrownvegetation.spawn.DirectorHooks.setSpotForTests(null);
-            director.setBudget(level, before);
-        }
-        for (AbstractParasitizedMonster z : mine) z.discard();
-        helper.succeed();
-    }
-
-    /**
      * 区切り 4: 認識した拠点のそばの苗床から孵った G1 は拠点へ向かう。拠点から遠い苗床は、ときどき孵すのを断る(そばの苗床は断らない)。
      * 世界に 1 つの記憶を使う(GameTest の世界にプレイヤーはいないので空のはず)。終わったら消す。
      */

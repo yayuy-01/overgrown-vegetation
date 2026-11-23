@@ -243,7 +243,7 @@ public final class FrontOutposts extends OvSavedData {
         long now = level.getGameTime();
         int total = 0;
         boolean broke = false;
-        for (VirtualHordes.Swarm s : hordes.swarms()) {
+        for (VirtualHordes.Swarm s : hordes.ofFront(f.id)) {
             if (broke) break;
             if (s.front() != f.id || s.purpose() != UnitPurpose.DEFEND || !s.arrived() || s.size() <= 0) continue;
             if (FrontDirector.reinforcing(s.id())) continue; // 11-22 見直し: 駆けつけた予備は元の樹域の部隊。駆けつけた先の縁で根付かせない

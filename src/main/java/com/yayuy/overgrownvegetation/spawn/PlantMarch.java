@@ -44,7 +44,6 @@ public final class PlantMarch {
         t.putDouble("Z", z);
         t.putLong("Since", mob.level().getGameTime());
         mob.getPersistentData().put(KEY, t);
-        EnemySpawns.release(mob); // 縁の上限・片付けから外す
         return true;
     }
 

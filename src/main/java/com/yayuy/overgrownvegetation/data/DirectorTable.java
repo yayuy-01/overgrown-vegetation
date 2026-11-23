@@ -11,10 +11,7 @@ package com.yayuy.overgrownvegetation.data;
  * <ul>
  *   <li>予算(11-14 ユーザー決定の収支。数は【仮】): 1 日に {@code incomeBase[フェーズ] × 面積の割合}(0.3〜1.5)貯まり、
  *   {@code 1 日の収入 × (capDays + capPerHiveNodeDays × ハイヴノードの数)} で頭打ち。</li>
- *   <li>見に来る時刻: 最初は {@code firstVisitMinTicks}〜{@code firstVisitMaxTicks} の間(対数で一様 = 数分の個体も数日の個体もいる)、
- *   何もしなかったら {@code revisitMinTicks}〜{@code revisitMaxTicks} 後にまた。</li>
- *   <li>点: 何もしない = {@code nothingBase}。進化 = {@code evolveBase} + 近くのプレイヤー + 起き上がってからの日数。
- *   どれも ±{@code jitter} の揺らぎを掛けて、いちばん高い道。予算が値段に足りない道は選べない。</li>
+ *   <li>2026-11-23 片付け E: 段階 0 を 1 体ずつ見に来て点で道(進化・根付き・苗床)を選ぶ値(見に来る時刻・点・揺らぎ・根付き/苗床の値段・離れる長さ・升ごとの根付きの上限)は消した。</li>
  * </ul>
  */
 public final class DirectorTable {
@@ -33,32 +30,10 @@ public final class DirectorTable {
         public Double costG3;
         public Double costG4;
         public Double costEvolve;
-        public Double costRooted;
-        public Double costNursery;
-        public Integer firstVisitMinTicks;
-        public Integer firstVisitMaxTicks;
-        public Integer revisitMinTicks;
-        public Integer revisitMaxTicks;
         public Integer evolveOmenTicks;
-        public Double nothingBase;
-        public Double evolveBase;
-        public Double evolvePlayerNear;
-        public Double playerNearBlocks;
-        public Double evolveAge;
-        public Double ageRefDays;
-        public Double jitter;
-        public Integer rootAwayMinBlocks;
-        public Integer rootAwayMaxBlocks;
-        public Integer walkTimeoutTicks;
         public Integer rootOmenTicks;
         public Integer forestSearchChunks;
-        public Double rootedBase;
-        public Double rootedAge;
-        public Double nurseryBase;
-        public Double nurseryAge;
         public Double costSpawn;
-        public Double nurseryFar;
-        public Double nurseryFarBlocks;
         /** 第 2 段: 拠点の記憶({@link BaseMemoryTable})。 */
         public BaseMemoryTable.Json base;
         /** フェーズで開く口(DirectorGates)。 */
@@ -84,7 +59,6 @@ public final class DirectorTable {
         /** 11-17: 苗床が枯れるまでに孵す回数・孵してよいか司令塔へ聞く間(tick)。 */
         public Integer nurseryLifeHatches, nurseryHatchAskTicks;
         /** 11-17 深夜: 升(4×4 チャンク)ごとの根付きの上限。 */
-        public Integer rootedPerCell;
     }
 
     /** フェーズで開く口の json。 */
@@ -113,37 +87,14 @@ public final class DirectorTable {
     public final double costG3;
     public final double costG4;
     public final double costEvolve;
-    public final double costRooted;
-    public final double costNursery;
-    public final int firstVisitMinTicks;
-    public final int firstVisitMaxTicks;
-    public final int revisitMinTicks;
-    public final int revisitMaxTicks;
     /** 進化の前兆(立ち止まって震え、植物が膨らむ)の長さ(tick)。この間に倒せば止まる。 */
     public final int evolveOmenTicks;
-    public final double nothingBase;
-    public final double evolveBase;
-    public final double evolvePlayerNear;
-    public final double playerNearBlocks;
-    public final double evolveAge;
-    public final double ageRefDays;
-    public final double jitter;
-    // ---- 区切り 2: 森から離れて根付く(どれも【仮】)。walkTimeoutTicks = 着けないとき歩くのをやめる長さ(D-15 の 5 分)、
+    // ---- 区切り 2: 根付き(どれも【仮】)。
     // rootOmenTicks = 根を下ろす前兆の長さ、forestSearchChunks = 森の縁を探す半径(チャンク)
-    public final int rootAwayMinBlocks; // 根付き・苗床になる前に森の縁から離れる長さ(ブロック)。この幅の中から個体ごとに 1 つ決める(D-15)
-    public final int rootAwayMaxBlocks;
-    public final int walkTimeoutTicks;
     public final int rootOmenTicks;
     public final int forestSearchChunks;
-    public final double rootedBase;
-    public final double rootedAge;
-    // ---- 区切り 6: 苗床(どれも【仮】)。nurseryBase・nurseryAge = 苗床の点、costSpawn = 苗床から G2 を 1 体出すときに司令塔が払う値段(11-14: G2 の値段 12。G3・G4 は costG3・costG4)
-    public final double nurseryBase;
-    public final double nurseryAge;
+    // ---- 区切り 6: 苗床(どれも【仮】)。costSpawn = 苗床から G2 を 1 体出すときに司令塔が払う値段(11-14: G2 の値段 12。G3・G4 は costG3・costG4)
     public final double costSpawn;
-    /** 苗床の点に足す「森から離れているほど」の上がり幅と、頭打ちの距離(ブロック)。11-14 ユーザー決定 R6-3(数は【仮】)。 */
-    public final double nurseryFar;
-    public final double nurseryFarBlocks;
     /** 第 2 段(11-14): 拠点の記憶。 */
     public final BaseMemoryTable base;
     /** 11-14: フェーズで開く口(割り当てはユーザー・全体管理の決定)。 */
@@ -170,8 +121,6 @@ public final class DirectorTable {
     public final int nurseryLifeSprouts;
     /** 苗床が枯れるまでに G2 以降を孵す回数(11-17 ユーザー「1 つにつき 1 回」をやめる。4 は【仮】)・司令塔へ聞く間(tick。前 1200、600 は【仮】)。 */
     public final int nurseryLifeHatches, nurseryHatchAskTicks;
-    /** 升(4×4 チャンク)ごとの根付きの上限(11-17 深夜 ユーザー決定。根付きは枯れないので、満ちた升では進化・苗床へ回す。3 は【仮】。0 = 上限なし)。 */
-    public final int rootedPerCell;
 
     /**
      * 司令塔が使うものが開くフェーズ(2026-11-14 決定。Vault「フェーズの仕組み」の作り直し): 苗床 1・根付き 2・進化 3・偵察 4・認識 5・送り込み 5・
@@ -224,32 +173,10 @@ public final class DirectorTable {
         this.costG3 = nonNeg(s.costG3, 2000.0D);
         this.costG4 = nonNeg(s.costG4, 3000.0D);
         this.costEvolve = nonNeg(s.costEvolve, 1000.0D);
-        this.costRooted = nonNeg(s.costRooted, 600.0D);
-        this.costNursery = nonNeg(s.costNursery, 800.0D);
-        this.firstVisitMinTicks = Math.max(1, s.firstVisitMinTicks != null ? s.firstVisitMinTicks : 2400);
-        this.firstVisitMaxTicks = Math.max(this.firstVisitMinTicks, s.firstVisitMaxTicks != null ? s.firstVisitMaxTicks : 72000);
-        this.revisitMinTicks = Math.max(1, s.revisitMinTicks != null ? s.revisitMinTicks : 6000);
-        this.revisitMaxTicks = Math.max(this.revisitMinTicks, s.revisitMaxTicks != null ? s.revisitMaxTicks : 24000);
         this.evolveOmenTicks = Math.max(1, s.evolveOmenTicks != null ? s.evolveOmenTicks : 60);
-        this.nothingBase = nonNeg(s.nothingBase, 1.0D);
-        this.evolveBase = nonNeg(s.evolveBase, 0.8D);
-        this.evolvePlayerNear = nonNeg(s.evolvePlayerNear, 0.4D);
-        this.playerNearBlocks = Math.max(1.0D, s.playerNearBlocks != null ? s.playerNearBlocks : 48.0D);
-        this.evolveAge = nonNeg(s.evolveAge, 0.3D);
-        this.ageRefDays = Math.max(0.01D, s.ageRefDays != null ? s.ageRefDays : 3.0D);
-        this.jitter = Math.min(0.9D, nonNeg(s.jitter, 0.2D));
-        this.rootAwayMinBlocks = Math.max(0, s.rootAwayMinBlocks != null ? s.rootAwayMinBlocks : 48);
-        this.rootAwayMaxBlocks = Math.max(this.rootAwayMinBlocks, s.rootAwayMaxBlocks != null ? s.rootAwayMaxBlocks : 96);
-        this.walkTimeoutTicks = Math.max(1, s.walkTimeoutTicks != null ? s.walkTimeoutTicks : 6000);
         this.rootOmenTicks = Math.max(1, s.rootOmenTicks != null ? s.rootOmenTicks : 40);
         this.forestSearchChunks = Math.max(1, Math.min(16, s.forestSearchChunks != null ? s.forestSearchChunks : 8));
-        this.rootedBase = nonNeg(s.rootedBase, 0.7D);
-        this.rootedAge = nonNeg(s.rootedAge, 0.2D);
-        this.nurseryBase = nonNeg(s.nurseryBase, 0.5D);
-        this.nurseryAge = nonNeg(s.nurseryAge, 0.2D);
         this.costSpawn = nonNeg(s.costSpawn, 800.0D);
-        this.nurseryFar = nonNeg(s.nurseryFar, 0.4D);
-        this.nurseryFarBlocks = Math.max(1.0D, s.nurseryFarBlocks != null ? s.nurseryFarBlocks : 96.0D);
         this.base = BaseMemoryTable.fromJson(s.base);
         this.gates = new Gates(s.gates);
         this.kills = KillMemoryTable.fromJson(s.kills);
@@ -264,7 +191,6 @@ public final class DirectorTable {
         this.nurseryLifeSprouts = Math.max(1, s.nurseryLifeSprouts != null ? s.nurseryLifeSprouts : 6);
         this.nurseryLifeHatches = Math.max(1, s.nurseryLifeHatches != null ? s.nurseryLifeHatches : 4);
         this.nurseryHatchAskTicks = Math.max(20, s.nurseryHatchAskTicks != null ? s.nurseryHatchAskTicks : 600);
-        this.rootedPerCell = Math.max(0, s.rootedPerCell != null ? s.rootedPerCell : 3);
     }
 
     private static double nonNeg(Double v, double fallback) {

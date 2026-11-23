@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import com.yayuy.overgrownvegetation.port.capabilities.OvCaps;
 
 /**
  * <b>線でつながった柱の網</b>(2026-11-13 サバイバルの背骨 段 2b、決定 8・13)。毎 tick、読み込まれた柱から網をたどり、FE を出す側から受け取る側へ運ぶ。
@@ -84,6 +85,42 @@ public final class LeyGrid {
                 }
             }
         }
+    }
+
+    /**
+     * {@code ports}(1 台の機械のマス)へ、発電機(汲み上げ器・ほかの MOD の発電機 = 取り出せて受け取らない口)から FE が来うるか
+     * (隣のマス、またはそのマスへ線を張った柱の網。11-23 留守の守り {@code AbsentWards}。柱の電池だけの網は数えない)。
+     * 汲み上げ器は効率 0(地脈から遠すぎる)なら数えない。重いので数秒に 1 回だけ呼ぶ。
+     */
+    public static boolean producerFeeds(ServerLevel level, BlockPos... ports) {
+        Set<BlockPos> own = Set.of(ports);
+        for (BlockPos p : ports) {
+            for (Direction d : Direction.values()) {
+                BlockPos n = p.relative(d);
+                if (own.contains(n) || !com.yayuy.overgrownvegetation.perf.ChunkEdgeGuard.isLoaded(level, n)) {
+                    continue;
+                }
+                BlockEntity be = level.getBlockEntity(n);
+                if (be instanceof LeyPumpBlockEntity pump) {
+                    if (pump.efficiency() > 0.0D) return true;
+                    continue;
+                }
+                IEnergyStorage s = OvCaps.getCapability(level, com.yayuy.overgrownvegetation.port.capabilities.Capabilities.EnergyStorage.BLOCK, n, d.getOpposite());
+                if (s != null && s.canExtract() && !s.canReceive() && !(be instanceof LeyPylonBlockEntity)) return true;
+            }
+        }
+        Set<BlockPos> pylons = LOADED.get(level);
+        if (pylons == null || pylons.isEmpty()) return false;
+        Set<BlockPos> visited = new HashSet<>();
+        for (BlockPos pylon : new ArrayList<>(pylons)) {
+            if (visited.contains(pylon) || !(level.getBlockEntity(pylon) instanceof LeyPylonBlockEntity be)) continue;
+            boolean touches = false;
+            for (BlockPos p : ports) if (be.hasLink(p)) { touches = true; break; }
+            if (!touches) continue;
+            Network net = collect(level, pylon, visited);
+            if (net != null && !net.producers.isEmpty()) return true;
+        }
+        return false;
     }
 
     /** 1 つの網(GameTest・表示から使う)。 */

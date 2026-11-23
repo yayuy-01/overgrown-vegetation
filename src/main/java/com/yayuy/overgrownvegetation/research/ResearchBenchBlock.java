@@ -46,6 +46,10 @@ public class ResearchBenchBlock extends BaseEntityBlock {
 
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide && player instanceof ServerPlayer sp) {
+            if (!ResearchGate.on(level)) { // 実験的要素の「研究」がオフ(11-23 夜)
+                sp.displayClientMessage(net.minecraft.network.chat.Component.translatable("research.overgrown_vegetation.experimental_off"), true);
+                return InteractionResult.CONSUME;
+            }
             Research.openScreen(sp, pos);
         }
         return InteractionResult.sidedSuccess(level.isClientSide);

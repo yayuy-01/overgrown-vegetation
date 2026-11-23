@@ -60,7 +60,7 @@ public final class ReviewFix2GameTests {
         return BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.fromNamespaceAndPath(OvergrownVegetation.MODID, path));
     }
 
-    /** ②1 の試し直しの時刻(純粋な計算)と、②4 の進化で引き継がない印・②7 の 1 つの時計。 */
+    /** ②1 の試し直しの時刻(純粋な計算)と、②7 の 1 つの時計(11-23 片付け E: ②4 の縁・地下の印は湧きごと消した)。 */
     @GameTest(template = "gametest_empty7", batch = "review_fix2_pure", timeoutTicks = 20)
     public static void retryTimesTagsAndClock(GameTestHelper helper) {
         AssaultTable a = DesignData.director().assault;
@@ -78,9 +78,6 @@ public final class ReviewFix2GameTests {
         helper.assertTrue(BaseMemory.firstRaidPending(b), "試し直しで送った回数が増えた");
         // 日付と 1 日の時刻がずれていても、次の夜の始めまでを足す
         helper.assertTrue(Math.abs(BaseMemory.firstRaidDay(3.3D, 0.9D, 0.0D) - (3.3D + 0.1D + start)) < 1.0E-9D, "時刻を渡した最初の夜が違う");
-        // 進化で引き継がない印
-        helper.assertTrue(EnemySpawns.isSpawnTag(EnemySpawns.EDGE_TAG) && EnemySpawns.isSpawnTag(EnemySpawns.UNDER_TAG) && EnemySpawns.isSpawnTag(EnemySpawns.GROUP_TAG + "1")
-                && !EnemySpawns.isSpawnTag(com.yayuy.overgrownvegetation.director.HoardRaids.TAG), "縁・地下の印の見分けが違う");
         // 時計: 森の日付はフェーズの暦(ゲームの時間 + 寝て飛ばした分)
         ServerLevel level = helper.getLevel();
         double want = PhaseData.get(level).clock(level.getServer()) / 24000.0D;
@@ -90,11 +87,11 @@ public final class ReviewFix2GameTests {
 
     /**
      * 世界を通す確かめ:
-     * ②1 最初の襲撃が 0 体なら数えない / ②4 送り込みで縁の印が外れる / ②3 歩いている間は消えない / ②5 上限 40 / ②2 最初の襲撃の前は貯めない /
+     * ②3 歩いている間は消えない / ②2 最初の襲撃の前は貯めない /
      * ②7 襲撃の夜は寝られない。
      */
     @GameTest(template = "gametest_empty7", batch = "review_fix2_world", timeoutTicks = 60)
-    public static void firstRaidRetryTagsKeepCapHoardAndSleep(GameTestHelper helper) {
+    public static void keepFirstRaidHoardAndSleep(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ForestDirector director = ForestDirector.get(level);
         double budgetBefore = director.available(level);
@@ -105,24 +102,13 @@ public final class ReviewFix2GameTests {
         try {
             DirectorGates.setPhaseForTests(5);
             DirectorGates.setStageForTests(PhaseStage.PEAK);
-            // ②1: 予算も個体も無い → 0 体 → 送った回数は増えず、後で試し直す
+            // ②3: 拠点へ歩いている G2 は消えない。歩いていなければ消えてよい
+            // (11-23 片付け E: ②1 の 0 体の試し直し・②4 の縁の印・②5 の送り込みの上限は、前の送り込みごと消した。最初の襲撃の試し直しは前線から = FrontRaidHuntGameTests)
             BaseMemory mem = BaseMemory.createForTests();
             mem.addPresence(ChunkPos.asLong((spot.getX() >> 4) + 4, spot.getZ() >> 4), DesignData.director().base.rememberScore * 2.0D, 0.0D);
             mem.update(0.0D);
             BaseMemory.Base b = mem.bases().get(0);
             mem.setStageForTests(b, BaseMemory.Stage.RECOGNIZED, 0.0D);
-            mem.waveNow(b, 1.0D);
-            director.setBudget(level, 0.0D);
-            DirectorHooks.setSpotForTests(() -> null);
-            BaseRaids.dispatch(level, mem, 1.0D);
-            helper.assertTrue(BaseMemory.firstRaidPending(b) && b.nextWaveDay() > 1.0D, "0 体の最初の襲撃を送ったと数えた・試し直しの時刻が無い: " + b.nextWaveDay());
-            // ②4: 縁で湧いた G1 を送り込むと、縁の印が外れる
-            AbstractParasitizedMonster z = helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5D, 2.0D, 1.5D));
-            z.addTag(EnemySpawns.EDGE_TAG);
-            z.addTag(EnemySpawns.GROUP_TAG + "1");
-            BaseRaids.sendWave(level, b, 1.0D, level.getRandom());
-            helper.assertTrue(z.march().active() && !EnemySpawns.spawnedHere(z), "送り込んだ G1 に縁の印が残っている");
-            // ②3: 拠点へ歩いている G2 は消えない。歩いていなければ消えてよい
             Mob g2 = (Mob) type("gregaria").create(level);
             g2.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
             level.addFreshEntity(g2);
@@ -130,19 +116,6 @@ public final class ReviewFix2GameTests {
             PlantMarch.begin(g2, b);
             helper.assertTrue(RaidKeepAlive.keep(g2), "拠点へ歩いている G2 が消えうる");
             g2.discard();
-            z.discard();
-            // ②5: いる個体(段階 0・G2・G3)が多くても、計は 40 を超えない
-            for (int i = 0; i < 20; i++) helper.spawn(G1Species.ZOMBIE.entityType(), new Vec3(1.5D + i % 5, 2.0D, 1.5D + i / 5));
-            for (int i = 0; i < 13; i++) helper.spawn((EntityType<? extends Mob>) type("gregaria"), new Vec3(1.5D + i % 5, 3.0D, 4.5D + i / 5));
-            for (int i = 0; i < 12; i++) helper.spawn((EntityType<? extends Mob>) type("falcimnes"), new Vec3(1.5D + i % 5, 4.0D, 1.5D + i / 5));
-            BaseMemory.Base later = b;
-            mem.waveSent(later, 1.0D, level.getRandom());
-            // 11-20 夜: 体数は予算だけで決まり(まわりにいる個体はただ)、上限は重さのための同時の上限だけ
-            director.setBudget(level, 0.0D);
-            BaseRaids.Result big = BaseRaids.sendWave(level, later, 7.0D, level.getRandom());
-            helper.assertTrue(big.total() <= com.yayuy.overgrownvegetation.director.LargeRaids.maxAlive(), "送り込みが同時の上限を超えた: " + big.summary());
-            // 疑い(同時の上限が無い): 拠点のまわりにいる個体で足りれば、新しく湧かせない(溜まり続けない)
-            helper.assertTrue(big.spawnedZero() == 0, "まわりに段階 0 が足りているのに湧かせた: " + big.summary());
             clear(helper);
             // ②2: 最初の襲撃がまだの拠点があるうちは貯め始めない(世界の記憶を使う)
             global.clear();
@@ -166,7 +139,6 @@ public final class ReviewFix2GameTests {
             helper.assertTrue(!RaidNightSleep.raidTonight(level.getServer(), spot.getX(), spot.getZ()), "襲撃の来ない夜に寝られない");
             helper.succeed();
         } finally {
-            DirectorHooks.setSpotForTests(null);
             DirectorGates.setPhaseForTests(phaseBefore);
             DirectorGates.setStageForTests(stageBefore);
             director.setBudget(level, budgetBefore);
@@ -245,7 +217,6 @@ public final class ReviewFix2GameTests {
             helper.assertTrue(DirectorGates.peaceful(level) && DirectorGates.plantSpawnsSuppressed(level), "ピースフルを見ていない");
             helper.assertTrue(director.buySpawn(level, net.minecraft.util.RandomSource.create(1L),
                     java.util.List.of(() -> (EntityType<? extends Mob>) type("arbora"))) == null, "ピースフルで苗床が孵した");
-            helper.assertTrue(!EnemySpawns.allowed(level), "ピースフルで縁に湧く");
             helper.succeed();
         } finally {
             level.getServer().setDifficulty(was, true);

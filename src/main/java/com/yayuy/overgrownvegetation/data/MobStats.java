@@ -243,7 +243,7 @@ public final class MobStats {
 
         // ファランギオタルブス(狩る側の環境生物、2026-11-16 作り直しの段 1)。体力・攻撃は parked のまま【仮】。速さ 0.39 → 0.34(急ぎ 地面 約 0.25、
         // うろつき ×0.55 で約 0.075。parked はプレイヤーの走りより速すぎた)【仮・Claude】。当たりは胴の芯 1.0 × 0.8(全体 2.28 × 1.55 × 0.80)。
-        // 体格の個体差は段 1 では付けない(1 で固定)。自然には湧かない(湧きは後で生態系の台帳 EcoSpawns へ)。
+        // 体格の個体差は段 1 では付けない(1 で固定)。自然には湧かない(湧きは後で生態系の台帳(ecosystem/life/EcoDens)へ)。
         m.put("phalangiotarbus", stat(s -> {
             s.maxHealth = 12.0; s.attackDamage = 8.0; s.movementSpeed = 0.34;
             s.knockbackResistance = 0.3; s.attackKnockback = 0.0; s.followRange = 24.0; s.stepHeight = 1.0;

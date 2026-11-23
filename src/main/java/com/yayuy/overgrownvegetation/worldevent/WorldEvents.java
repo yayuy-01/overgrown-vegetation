@@ -84,7 +84,12 @@ public final class WorldEvents {
         ServerLevel ow = server.overworld();
         WorldEventData data = WorldEventData.get(server);
         data.schedule().frequency = com.yayuy.overgrownvegetation.difficulty.WorldDifficultyData.of(server, com.yayuy.overgrownvegetation.difficulty.DifficultySetting.EVENT_FREQUENCY); // 11-19 MOD の設定「ワールドイベントの頻度」
-        boolean changed = data.schedule().step(ow.getDayTime(), seed(server), DesignData.worldEvents(), env(ow));
+        // 実験的要素の「ワールドイベント」がオフなら日程を回さない(11-23 夜。/ov event で起こした物は最後まで回す)
+        boolean changed = false;
+        if (com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.enabled(server, com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.Feature.WORLD_EVENTS)
+                || !data.schedule().dormant(ow.getDayTime(), PhaseData.get(ow).getPhase())) {
+            changed = data.schedule().step(ow.getDayTime(), seed(server), DesignData.worldEvents(), env(ow));
+        }
         data.setDirty();
         if (changed || server.getTickCount() % SEND_EVERY == 0) {
             sendAll(server);

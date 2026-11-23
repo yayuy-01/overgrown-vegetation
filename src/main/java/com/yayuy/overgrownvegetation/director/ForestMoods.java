@@ -63,7 +63,7 @@ public final class ForestMoods {
             return;
         }
         // 11-19 襲撃の規模: 認識した拠点がある間の「貯めた襲撃(中)」は、送り込みの機会の見送りと貯めから起こす(RaidScales)。ここでは貯め始めない
-        if (RaidScales.enabled() && DirectorGates.open(level, DirectorGates.Gate.RAID) && LargeRaids.strongestBase(level) != null) return;
+        if (DirectorGates.open(level, DirectorGates.Gate.RAID) && LargeRaids.strongestBase(level) != null) return;
         double perSample = t.chancePerDay * sampleTicks / 24000.0D;
         // 見直し ②2: 最初の襲撃が済んでいない拠点があるうちは貯め始めない(貯めた襲撃が最初の襲撃を飲み込まないように)
         if (!firstRaidOutstanding(level) && canStartHoard(DirectorGates.open(level, DirectorGates.Gate.EVOLVE), DirectorGates.stage(level), omen, day, d.hoardCooldownUntil(),
@@ -93,7 +93,9 @@ public final class ForestMoods {
     }
 
     /**
-     * 使う: まわりの段階 0 を一斉に進化させ、認識した拠点があれば送り込む。終わったらふだんに戻る。
+     * 使う: まわりの段階 0 を一斉に進化させる。終わったらふだんに戻る。
+     * 2026-11-23 片付け E(決め A2): 拠点への送り込み(まとめた 1 回・続けての送り込み)は消した。拠点への襲撃は前線から出す({@code front/FrontRaids})。
+     * 最初の襲撃が済んだ認識した拠点があるときは、前と同じく一斉進化はせずに貯めを終える(貯めた予算は残る)。
      *
      * @param around 段階 0 を探す真ん中(テスト用。null ならプレイヤーと認識した拠点)
      * @return 進化させた数
@@ -101,21 +103,18 @@ public final class ForestMoods {
     public static int spend(ServerLevel level, double day, RandomSource random, @javax.annotation.Nullable List<Vec3> around) {
         ForestDirector d = ForestDirector.get(level);
         HoardTable t = DesignData.director().hoard;
-        // 11-16 置き換え(ユーザー): 認識した拠点があり送り込みが開いていれば、貯めた分を「まとめた 1 回」の送り込みで使う
-        // (送り込みは貯める間止まっていた = 1〜2 回飛ばした分。上限 40 のまま進化体と G3 を 1.5 倍)。拠点が無いとき(F3・F4 など)は前の形
+        // 11-16: 認識した拠点があり送り込みが開いていれば、一斉進化はしない(前は貯めた分を「まとめた 1 回」の送り込みで使っていた。
+        // 11-23 片付け E で送り込みは消した = 拠点へは前線から)。拠点が無いとき(F3・F4 など)は一斉進化
         if (around == null && DirectorGates.open(level, DirectorGates.Gate.RAID)) {
             BaseMemory memory = BaseMemory.get(level.getServer());
-            int sent = 0, waves = 0;
-            for (BaseMemory.Base b : List.copyOf(memory.bases())) {
-                if (b.stage() != BaseMemory.Stage.RECOGNIZED || BaseMemory.firstRaidPending(b)) continue; // 最初の襲撃がまだの拠点には使わない(②2)
-                sent += HoardRaids.begin(level, b, day, random); // まとめた 1 回目 + 継ぎ足し(同時 40・合計 80。11-16 ユーザー)
-                memory.waveSent(b, day, random);
-                waves++;
+            boolean based = false;
+            for (BaseMemory.Base b : memory.bases()) {
+                if (b.stage() == BaseMemory.Stage.RECOGNIZED && !BaseMemory.firstRaidPending(b)) based = true; // 最初の襲撃がまだの拠点は数えない(②2)
             }
-            if (waves > 0) {
+            if (based) {
                 d.setMood(ForestDirector.Mood.NORMAL, day, day);
                 d.setHoardCooldownUntil(day + t.cooldownDays);
-                d.note(String.format(Locale.ROOT, "森が貯めた分を使った: まとめた送り込み %d 回・計 %d 体(残りの予算 %.1f)", waves, sent, d.available(level)));
+                d.note(String.format(Locale.ROOT, "森が貯め終えた(拠点への襲撃は前線から。残りの予算 %.1f)", d.available(level)));
                 return 0;
             }
         }
@@ -144,19 +143,9 @@ public final class ForestMoods {
             }
             evolved++;
         }
-        int waves = 0;
-        if (DirectorGates.open(level, DirectorGates.Gate.RAID)) {
-            BaseMemory memory = BaseMemory.get(level.getServer());
-            for (BaseMemory.Base b : List.copyOf(memory.bases())) {
-                if (b.stage() != BaseMemory.Stage.RECOGNIZED) continue;
-                BaseRaids.sendWave(level, b, day, random);
-                memory.waveSent(b, day, random, DirectorGates.strength(level, DirectorGates.Gate.RAID));
-                waves++;
-            }
-        }
         d.setMood(ForestDirector.Mood.NORMAL, day, day);
         d.setHoardCooldownUntil(day + t.cooldownDays);
-        d.note(String.format(Locale.ROOT, "森が一気に使った: 一斉に進化 %d・送り込み %d(残りの予算 %.1f)", evolved, waves, d.available(level)));
+        d.note(String.format(Locale.ROOT, "森が一気に使った: 一斉に進化 %d(残りの予算 %.1f)", evolved, d.available(level)));
         return evolved;
     }
 

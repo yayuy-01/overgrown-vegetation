@@ -104,6 +104,8 @@ public class ResearchBenchBlockEntity extends BlockEntity {
         ResearchData data = ResearchData.get(server.getServer());
         ResearchData.Active a = data.active();
         if (a == null || !a.bench.equals(GlobalPos.of(server.dimension(), worldPosition))) return 0;
+        // 実験的要素の「研究」がオフの間は進めない(11-23 夜。研究は消さず、オンに戻すと続きから)
+        if (!ResearchGate.on(server)) return 0;
         ResearchTree.Node node = ResearchTree.get().node(a.node);
         if (node == null) {
             Research.cancel(server.getServer(), null); // 設計を変えて節が消えた: 標本を落として終わる

@@ -74,8 +74,10 @@ public final class ModResearch {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BENCH_BE.get(), (be, side) -> be.energyPort());
     }
 
-    /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */
+    /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。実験的要素の「研究」がオフのワールドでは並べない(11-23 夜 ユーザー決定「オフの物はクリエイティブタブで消える」)。 */
     public static void acceptItems(CreativeModeTab.Output output) {
+        if (!com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.enabledAnywhere(
+                com.yayuy.overgrownvegetation.difficulty.ExperimentalFeatures.Feature.RESEARCH)) return;
         output.accept(BENCH_ITEM.get());
         output.accept(LENS_ITEM.get());
         output.accept(RESONATOR_ITEM.get());

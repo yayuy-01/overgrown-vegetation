@@ -23,6 +23,12 @@ public final class OvergrownClientConfig {
     }
 
     public static final class Client {
+        /**
+         * この MOD の描画の演出をまとめて描くか(2026-11-23、ユーザー決定「クオリティの なし・低・中・高、中身は見た目だけの物を全部切る」)。
+         * オフ = 段の「なし」。見た目だけの物(地形の光と影・霧・雲・光・粒・小さな生き物・ワールドイベントと天気の見た目・画面の効果)を全部切る。
+         * Mob とブロックの絵・遊びに要る表示・音は残す。個々の項目の値はそのまま残る(段を低・中・高へ戻すと書き直す)。読み手は {@code VisualQuality#effects()}。
+         */
+        public final ForgeConfigSpec.BooleanValue visualEffects;
         /** この MOD の植物を cutout_mipped の層へ寄せる(遠くの草のちらつきが減り、区画の層が 1 つ減る)。2026-10-23。 */
         public final ForgeConfigSpec.BooleanValue plantMipmaps;
         /** 下草を地面へ縮めて描かなくなる距離(ブロック。半分の距離から縮み始める。0 = 縮めない)。2026-10-23。 */
@@ -84,6 +90,10 @@ public final class OvergrownClientConfig {
 
         Client(ForgeConfigSpec.Builder b) {
             b.push("visual");
+            visualEffects = b.comment("Draws this mod's visual effects at all (the 'Overgrown effects' quality NONE turns this off).",
+                            "Off = everything that is only for looks is not drawn: terrain light and shade, fog and haze, clouds, lights, light shafts, bloom, leaf sway, motes, little critters, world event and weather looks, screen effects.",
+                            "Mobs, blocks, the HUD (spore exposure, meters) and sounds stay. The other settings keep their values.")
+                    .define("visualEffects", true);
             plantMipmaps = b.comment("Draws this mod's plants with mipmaps (less shimmer on distant grass, one terrain layer less). Changing it reloads resources.")
                     .define("plantMipmaps", true);
             undergrowthDistance = b.comment("Distance in blocks beyond which the undergrowth sinks into the ground and is not drawn (it starts sinking at half the distance). 0 draws it at any distance.")

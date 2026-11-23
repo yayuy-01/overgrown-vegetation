@@ -64,6 +64,13 @@ public class LeyStakeBlock extends BaseEntityBlock {
         return level.isClientSide ? null : createTickerHelper(type, ModPushBack.LEY_STAKE_BE.get(), LeyStakeBlockEntity::serverTick);
     }
 
+    /** 壊した(別のブロックになった)ら留守の覚えを忘れる(11-23。チャンクが外れたときは呼ばれない)。 */
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level instanceof ServerLevel server) AbsentWards.forget(server, pos, false);
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     /** 1.20.1: useItemOn・useWithoutItem が無いので use 1 つで(線の巻きは PASS で巻きの側へ。素手の扱いは本流と同じく利き手だけ)。 */
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {

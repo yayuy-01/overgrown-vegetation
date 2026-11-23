@@ -54,9 +54,22 @@ public final class VisualQuality {
         };
     }
 
-    /** 雰囲気の演出 1 つのオンオフ(2026-11-01)。親の {@link #atmosphere()} がオフなら、子はどれも偽。 */
+    /**
+     * この MOD の描画の演出をまとめて描くか(2026-11-23。偽 = 段の「なし」、{@link com.yayuy.overgrownvegetation.config.QualityPreset#NONE})。
+     * 見た目だけの演出はどれもこれを見る(音は見ない)。
+     */
+    public static boolean effects() {
+        return loaded() ? OvergrownClientConfig.CLIENT.visualEffects.get() : OvergrownClientConfig.CLIENT.visualEffects.getDefault();
+    }
+
+    /** 雰囲気の演出 1 つのオンオフ(2026-11-01)。親の {@link #atmosphere()} がオフなら、子はどれも偽。音はこれ。 */
     private static boolean part(ForgeConfigSpec.BooleanValue value) {
         return atmosphere() && (loaded() ? value.get() : value.getDefault());
+    }
+
+    /** 見た目の演出 1 つのオンオフ。{@link #part} に加えて、段の「なし」({@link #effects()} が偽)でも偽。 */
+    private static boolean look(ForgeConfigSpec.BooleanValue value) {
+        return effects() && part(value);
     }
 
     /** 虫・爬虫類の声。 */
@@ -81,22 +94,22 @@ public final class VisualQuality {
 
     /** 光の筋とその中の粒。 */
     public static boolean lightShafts() {
-        return part(OvergrownClientConfig.CLIENT.lightShafts);
+        return look(OvergrownClientConfig.CLIENT.lightShafts);
     }
 
     /** 木漏れ日。 */
     public static boolean canopyDapple() {
-        return part(OvergrownClientConfig.CLIENT.canopyDapple);
+        return look(OvergrownClientConfig.CLIENT.canopyDapple);
     }
 
     /** 林床の持ち上げ・緑の照り返し・林冠の影と色。 */
     public static boolean canopyLight() {
-        return part(OvergrownClientConfig.CLIENT.canopyLight);
+        return look(OvergrownClientConfig.CLIENT.canopyLight);
     }
 
     /** 胞子の霧・朝霧。 */
     public static boolean fog() {
-        return part(OvergrownClientConfig.CLIENT.fog);
+        return look(OvergrownClientConfig.CLIENT.fog);
     }
 
     /** 霧の細部(レイマーチ)。霧がオフなら偽。 */
@@ -106,47 +119,47 @@ public final class VisualQuality {
 
     /** 落ち葉・光る胞子・夕暮れの粒・滴・湯気。 */
     public static boolean motes() {
-        return part(OvergrownClientConfig.CLIENT.motes);
+        return look(OvergrownClientConfig.CLIENT.motes);
     }
 
     /** 羽虫・木の洞の虫。 */
     public static boolean critters() {
-        return part(OvergrownClientConfig.CLIENT.critters);
+        return look(OvergrownClientConfig.CLIENT.critters);
     }
 
     /** 葉と草の揺れ。 */
     public static boolean leafSway() {
-        return part(OvergrownClientConfig.CLIENT.leafSway);
+        return look(OvergrownClientConfig.CLIENT.leafSway);
     }
 
     /** 水面の輪と泡・濡れた照り(幹を伝う水は 2026-11-01 に退避)。 */
     public static boolean waterLife() {
-        return part(OvergrownClientConfig.CLIENT.waterLife);
+        return look(OvergrownClientConfig.CLIENT.waterLife);
     }
 
     /** 水中の光・光る藻。 */
     public static boolean underwater() {
-        return part(OvergrownClientConfig.CLIENT.underwater);
+        return look(OvergrownClientConfig.CLIENT.underwater);
     }
 
     /** 地下モード(黒い霧・点光源・Mob の明るさ。11-01 試作)。 */
     public static boolean caveLight() {
-        return part(OvergrownClientConfig.CLIENT.caveLight);
+        return look(OvergrownClientConfig.CLIENT.caveLight);
     }
 
     /** 光るもののにじみ(暗い所の光源の暈。2026-11-13 仕上げ B)。 */
     public static boolean glowBloom() {
-        return part(OvergrownClientConfig.CLIENT.glowBloom);
+        return look(OvergrownClientConfig.CLIENT.glowBloom);
     }
 
     /** テクスチャの明暗から面の凹凸(2026-11-14 仕上げ G。既定でオフ)。 */
     public static boolean surfaceBump() {
-        return part(OvergrownClientConfig.CLIENT.surfaceBump);
+        return look(OvergrownClientConfig.CLIENT.surfaceBump);
     }
 
     /** 隙間と根元の陰り(簡易 AO。2026-11-14 仕上げ H。既定でオフ)。 */
     public static boolean simpleAo() {
-        return part(OvergrownClientConfig.CLIENT.simpleAo);
+        return look(OvergrownClientConfig.CLIENT.simpleAo);
     }
 
     /**
@@ -154,7 +167,7 @@ public final class VisualQuality {
      * 重さの段は {@link #atmosphereTier()} を使う。
      */
     public static boolean clouds() {
-        return loaded() ? OvergrownClientConfig.CLIENT.clouds.get() : OvergrownClientConfig.CLIENT.clouds.getDefault();
+        return effects() && (loaded() ? OvergrownClientConfig.CLIENT.clouds.get() : OvergrownClientConfig.CLIENT.clouds.getDefault());
     }
 
     /** Iris のシェーダーパック使用中もこの MOD の演出を描くか。 */

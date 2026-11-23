@@ -52,7 +52,8 @@ public final class PushBackCommand {
                 cp.x, cp.z, share * 100.0D, LedgerShrink.table().threshold * 100.0D, age,
                 BurntLand.isBurnt(level, p) ? "はい" : "いいえ", RingWards.inStakeField(level, p) ? "の中" : "の外",
                 RingWards.guardedFrom(level, null, p) ? "守られている" : "-",
-                pd.overgrownLedgerSize(), LedgerShrink.forgottenCount, RingWards.blockedCount);
+                pd.overgrownLedgerSize(), LedgerShrink.forgottenCount, RingWards.blockedCount)
+                + "\n" + AbsentWards.describe(level, p, false); // 留守の杭(11-23)
         ctx.getSource().sendSuccess(() -> Component.literal(msg), false);
         return (int) Math.round(Math.max(0, share) * 100);
     }

@@ -54,13 +54,10 @@ public final class EconomySoak {
     private static Path dir;
     // 2 回目(11-21): 湧かせる所で弾いた数(理由ごと)・広げた段・流れ木もどき・襲撃の流れ(見送り・小・中・大)を日ごとに
     private static final long[] base0Miss = new long[3];
-    private static final long[] base0Widen = new long[4];
     private static int base0Ferried;
     private static final long[] decisions = new long[5]; // 見送り・小・中・大・導入で小
     private static double maxSavedDays;
     private static long largeBegun, largeOmen;
-    /** G1Fate から払う道(ForestDirector#visit が払う前に置く。払ったら消す)。 */
-    static volatile String payRoute;
 
     // ---------------------------------------------------------------- 口
 
@@ -70,34 +67,20 @@ public final class EconomySoak {
         String who = StackWalker.getInstance().walk(s -> s
                 .filter(f -> !f.getClassName().endsWith(".ForestDirector") && !f.getClassName().endsWith(".EconomySoak"))
                 .findFirst().map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName()).orElse("?"));
-        String route = payRoute;
-        if (route != null && who.startsWith("G1Fate.")) who = who + ":" + route; // 「G1 の道ほか」の中身(進化・根付き・苗床)
         synchronized (SPENT) {
             SPENT.merge(who, amount, Double::sum);
         }
     }
 
     /** 11-22 樹域から出した襲撃 1 回・継ぎ足し 1 回(FrontRaids から)。どの樹域から何体出したか(from = "#樹域の id=体数 …")・上限。 */
-    public static void frontRaid(ServerLevel level, long raidId, String kind, int baseId, String pick, String from, int sent, int cap) {
+    public static void frontRaid(ServerLevel level, long raidId, String kind, int baseId, String pick, String from, int sent, int cap,
+                                 int srcHeads, int srcTarget, int srcRaidable) {
         if (!on || dir == null) return;
-        append("front-raids.csv", "day,phase,raid,kind,base,pick,sent,cap,from\n", String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d,%s,%d,%d,%s%n",
+        // 11-23 D: 出した樹域の 頭数・目標・出せる頭数の合計(抜く前)。from の各樹域にも (h/t/r) を付けた
+        append("front-raids.csv", "day,phase,raid,kind,base,pick,sent,cap,srcHeads,srcTarget,srcRaidable,from\n",
+                String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d,%s,%d,%d,%d,%d,%d,%s%n",
                 PhaseData.clockNow(level) / 24000.0D, PhaseData.get(level).getPhase(), raidId, kind, baseId, pick, sent,
-                cap >= Integer.MAX_VALUE / 4 ? -1 : cap, from));
-    }
-
-    /** 送り込み 1 回(BaseRaids から)。 */
-    static void wave(ServerLevel level, BaseRaids.Result r, boolean hoard, long[] missBefore, long[] widenBefore, int ferriedBefore) {
-        if (!on || dir == null) return;
-        long[] m = RaidSpawns.lastMisses, w = RaidSpawns.lastWidened;
-        String line = String.format(Locale.ROOT, "%.3f,%d,%s,%s,%d,%d,%d,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%n", PhaseData.clockNow(level) / 24000.0D,
-                PhaseData.get(level).getPhase(), r.first() ? "first" : hoard ? "hoard" : "wave", r.first() ? "y" : "n",
-                r.total(), r.stageZero(), r.developed() + r.evolved(), r.g2(), r.g3plus(), r.spawnedZero(), ForestDirector.get(level).available(level),
-                r.wantStageZero(), r.wantDeveloped(), r.wantG2(), r.wantG3plus(),
-                m[0] - missBefore[0], m[1] - missBefore[1], m[2] - missBefore[2],
-                w[0] - widenBefore[0], w[1] - widenBefore[1], w[2] - widenBefore[2], w[3] - widenBefore[3],
-                com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - ferriedBefore);
-        append("raids.csv", "day,phase,kind,first,total,stage0,developed,g2,g3plus,spawned0,budgetAfter,"
-                + "wantStage0,wantDeveloped,wantG2,wantG3plus,missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries\n", line);
+                cap >= Integer.MAX_VALUE / 4 ? -1 : cap, srcHeads, srcTarget, srcRaidable, from));
     }
 
     /** 襲撃の機会ごとの決め(RaidScales#skipOrStart から)。 */
@@ -176,7 +159,6 @@ public final class EconomySoak {
         base0Despawn = ForestEconomy.refundedDespawn;
         java.util.Arrays.fill(repelled, 0L);
         System.arraycopy(RaidSpawns.lastMisses, 0, base0Miss, 0, 3);
-        System.arraycopy(RaidSpawns.lastWidened, 0, base0Widen, 0, 4);
         base0Ferried = com.yayuy.overgrownvegetation.drift.DriftRaids.ferried;
         java.util.Arrays.fill(decisions, 0L);
         maxSavedDays = 0.0D;
@@ -273,7 +255,6 @@ public final class EconomySoak {
             else if ("HUNT".equals(purpose)) kind = 5;
             else if (m.getPersistentData().contains(com.yayuy.overgrownvegetation.horde.VirtualHordes.UNIT_KEY)) kind = -1; // 前線の住人(守る・広げる・建てる)は撃退の数に入れない
             else if (m.getTags().contains(LargeRaids.ATTACKER_TAG)) kind = 2;
-            else if (m.getTags().contains(HoardRaids.TAG)) kind = 1;
             else if (m instanceof AbstractParasitizedMonster a && a.march() != null && a.march().active()) kind = 0;
             else if (com.yayuy.overgrownvegetation.spawn.PlantMarch.active(m)) kind = 3;
             if (kind < 0) continue;
@@ -339,9 +320,9 @@ public final class EconomySoak {
                 repelled[0], repelled[1], repelled[2], repelled[3], avgMs, tickMax / 1.0E6D,
                 countEntities(level), organs.toString().trim(), fis[0], fis[1], fis[2], 
                 RaidSpawns.lastMisses[0] - base0Miss[0], RaidSpawns.lastMisses[1] - base0Miss[1], RaidSpawns.lastMisses[2] - base0Miss[2],
-                RaidSpawns.lastWidened[0] - base0Widen[0], RaidSpawns.lastWidened[1] - base0Widen[1], RaidSpawns.lastWidened[2] - base0Widen[2],
-                RaidSpawns.lastWidened[3] - base0Widen[3], com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried,
-                decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, LargeRaids.scaledTotal,
+                0L, 0L, 0L, // 11-23 片付け E: 角度を広げて探す(foundSpread・found90・found360)は消した。列は残す
+                0L, com.yayuy.overgrownvegetation.drift.DriftRaids.ferried - base0Ferried, // foundNone も同じ
+                decisions[0], decisions[1], decisions[2], decisions[3], decisions[4], maxSavedDays, largeOmen, largeBegun, 0 /* largeScaledTotal: 11-23 片付け E で本番の湧かせを消した */,
                 front + "," + expandStats() + "," + String.format(Locale.ROOT, "%.1f", com.yayuy.overgrownvegetation.front.FrontDirector.reserve(level)) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.targetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())) + "," + storageStats(level) + "," + treeStats(level) + "," + organLimits(level) + "," + unitSpread(level) + "," + baseStages(level),
                 spent);
         append("economy-days.csv",
@@ -350,7 +331,7 @@ public final class EconomySoak {
                         + "missUnloaded,missGround,missSeen,foundSpread,found90,found360,foundNone,ferries,"
                         + "skip,small,medium,large,introSmall,maxSavedDays,largeOmen,largeBegun,largeScaledTotal,"
                         + "fronts,units,headsDefend,headsExpand,headsHunt,headsRaid,headsBuild,upkeepPerDay,upkeepHeads,produced,frontRaids,frontRaidHeads,"
-                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,edgeSeenShare,frontWatchers,frontWatchersGrown,frontWatchersReal,frontWatchersKilled,organLimit,organLimitSmall,organsLiving,organsLivingSmall,defendEdgeShare,defendEdgeShareEdgeFronts,defendInEdgeFronts,overTargetHeads,overTargetFronts,overBefore,overShrunkBefore,rebalancedHeads,rebalancedUnits,postEdge,postTree,reposted,reinforcedHeads,reinforcedUnits,reinforceReturned,outposts,outpostsExpand,outpostsDefend,outpostsReal,rootedExpand,rootedDefend,rootedMoved,outpostsWithered,outpostsKilled,outpostRefunded,expandInfected,absorbed,headsPerTarget,globalCapSkips,nurseryGlobalCapSkips,routedInfected,bases,spentByCaller\n", line);
+                        + "frontRepels,treesPlaced,repelFrontRaid,repelHunt,expandSends,expandDistAvg,expandDistMax,expandArrivals,expandArriveDaysAvg,expandArriveDaysMax,reserve,targetHeads,frontsAtTarget,atTargetSkips,nurseryAtTargetSkips,capBase,capHive,capSac,sacs,sacsSmall,overflow,overflowSpore,overflowRecent,treeManagedShare,edgeToTreeMedian,edgeToTreeP90,treeSitesPending,edgeSeenShare,frontWatchers,frontWatchersGrown,frontWatchersReal,frontWatchersKilled,organLimit,organLimitSmall,organsLiving,organsLivingSmall,defendEdgeShare,defendEdgeShareEdgeFronts,defendInEdgeFronts,overTargetHeads,overTargetFronts,overBefore,overShrunkBefore,rebalancedHeads,rebalancedUnits,postEdge,postTree,reposted,reinforcedHeads,reinforcedUnits,reinforceReturned,reinforceCalls,reinforceNoEdge,reinforceNoInner,reinforceNoRoom,raidLossesSkipped,outposts,outpostsExpand,outpostsDefend,outpostsReal,rootedExpand,rootedDefend,rootedMoved,outpostsWithered,outpostsKilled,outpostRefunded,expandInfected,absorbed,headsPerTarget,globalCapSkips,nurseryGlobalCapSkips,routedInfected,bases,spentByCaller\n", line);
     }
 
     /** 広げる部隊を出した数・距離(ブロック)の平均と最大・着いた数・着くまでの日数の平均と最大(累計。11-21 夜)。 */
@@ -468,7 +449,7 @@ public final class EconomySoak {
         return com.yayuy.overgrownvegetation.front.FrontDirector.defendEdgeStats(com.yayuy.overgrownvegetation.horde.VirtualHordes.get(level.getServer())) + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overTargetStats(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer()))
                 + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overBefore + "," + com.yayuy.overgrownvegetation.front.FrontDirector.overShrunkBefore
                 + "," + com.yayuy.overgrownvegetation.front.FrontDirector.rebalancedHeads + "," + com.yayuy.overgrownvegetation.front.FrontDirector.rebalancedUnits
-                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postEdge + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postTree + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reposted + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedHeads + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedUnits + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceReturned + "," + com.yayuy.overgrownvegetation.front.FrontOutposts.stats(level)
+                + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postEdge + "," + com.yayuy.overgrownvegetation.front.FrontDirector.postTree + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reposted + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedHeads + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforcedUnits + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceReturned + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceCalls + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceNoEdge + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceNoInner + "," + com.yayuy.overgrownvegetation.front.FrontDirector.reinforceNoRoom + "," + com.yayuy.overgrownvegetation.front.FrontDirector.raidLossesSkipped + "," + com.yayuy.overgrownvegetation.front.FrontOutposts.stats(level)
                 + "," + com.yayuy.overgrownvegetation.front.FrontDirector.expandInfected + "," + com.yayuy.overgrownvegetation.front.FrontDirector.absorbed
                 + "," + String.format(Locale.ROOT, "%.3f", com.yayuy.overgrownvegetation.front.FrontDirector.globalRatio(com.yayuy.overgrownvegetation.front.Fronts.get(level.getServer())))
                 + "," + com.yayuy.overgrownvegetation.front.FrontDirector.globalCapSkips + "," + com.yayuy.overgrownvegetation.front.FrontDirector.nurseryGlobalCapSkips + "," + com.yayuy.overgrownvegetation.front.FrontDirector.routedInfected;

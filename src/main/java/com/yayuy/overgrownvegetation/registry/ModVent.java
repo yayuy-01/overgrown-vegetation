@@ -86,6 +86,12 @@ public final class ModVent {
                 state.getValue(VentBlock.PART) != VentBlock.Part.LOWER
                         && level.getBlockEntity(VentBlock.basePos(pos, state)) instanceof VentBlockEntity base ? base.energyPort() : null,
                 VENTILATOR.get());
+        // 物の口(11-23): 上と横から予備のフィルターを入れる・下から詰まった物を出す。上 2 つの部位に当てたホッパーも本体の口へ
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, VENTILATOR_BE.get(), (be, side) -> be.itemPort(side));
+        event.registerBlock(Capabilities.ItemHandler.BLOCK, (level, pos, state, be, side) ->
+                state.getValue(VentBlock.PART) != VentBlock.Part.LOWER
+                        && level.getBlockEntity(VentBlock.basePos(pos, state)) instanceof VentBlockEntity base ? base.itemPort(side) : null,
+                VENTILATOR.get());
     }
 
     /** 人類側のタブに並べる({@code ModCreativeTabs} から呼ぶ)。 */

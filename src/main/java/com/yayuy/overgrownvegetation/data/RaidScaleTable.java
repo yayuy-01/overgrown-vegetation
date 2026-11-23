@@ -17,7 +17,6 @@ public final class RaidScaleTable {
     public static final RaidScaleTable DEFAULT = new RaidScaleTable(null);
 
     public static final class Json {
-        public Boolean enabled;
         /** フェーズ(F0〜F10)ごとの、機会に見送る確率。 */
         public List<Double> skipChance;
         /** フェーズごとの、貯められる日数の上限。 */
@@ -48,7 +47,6 @@ public final class RaidScaleTable {
     public record Tier(String name, double fromDays, int minPhase, double costFactor, int maxAlive, int maxTotal, double maxDays, double omenDays) {
     }
 
-    public final boolean enabled;
     public final double[] skipChance;
     public final double[] maxSaveDays;
     public final double purseShare;
@@ -58,7 +56,6 @@ public final class RaidScaleTable {
 
     private RaidScaleTable(Json j) {
         Json s = j != null ? j : new Json();
-        this.enabled = s.enabled == null || s.enabled;
         this.skipChance = list(s.skipChance, new double[]{0, 0, 0, 0, 0, 0.4, 0.5, 0.6, 0.6, 0.6, 0.6}, 1.0D);
         this.maxSaveDays = list(s.maxSaveDays, new double[]{0, 0, 0, 0, 0, 2, 5, 10, 10, 10, 10}, Double.MAX_VALUE);
         this.purseShare = s.purseShare == null ? 0.3D : Math.max(0.0D, s.purseShare);
