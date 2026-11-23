@@ -214,8 +214,22 @@ public final class ForestEconomy {
     }
 
     public static double priceFactor(ServerLevel level) {
-        return table().nurseryFactor(nurseryOrgans(level));
+        // 11-23 ユーザー了承: 器官の一覧をなめるので、同じ tick の中は覚える(cap() と同じ形。GameTest のサーバーでは毎回数える)。
+        // 同じ tick の中で苗床の器官が増えた・死んだ直後の値段だけ次の tick から変わる
+        long now = level.getGameTime();
+        if (level.getServer() == null || level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer || !level.getServer().isSameThread())
+            return table().nurseryFactor(nurseryOrgans(level)); // 主スレッドの外(別スレッドの計算)からは覚えを使わない
+        if (now != priceAt || priceLevel != System.identityHashCode(level)) {
+            priceCached = table().nurseryFactor(nurseryOrgans(level));
+            priceAt = now;
+            priceLevel = System.identityHashCode(level);
+        }
+        return priceCached;
     }
+
+    private static long priceAt = Long.MIN_VALUE;
+    private static int priceLevel;
+    private static double priceCached;
 
     /** 自然湧きの 1 体の値段(苗床の倍率込み)。G1 の段階 0 は送り込みと同じ段階 0 の値段、ほかは危険度と型の値段。 */
     public static double naturalPrice(Entity e) {

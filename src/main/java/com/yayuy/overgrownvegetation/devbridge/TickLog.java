@@ -34,6 +34,7 @@ final class TickLog {
     private static boolean saveThisTick;
     private static Path out;
     private static Consumer<String> log;
+    private static long spread0, spreadTicks0;
 
     static String start(MinecraftServer server, Path dir, String arg, Consumer<String> logger) {
         String[] p = arg.trim().split("\\s+");
@@ -57,6 +58,8 @@ final class TickLog {
             pre = lastPost = 0L;
             out = dir.resolve("ticklog-" + name + ".txt");
             log = logger;
+            spread0 = com.yayuy.overgrownvegetation.perf.SpreadSave.saved;
+            spreadTicks0 = com.yayuy.overgrownvegetation.perf.SpreadSave.ticks;
             on = true;
         });
         return "TICKLOG 始め " + p[0] + " " + ticks;
@@ -90,7 +93,8 @@ final class TickLog {
 
     private static void write() {
         StringBuilder sb = new StringBuilder();
-        String head = summary("全部", work, n, null) + " | " + summary("保存の無い tick", work, n, false) + " | 保存の tick " + list(true);
+        String head = summary("全部", work, n, null) + " | " + summary("保存の無い tick", work, n, false) + " | 保存の tick " + list(true)
+                + " | 先に書いたチャンク " + (com.yayuy.overgrownvegetation.perf.SpreadSave.saved - spread0) + "(余り時間の無い tick " + (com.yayuy.overgrownvegetation.perf.SpreadSave.ticks - spreadTicks0) + ")";
         sb.append(head).append('\n');
         sb.append(summary("Post→Post(sprint 中の 1 tick の間)", gap, n, null)).append('\n');
         // 重い順に 30 tick

@@ -605,7 +605,8 @@ public final class SporeSprouts {
             ChunkPos pos = new ChunkPos(key);
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             boolean overgrown = nether ? com.yayuy.overgrownvegetation.corruption.NetherLedgerData.get(level).isOvergrown(key) : phase.isOvergrownChunk(pos);
-            if (chunk == null) {
+            if (chunk == null || !com.yayuy.overgrownvegetation.util.LoadedChunks.neighbourhoodLoaded(level, pos.x, pos.z)) {
+                // 11-23 ユーザー了承: 周り 8 チャンクも読み込み終わるまで待つ(根付きの株・地面の汚染の近隣の更新が縁の外のチャンクを同期で読み込み、主スレッドが秒の桁で止まっていた)
                 // 読み込みの通知の直後はまだ取れないことがある: 捨てずに次の tick へ積み直す(上限付き。同じ tick に同じ鍵を繰り返さない。見直し第 2 回 ⑤1)
                 if (d.checkRetry.addTo(key, 1) < CHECK_RETRY) {
                     if (retry == null) retry = new it.unimi.dsi.fastutil.longs.LongArrayList();
