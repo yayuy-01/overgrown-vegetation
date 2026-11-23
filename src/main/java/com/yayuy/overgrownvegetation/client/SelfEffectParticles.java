@@ -23,14 +23,33 @@ public final class SelfEffectParticles {
     private SelfEffectParticles() {
     }
 
-    /** {@code entity} が出そうとしている効果の粒 {@code particle} を出すか。 */
+    /** {@code entity} が出そうとしている効果の粒 {@code particle} を出すか(色の分からない呼び方。{@link #shouldSpawn(Entity, ParticleOptions, double, double, double)} を使う)。 */
     public static boolean shouldSpawn(Entity entity, ParticleOptions particle) {
+        return shouldSpawn(entity, particle, -1.0D, -1.0D, -1.0D);
+    }
+
+    /**
+     * 1.20.1 の口(G7 の mixin が {@code Level#addParticle} の速さの 3 つ = 色の赤・緑・青(0〜1)を渡す)。
+     * 一人称のカメラの持ち主の効果の粒で、次のどちらかなら出さない:
+     * <ul>
+     *     <li>色が胞子感染の色そのもの(見える効果が胞子感染だけ)。クライアントが効果を知らない Mob を観戦しているときもこれで分かる</li>
+     *     <li>胞子感染に掛かっている(ほかの効果と混ざった色。1.20.1 は効果ごとに粒を分けられないので、混ざった粒ごと出さない)</li>
+     * </ul>
+     */
+    public static boolean shouldSpawn(Entity entity, ParticleOptions particle, double red, double green, double blue) {
         Minecraft mc = Minecraft.getInstance();
-        if (devShowAll || entity != mc.getCameraEntity() || !mc.options.getCameraType().isFirstPerson()) {
+        if (devShowAll || entity != mc.getCameraEntity() || !mc.options.getCameraType().isFirstPerson() || !isEffectParticle(particle)) {
             return true;
         }
-        return !(isEffectParticle(particle) && entity instanceof net.minecraft.world.entity.LivingEntity living
-                && living.hasEffect(ModMobEffects.SPORE_INFECTION.get()));
+        if (red >= 0.0D && rgb(red, green, blue) == ModMobEffects.SPORE_INFECTION_COLOR) {
+            return false;
+        }
+        return !(entity instanceof net.minecraft.world.entity.LivingEntity living && living.hasEffect(ModMobEffects.SPORE_INFECTION.get()));
+    }
+
+    /** 1.20.1 の効果の粒の色(LivingEntity#tickEffects が 0〜255 を 255 で割った 3 つ)を 0xRRGGBB に戻す。 */
+    static int rgb(double red, double green, double blue) {
+        return (int) Math.round(red * 255.0D) << 16 | (int) Math.round(green * 255.0D) << 8 | (int) Math.round(blue * 255.0D);
     }
 
     /**
