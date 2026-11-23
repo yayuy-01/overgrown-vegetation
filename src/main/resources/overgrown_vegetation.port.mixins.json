@@ -6,7 +6,8 @@
   "refmap": "overgrown_vegetation.refmap.json",
   "mixins": [
     "LivingEntityPortMixin",
-    "ServerLevelEntityTickMixin"
+    "ServerLevelEntityTickMixin",
+    "VanillaInventoryCodeHooksMixin"
   ],
   "client": [
     "ClientLevelEntityTickMixin"
