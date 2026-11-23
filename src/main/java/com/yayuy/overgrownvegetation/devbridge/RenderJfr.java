@@ -49,7 +49,7 @@ final class RenderJfr {
             r.setToDisk(true);
             r.start();
             recording = r;
-            threadId = Thread.currentThread().threadId();
+            threadId = Thread.currentThread().getId();
             return null;
         } catch (Throwable e) {
             recording = null;

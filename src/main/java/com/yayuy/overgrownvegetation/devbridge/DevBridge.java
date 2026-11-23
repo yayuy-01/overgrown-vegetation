@@ -19,7 +19,7 @@ import net.minecraft.FileUtil;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.client.gui.screens.GenericMessageScreen;
+import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.gui.screens.ReceivingLevelScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -454,11 +454,8 @@ public final class DevBridge {
                 if (!onTitle) return "タイトル画面";
                 log("OPEN " + arg);
                 await("world");
-                mc.createWorldOpenFlows().openWorld(arg, () -> {
-                    log("ERR open に失敗: " + arg);
-                    awaiting = null;
-                    mc.setScreen(new TitleScreen());
-                });
+                // 1.20.1: openWorld(名前, 失敗のとき) は無い。loadLevel は失敗すると画面で知らせる(戻り先はタイトル画面)
+                mc.createWorldOpenFlows().loadLevel(new TitleScreen(), arg);
             }
             case "cmd" -> {
                 IntegratedServer server = mc.getSingleplayerServer();
@@ -1404,7 +1401,7 @@ public final class DevBridge {
                 player.lookAt(EntityAnchorArgument.Anchor.EYES, aim);
                 player.yRotO = player.getYRot();
                 player.xRotO = player.getXRot();
-                net.minecraft.world.phys.HitResult hit = player.pick(player.blockInteractionRange(), 0.0F, false);
+                net.minecraft.world.phys.HitResult hit = player.pick(player.getBlockReach(), 0.0F, false);
                 if (!(hit instanceof net.minecraft.world.phys.BlockHitResult bhr) || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
                     log("DIG 狙いの先にブロックが無い");
                     return null;
@@ -1464,7 +1461,7 @@ public final class DevBridge {
                 double x = Double.parseDouble(a[0]);
                 double y = Double.parseDouble(a[1]);
                 double amount = Double.parseDouble(a[2]);
-                boolean done = mc.screen.mouseScrolled(x, y, 0.0D, amount);
+                boolean done = mc.screen.mouseScrolled(x, y, amount);
                 log(String.format(Locale.ROOT, "SCROLL %.1f %.1f %.1f → %s", x, y, amount, done));
             }
             case "type" -> {
@@ -2670,7 +2667,7 @@ public final class DevBridge {
                 // 手に持った物のツールチップ(F3+H なしのふつうの表示)を 1 行ずつ。ホバーは撮れないので文字で確かめる(2026-10-09)
                 if (mc.player == null || mc.level == null) return "ワールドの中";
                 net.minecraft.world.item.ItemStack held = mc.player.getMainHandItem();
-                for (Component tip : held.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(mc.level), mc.player,
+                for (Component tip : held.getTooltipLines(mc.player,
                         net.minecraft.world.item.TooltipFlag.Default.NORMAL)) {
                     log("TIP " + tip.getString());
                 }
@@ -2767,9 +2764,9 @@ public final class DevBridge {
                 boolean local = mc.isLocalServer();
                 mc.level.disconnect();
                 if (local) {
-                    mc.disconnect(new GenericMessageScreen(Component.literal("Saving world")));
+                    mc.clearLevel(new GenericDirtMessageScreen(Component.literal("Saving world")));
                 } else {
-                    mc.disconnect();
+                    mc.clearLevel();
                 }
                 mc.setScreen(new TitleScreen());
                 await("title");
@@ -2834,7 +2831,7 @@ public final class DevBridge {
                 ? registry -> registry.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions()
                 : WorldPresets::createNormalWorldDimensions;
         log("NEWWORLD " + folder + (flat ? " flat" : " normal") + " seed=" + seed);
-        mc.createWorldOpenFlows().createFreshLevel(folder, settings, new WorldOptions(seed, true, false), dimensions, new TitleScreen());
+        mc.createWorldOpenFlows().createFreshLevel(folder, settings, new WorldOptions(seed, true, false), dimensions);
     }
 
     /** 統合サーバーのスレッドで、プレイヤーとして実行する(~ や @s がプレイヤーを指す)。 */

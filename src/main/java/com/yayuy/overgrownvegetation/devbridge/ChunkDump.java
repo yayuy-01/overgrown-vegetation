@@ -16,23 +16,19 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ChunkGenerationTask;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.DistanceManager;
-import net.minecraft.server.level.GenerationChunkHolder;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.Ticket;
 import net.minecraft.util.SortedArraySet;
-import net.minecraft.util.StaticCache2D;
 import net.minecraft.util.thread.BlockableEventLoop;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.chunk.ChunkStatus;
 
 /**
  * 統合サーバーのチャンクの読み込み解除の中身を書き出す(2026-10-18、ワールドを閉じると「Saving worlds」で固まった件の調べ)。
@@ -137,7 +133,6 @@ final class ChunkDump {
             Long2ObjectMap<ChunkHolder> pending = (Long2ObjectMap<ChunkHolder>) get(ChunkMap.class, map, "pendingUnloads");
             LongSet toDrop = (LongSet) get(ChunkMap.class, map, "toDrop");
             Queue<Runnable> unloadQueue = (Queue<Runnable>) get(ChunkMap.class, map, "unloadQueue");
-            List<ChunkGenerationTask> pendingTasks = (List<ChunkGenerationTask>) get(ChunkMap.class, map, "pendingGenerationTasks");
             DistanceManager distance = (DistanceManager) get(ServerChunkCache.class, cache, "distanceManager");
             Map<Long, SortedArraySet<Ticket<?>>> tickets = (Map<Long, SortedArraySet<Ticket<?>>>) get(DistanceManager.class, distance, "tickets");
             BlockableEventLoop<?> mainExec = (BlockableEventLoop<?>) get(ServerChunkCache.class, cache, "mainThreadProcessor");
@@ -161,81 +156,47 @@ final class ChunkDump {
                 queueKinds.add(r.getClass().getName());
             }
 
-            // 仕事中の生成タスク(チャンクの持つもの + まだ流していないもの)
-            Map<ChunkGenerationTask, Boolean> tasks = new IdentityHashMap<>();
-            for (ChunkHolder h : where.keySet()) {
-                ChunkGenerationTask t = ((AtomicReference<ChunkGenerationTask>) get(GenerationChunkHolder.class, h, "task")).get();
-                if (t != null) tasks.put(t, Boolean.TRUE);
-            }
-            for (ChunkGenerationTask t : new ArrayList<>(pendingTasks)) tasks.put(t, Boolean.TRUE);
-
-            int refHolders = 0, pendingRef = 0, pendingNotSynced = 0, notSynced = 0;
+            // 1.20.1: 1.21 の生成タスク(ChunkGenerationTask)と生成の参照数は無い。保存待ち = getChunkToSave が済んでいない物
+            int pendingNotSynced = 0, notSynced = 0;
             List<ChunkHolder> interesting = new ArrayList<>();
             for (Map.Entry<ChunkHolder, String> e : where.entrySet()) {
                 ChunkHolder h = e.getKey();
-                boolean ref = h.getGenerationRefCount() != 0;
-                boolean synced = h.getSaveSyncFuture().isDone();
+                boolean synced = h.getChunkToSave().isDone();
                 boolean inPending = e.getValue().contains("P");
-                if (ref) refHolders++;
                 if (!synced) notSynced++;
-                if (inPending && ref) pendingRef++;
                 if (inPending && !synced) pendingNotSynced++;
-                if (ref || !synced) interesting.add(h);
+                if (!synced) interesting.add(h);
             }
 
             String dim = level.dimension().location().toString();
             String s = String.format(Locale.ROOT,
-                    "%s: updating=%d visible=%d pending=%d toDrop=%d unloadQueue=%d..%d tasks=%d(未流し %d) 参照あり=%d 保存待ち=%d pending中の参照あり=%d pending中の保存待ち=%d mainTasks=%d",
-                    dim, updating.size(), visible.size(), pending.size(), toDrop.size(), queueMin, queueMax, tasks.size(), pendingTasks.size(),
-                    refHolders, notSynced, pendingRef, pendingNotSynced, mainExec.getPendingTasksCount());
+                    "%s: updating=%d visible=%d pending=%d toDrop=%d unloadQueue=%d..%d 保存待ち=%d pending中の保存待ち=%d mainTasks=%d",
+                    dim, updating.size(), visible.size(), pending.size(), toDrop.size(), queueMin, queueMax,
+                    notSynced, pendingNotSynced, mainExec.getPendingTasksCount());
             out.append("\n## ").append(s).append('\n');
             out.append("unloadQueue の先頭: ").append(queueKinds).append('\n');
             if (summary.length() > 0) summary.append(" | ");
             summary.append(s);
 
-            out.append("\n### 参照あり・保存待ちのチャンク(最大 80)\n");
-            out.append("pos  where(U=updating P=pending V=visible D=toDrop)  level  queueLevel  ref  saveSyncDone  readyForSaving  latest  persisted  futures  tickets  heldBy\n");
+            out.append("\n### 保存待ちのチャンク(最大 80)\n");
+            out.append("pos  where(U=updating P=pending V=visible D=toDrop)  level  queueLevel  saveDone  accessible  latest  futures  tickets\n");
             int shown = 0;
             for (ChunkHolder h : interesting) {
                 if (shown++ >= 80) break;
                 ChunkPos pos = h.getPos();
                 String w = where.get(h) + (toDrop.contains(pos.toLong()) ? "D" : "");
-                List<String> heldBy = new ArrayList<>();
-                for (ChunkGenerationTask t : tasks.keySet()) {
-                    StaticCache2D<GenerationChunkHolder> c = (StaticCache2D<GenerationChunkHolder>) get(ChunkGenerationTask.class, t, "cache");
-                    if (c.contains(pos.x, pos.z) && c.get(pos.x, pos.z) == h) heldBy.add(taskPos(t));
-                }
-                out.append(String.format(Locale.ROOT, "%d,%d  %s  %d  %d  %d  %s  %s  %s  %s  %s  %s  %s%n",
-                        pos.x, pos.z, w, h.getTicketLevel(), h.getQueueLevel(), h.getGenerationRefCount(), h.getSaveSyncFuture().isDone(),
-                        h.isReadyForSaving(), h.getLatestStatus(), h.getPersistedStatus(), futures(h), tickets(tickets.get(pos.toLong())), heldBy));
-            }
-
-            out.append("\n### 生成タスク(最大 60)\n");
-            out.append("pos  target  scheduled  cancelled  needsGen  layer(待ち/全部)  radius\n");
-            int shownT = 0;
-            for (ChunkGenerationTask t : tasks.keySet()) {
-                if (shownT++ >= 60) break;
-                List<CompletableFuture<?>> layer = (List<CompletableFuture<?>>) get(ChunkGenerationTask.class, t, "scheduledLayer");
-                int waiting = 0;
-                for (CompletableFuture<?> f : new ArrayList<>(layer)) if (!f.isDone()) waiting++;
-                out.append(String.format(Locale.ROOT, "%s  %s  %s  %s  %s  %d/%d%n",
-                        taskPos(t), t.targetStatus, get(ChunkGenerationTask.class, t, "scheduledStatus"),
-                        get(ChunkGenerationTask.class, t, "markedForCancellation"), get(ChunkGenerationTask.class, t, "needsGeneration"),
-                        waiting, layer.size()));
+                out.append(String.format(Locale.ROOT, "%d,%d  %s  %d  %d  %s  %s  %s  %s  %s%n",
+                        pos.x, pos.z, w, h.getTicketLevel(), h.getQueueLevel(), h.getChunkToSave().isDone(),
+                        h.wasAccessibleSinceLastSave(), h.getLastAvailableStatus(), futures(h), tickets(tickets.get(pos.toLong()))));
             }
         }
         return summary.toString();
     }
 
-    private static String taskPos(ChunkGenerationTask t) throws ReflectiveOperationException {
-        ChunkPos p = (ChunkPos) get(ChunkGenerationTask.class, t, "pos");
-        return p.x + "," + p.z + "→" + t.targetStatus;
-    }
-
     /** 状態ごとの future: d = 済み・p = 待ち・. = 無し。 */
     @SuppressWarnings("unchecked")
     private static String futures(ChunkHolder h) throws ReflectiveOperationException {
-        AtomicReferenceArray<CompletableFuture<?>> f = (AtomicReferenceArray<CompletableFuture<?>>) get(GenerationChunkHolder.class, h, "futures");
+        AtomicReferenceArray<CompletableFuture<?>> f = (AtomicReferenceArray<CompletableFuture<?>>) get(ChunkHolder.class, h, "futures");
         StringBuilder b = new StringBuilder();
         List<ChunkStatus> statuses = ChunkStatus.getStatusList();
         for (int i = 0; i < f.length(); i++) {

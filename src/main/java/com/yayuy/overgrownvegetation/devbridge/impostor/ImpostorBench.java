@@ -40,7 +40,7 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
-import software.bernie.geckolib.util.RenderUtil;
+import software.bernie.geckolib.util.RenderUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -136,8 +136,8 @@ public final class ImpostorBench {
                             com.yayuy.overgrownvegetation.client.crowd.HordePoses.slot(true, 1118L, i), lights[i]);
                 }
                 Minecraft m = Minecraft.getInstance();
-                com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.draw(event.getModelViewMatrix(), event.getProjectionMatrix(),
-                        m.level == null ? 0.0D : m.level.getGameTime() + event.getPartialTick().getGameTimeDeltaPartialTick(false));
+                com.yayuy.overgrownvegetation.client.crowd.HordeImpostors.draw(com.yayuy.overgrownvegetation.client.shader.PortRender.modelView(event), event.getProjectionMatrix(),
+                        m.level == null ? 0.0D : m.level.getGameTime() + event.getPartialTick());
             }
             return;
         }
@@ -157,9 +157,12 @@ public final class ImpostorBench {
         // 組み合わせ: カメラから hordeModelFarBlocks(画面側の設定【仮】128)より近い身代わりは粗いモデル、遠いのは絵の板
         double split = mode == Mode.COMBO ? farBlocks() : mode == Mode.MODEL ? Double.MAX_VALUE : -1.0D;
         if (mode != Mode.SPRITE && event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
-            submitModels(baked, RenderType.entityCutoutNoCull(tex), cam, scale, split);
+            submitModels(baked, RenderType.entityCutoutNoCull(tex), cam, scale, split, com.yayuy.overgrownvegetation.client.shader.PortRender.modelView(event));
         } else if (mode != Mode.MODEL && event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            // 1.20.1: この段の RenderSystem の視点行列は単位行列(1.21 はカメラの回転)。1.21 と同じにして描く
+            boolean pushed = com.yayuy.overgrownvegetation.client.shader.PortRender.pushStageModelView(event);
             drawSprites(baked, tex, cam, scale, split);
+            com.yayuy.overgrownvegetation.client.shader.PortRender.popStageModelView(pushed);
         }
     }
 
@@ -182,7 +185,7 @@ public final class ImpostorBench {
         return dx * dx + dy * dy + dz * dz < split * split;
     }
 
-    private static void submitModels(BakedGeoModel baked, RenderType rt, Vec3 cam, float scale, double split) {
+    private static void submitModels(BakedGeoModel baked, RenderType rt, Vec3 cam, float scale, double split, Matrix4f view) {
         if (!CrowdDraw.capturing()) return;
         CrowdDraw.Batch batch = CrowdDraw.batch(baked, rt);
         if (batch == null) return;
@@ -197,13 +200,16 @@ public final class ImpostorBench {
         for (int i = 0; i < count; i++) {
             if (!nearer(i, cam, split)) continue;
             inst.setIdentity();
+            // 1.20.1: まとめ描きの骨の行列にはカメラの回転を入れる(バニラの Mob の PoseStack と同じ。client/crowd/CrowdDraw)
+            inst.last().pose().set(view);
+            inst.last().normal().set(new Matrix3f(view));
             inst.translate(xs[i] - cam.x, ys[i] - cam.y, zs[i] - cam.z);
             inst.scale(scale, scale, scale);
             inst.mulPose(Axis.YP.rotationDegrees(180.0F - yaws[i]));
             inst.translate(0.0F, 0.01F, 0.0F);
             Matrix4f m = inst.last().pose();
             Matrix3f nm = inst.last().normal();
-            batch.begin(lights[i], OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+            batch.begin(lights[i], OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
             for (int b = 0; b < BONE_POSE.size(); b++) {
                 out.last().pose().set(m).mul(BONE_POSE.get(b));
                 out.last().normal().set(nm).mul(BONE_NORMAL.get(b));
@@ -215,11 +221,11 @@ public final class ImpostorBench {
 
     private static void walk(PoseStack ps, GeoBone bone, boolean parentShown) {
         ps.pushPose();
-        RenderUtil.translateMatrixToBone(ps, bone);
-        RenderUtil.translateToPivotPoint(ps, bone);
-        RenderUtil.rotateMatrixAroundBone(ps, bone);
-        RenderUtil.scaleMatrixForBone(ps, bone);
-        RenderUtil.translateAwayFromPivotPoint(ps, bone);
+        RenderUtils.translateMatrixToBone(ps, bone);
+        RenderUtils.translateToPivotPoint(ps, bone);
+        RenderUtils.rotateMatrixAroundBone(ps, bone);
+        RenderUtils.scaleMatrixForBone(ps, bone);
+        RenderUtils.translateAwayFromPivotPoint(ps, bone);
         BONE_POSE.add(new Matrix4f(ps.last().pose()));
         BONE_NORMAL.add(new Matrix3f(ps.last().normal()));
         BONE_VISIBLE.add(parentShown && !bone.isHidden());
@@ -247,11 +253,11 @@ public final class ImpostorBench {
             int view = SpriteSheet.viewIndex(SpriteSheet.relativeAngle(yaws[i], -dx, -dz));
             float u0 = view / (float) SpriteSheet.VIEWS, u1 = (view + 1) / (float) SpriteSheet.VIEWS;
             float bx = (float) dx, by = (float) (ys[i] - cam.y), bz = (float) dz;
-            int light = lights[i], ov = OverlayTexture.NO_OVERLAY, c = 0xFFFFFFFF;
-            vc.addVertex(bx + rx * left, by + bottom, bz + rz * left, c, u0, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * right, by + bottom, bz + rz * right, c, u1, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * right, by + top, bz + rz * right, c, u1, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * left, by + top, bz + rz * left, c, u0, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            int light = lights[i], ov = OverlayTexture.NO_OVERLAY;
+            vc.vertex(bx + rx * left, by + bottom, bz + rz * left, 1.0F, 1.0F, 1.0F, 1.0F, u0, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            vc.vertex(bx + rx * right, by + bottom, bz + rz * right, 1.0F, 1.0F, 1.0F, 1.0F, u1, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            vc.vertex(bx + rx * right, by + top, bz + rz * right, 1.0F, 1.0F, 1.0F, 1.0F, u1, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            vc.vertex(bx + rx * left, by + top, bz + rz * left, 1.0F, 1.0F, 1.0F, 1.0F, u0, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
         }
         src.endBatch(spriteType);
     }
@@ -278,12 +284,12 @@ public final class ImpostorBench {
         mc.getTextureManager().register(sheetId, new SheetTexture(sheet));
         spriteType = RenderType.create("overgrown_vegetation_impostor_sprite", DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536,
                 true, false, RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.RENDERTYPE_ENTITY_CUTOUT_NO_CULL_SHADER)
+                        .setShaderState(com.yayuy.overgrownvegetation.client.PortRenderStates.RENDERTYPE_ENTITY_CUTOUT_NO_CULL_SHADER)
                         .setTextureState(new RenderStateShard.TextureStateShard(sheetId, true, true))
-                        .setTransparencyState(RenderStateShard.NO_TRANSPARENCY)
-                        .setCullState(RenderStateShard.NO_CULL)
-                        .setLightmapState(RenderStateShard.LIGHTMAP)
-                        .setOverlayState(RenderStateShard.OVERLAY)
+                        .setTransparencyState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_TRANSPARENCY)
+                        .setCullState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_CULL)
+                        .setLightmapState(com.yayuy.overgrownvegetation.client.PortRenderStates.LIGHTMAP)
+                        .setOverlayState(com.yayuy.overgrownvegetation.client.PortRenderStates.OVERLAY)
                         .createCompositeState(true));
     }
 

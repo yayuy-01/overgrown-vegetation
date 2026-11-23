@@ -29,7 +29,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -414,7 +414,9 @@ public final class FxProfiler {
         int classes = 0;
         int methods = 0;
         List<String> names = ModList.get().getModFileById(OvergrownVegetation.MODID).getFile().getScanResult()
-                .getAnnotatedBy(EventBusSubscriber.class, ElementType.TYPE)
+                .getAnnotations().stream()
+                // 1.20.1: ModFileScanData#getAnnotatedBy は無い。注釈の種類と付いた所で絞る
+                .filter(a -> a.annotationType().equals(org.objectweb.asm.Type.getType(EventBusSubscriber.class)) && a.targetType() == ElementType.TYPE)
                 .map(a -> a.clazz().getClassName())
                 .filter(n -> n.contains(".client.") && !n.contains(".devbridge."))
                 .toList();
@@ -683,8 +685,9 @@ public final class FxProfiler {
     }
 
     @SubscribeEvent
-    public static void onFramePre(RenderFrameEvent.Pre event) {
-        if (!ENABLED) return;
+    public static void onFramePre(TickEvent.RenderTickEvent event) {
+        // 1.20.1: 1.21 の RenderFrameEvent.Pre の代わり(Forge の RenderTickEvent の START。どちらも GameRenderer#render の前)
+        if (!ENABLED || event.phase != TickEvent.Phase.START) return;
         long now = System.nanoTime();
         closeGap(now);
         if (lastPre != 0) {
@@ -705,14 +708,14 @@ public final class FxProfiler {
         if (benchState == BenchState.RUN) slotBenchFrame[slot] = benchCount;
         if (benchState == BenchState.RUN && (benchCount & 7) == 0 && Minecraft.getInstance().levelRenderer != null) {
             benchSectionSamples++;
-            benchSectionSum += Minecraft.getInstance().levelRenderer.countRenderedSections();
+            benchSectionSum += Minecraft.getInstance().levelRenderer.countRenderedChunks();
         }
         swing(now);
     }
 
     @SubscribeEvent
-    public static void onFramePost(RenderFrameEvent.Post event) {
-        if (!ENABLED) return;
+    public static void onFramePost(TickEvent.RenderTickEvent event) {
+        if (!ENABLED || event.phase != TickEvent.Phase.END) return;
         if (segPrev != null) {
             mark("フレームの終わり");
             segPrev = null;
@@ -893,7 +896,7 @@ public final class FxProfiler {
                 modCpuAvg / 1e6, on ? "on" : "off", gcCount, gcTime);
         out.append(head).append('\n').append('\n');
         out.append("引数: ").append(benchArg).append('\n');
-        out.append("区画(F3 の C: 描いた区画/全部): ").append(mc.levelRenderer.getSectionStatistics()).append('\n');
+        out.append("区画(F3 の C: 描いた区画/全部): ").append(mc.levelRenderer.getChunkStatistics()).append('\n');
         out.append(String.format(Locale.ROOT, "GL: デバッグの文脈 %s・デバッグ出力 %s・glDebugVerbosity %d%n",
                 (GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_CONTEXT_FLAGS) & org.lwjgl.opengl.GL43.GL_CONTEXT_FLAG_DEBUG_BIT) != 0,
                 GL11.glIsEnabled(org.lwjgl.opengl.GL43.GL_DEBUG_OUTPUT), mc.options.glDebugVerbosity));
@@ -973,7 +976,7 @@ public final class FxProfiler {
 
     /** F3 の「C: 描いた/全部」の部分だけ(描いた区画が多いほど、区画ごとの GL の呼び出しが増える)。 */
     private static String sectionsShort(Minecraft mc) {
-        String s = mc.levelRenderer.getSectionStatistics();
+        String s = mc.levelRenderer.getChunkStatistics();
         int slash = s.indexOf('/');
         int sp = slash < 0 ? -1 : s.indexOf(' ', slash);
         return sp > 0 ? s.substring(0, sp) : s;
@@ -999,7 +1002,7 @@ public final class FxProfiler {
 
     private static long allocated() {
         if (ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean t) {
-            return t.getThreadAllocatedBytes(Thread.currentThread().threadId());
+            return t.getThreadAllocatedBytes(Thread.currentThread().getId());
         }
         return 0;
     }

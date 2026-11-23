@@ -123,7 +123,7 @@ final class StiltDev {
             lookTicks0 = now;
         }
         if (!lookGo || t < lookLen) return;
-        int marked = lookMe.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH) ? 1 : 0;
+        int marked = lookMe.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH.get()) ? 1 : 0;
         StringBuilder modes = new StringBuilder();
         for (StiltPhyllosensEntity e : lookBench) modes.append(' ').append(e.brain().mode());
         long span = Math.max(1L, now - lookTicks0);

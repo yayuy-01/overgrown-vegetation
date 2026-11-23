@@ -58,7 +58,7 @@ final class CloudProbe {
         if (level == null) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         long gameTime = level.getGameTime();
         double t = (double) gameTime + partial;
         SAMPLES.add(new Sample(System.nanoTime(), gameTime, partial, CloudField.offsetX(t), CloudField.offsetZ(t)));
