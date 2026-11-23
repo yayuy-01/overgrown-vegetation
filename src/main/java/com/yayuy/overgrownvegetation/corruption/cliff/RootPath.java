@@ -30,6 +30,8 @@ public final class RootPath {
 
     /** 足した節の数・取り付ける所に当たった数(調べ・テスト用。数えるだけ)。 */
     public static long addedCount, touchCount; // volatile にしない(経路探索の中で毎回足すので。読むのはテストだけ)
+    /** 調べ用(GameTest): null でなければ、調べた節ごとに「座標:バニラの隣の数」を足す(11-23 崖の上りの揺れの調べ)。 */
+    public static StringBuilder debugNeighbors;
 
     /**
      * 隣の節を足す。{@code out} の {@code count} 番目から書き、足した数を返す。
@@ -40,6 +42,7 @@ public final class RootPath {
     public static int addNeighbors(PathfindingContext ctx, Node from, Node[] out, int count, int height, NodeSource node) {
         int added = 0;
         int x = from.x, y = from.y, z = from.z;
+        if (debugNeighbors != null && debugNeighbors.length() < 600) debugNeighbors.append(' ').append(x).append(',').append(y).append(',').append(z).append(':').append(count);
         if (!touchesRoot(ctx, x, y, z)) return 0;
         touchCount++;
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -59,8 +62,9 @@ public final class RootPath {
                 if (passable(ctx, x, y + 1, z, height, p) && passable(ctx, nx, y + 1, nz, height, p)) {
                     added += put(out, count + added, node.overgrown$node(nx, y + 1, nz));
                 }
-            } else if (airborne && !ropeAbove && passable(ctx, nx, y, nz, height, p) && touchesRoot(ctx, nx, y, nz)) {
-                // 縄に沿って横へ
+            } else if ((airborne && !ropeAbove || !upFree) && passable(ctx, nx, y, nz, height, p) && touchesRoot(ctx, nx, y, nz)) {
+                // 縄に沿って横へ。上がふさがれた所(面と縄の間の溝で頭の上が出っ張り)では、縄の上に立っていても横へ出す
+                // (11-23 ユーザー決定「1」。縄のブロックは足場になるので airborne が false になり、溝で止まっていた。単独 40 回で 5 回)
                 added += put(out, count + added, node.overgrown$node(nx, y, nz));
             }
         }

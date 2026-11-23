@@ -318,7 +318,11 @@ public final class CliffGameTests {
                         env.append(' ').append(dx).append(',').append(dy).append(',').append(dz).append('=').append(id.replace("tangled_root", "縄").replace("stone", "石"));
                     }
                     long a0 = RootPath.addedCount, t0 = RootPath.touchCount;
+                    RootPath.debugNeighbors = new StringBuilder();
                     net.minecraft.world.level.pathfinder.Path probe = z.getNavigation().createPath(prey, 0);
+                    String nb = RootPath.debugNeighbors.toString();
+                    RootPath.debugNeighbors = null;
+                    env.append(" 原点 ").append(h.absolutePos(BlockPos.ZERO).toShortString()).append(" 隣の数").append(nb);
                     env.append(" 試し:").append(probe == null ? "null" : (probe.canReach() ? "届く" : "届かない") + probe.getNodeCount() + "節");
                     if (probe != null) for (int i = 0; i < probe.getNodeCount(); i++) {
                         Vec3 n = h.relativeVec(Vec3.atLowerCornerOf(probe.getNode(i).asBlockPos()));
