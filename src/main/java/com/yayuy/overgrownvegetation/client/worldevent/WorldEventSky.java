@@ -247,7 +247,7 @@ public final class WorldEventSky {
         lastAurora = 0.0F;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (broken || level == null || ShaderPacks.active() || event.getCamera().getFluidInCamera() != FogType.NONE
+        if (broken || level == null || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects() || event.getCamera().getFluidInCamera() != FogType.NONE
                 || !level.dimensionType().hasSkyLight() || level.effects().skyType() != DimensionSpecialEffects.SkyType.NORMAL) {
             return;
         }

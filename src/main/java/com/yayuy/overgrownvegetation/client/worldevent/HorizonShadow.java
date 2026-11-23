@@ -70,7 +70,7 @@ public final class HorizonShadow {
         }
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null || ShaderPacks.active() || event.getCamera().getFluidInCamera() != FogType.NONE || !level.dimensionType().hasSkyLight()) {
+        if (level == null || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects() || event.getCamera().getFluidInCamera() != FogType.NONE || !level.dimensionType().hasSkyLight()) {
             return;
         }
         try {

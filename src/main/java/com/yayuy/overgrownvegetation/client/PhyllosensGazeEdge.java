@@ -160,17 +160,18 @@ public final class PhyllosensGazeEdge {
 
     /** 設定: 目の数の倍率(0〜1)。 */
     public static float eyeScale() {
-        return OvergrownClientConfig.CLIENT.gazeEyeScale.get() / 100.0F;
+        // 段の「なし」(11-23): 目・脈打ちは画面の効果なので出さない(暗い縁は見られている合図として残す)
+        return VisualQuality.effects() ? OvergrownClientConfig.CLIENT.gazeEyeScale.get() / 100.0F : 0.0F;
     }
 
     /** 設定: 視界の内側(照準の近く)に一瞬開く目。 */
     public static boolean innerEyes() {
-        return OvergrownClientConfig.CLIENT.gazeInnerEyes.get();
+        return VisualQuality.effects() && OvergrownClientConfig.CLIENT.gazeInnerEyes.get();
     }
 
     /** 設定: 鼓動のように脈打つ縁の暗さ。 */
     public static boolean pulse() {
-        return OvergrownClientConfig.CLIENT.gazePulse.get();
+        return VisualQuality.effects() && OvergrownClientConfig.CLIENT.gazePulse.get();
     }
 
     // ------------------------------------------------------------------ 描画

@@ -49,21 +49,37 @@ public final class Atmosphere {
         return ticks + partialTick;
     }
 
-    /** 雰囲気の演出を描くか。 */
+    /** 雰囲気の演出を描くか(2026-11-23 から、段の「なし」= {@link VisualQuality#effects()} が偽 でも描かない)。 */
     public static boolean enabled(ClientLevel level) {
+        return sounding(level) && VisualQuality.effects();
+    }
+
+    /**
+     * 雰囲気の音(と音が読む風・天気の見た目の度合い)を動かすか。段の「なし」は見た目だけを切り、音は残す(2026-11-23 ユーザー決定)ので、
+     * {@link #enabled} が偽でもこちらが真なら {@link #onClientTick} は音の分だけ進める。
+     */
+    private static boolean sounding(ClientLevel level) {
         return level != null && VisualQuality.atmosphere() && level.dimensionType().hasSkyLight()
                 && (!ShaderPacks.active() || ShaderPacks.ownEffects());
     }
 
     private static void clearAll() {
         WindGate.clear();
-        FallingLeaves.clear();
-        AmbientSpores.clear();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.CaveSound.stop();
         com.yayuy.overgrownvegetation.client.atmosphere.sound.UnderwaterSound.stop();
+        com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.stop();
+        SporeGale.clear(); // G4 胞子の風・G5 光る胞子の夜(11-08)
+        WeatherLook.clear(); // 天気の見た目の残り(11-16。雷雨の強化の残り・凪・強風の日)
+        clearLooks();
+    }
+
+    /** 見た目の演出だけを空にする(段の「なし」の間。音と、音が読む風・天気の度合いは残す)。 */
+    private static void clearLooks() {
+        FallingLeaves.clear();
+        AmbientSpores.clear();
         CanopySunMap.clear();
         LightShafts.clear();
         CaveShafts.clear();
@@ -91,16 +107,13 @@ public final class Atmosphere {
         CaveGlowworms.clear(); // 洞窟の小ネタ(11-07)
         CaveCrickets.clear();
         SmallCritters.clear(); // 見た目だけの小さな生き物(11-17)
-        com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.stop();
         CaveLights.clear();
         FogHalos.clear();
         EyeAdaptation.clear();
         SporePools.clear();
         CloudShadows.clear();
         CrepuscularRays.clear();
-        SporeGale.clear(); // G4 胞子の風・G5 光る胞子の夜(11-08)
         GlowNight.clear();
-        WeatherLook.clear(); // 天気の見た目の残り(11-16。雷雨の強化の残り・凪・強風の日)
     }
 
     @SubscribeEvent
@@ -121,7 +134,7 @@ public final class Atmosphere {
         if (now == null || player == null || mc.isPaused()) {
             return;
         }
-        if (!enabled(now)) {
+        if (!sounding(now)) {
             clearAll();
             return;
         }
@@ -134,14 +147,22 @@ public final class Atmosphere {
         });
         // G4 胞子の風(11-08): どの突風を胞子の風にするか・霧・前触れ。突風の場を進めた後に。
         guard("gale", () -> SporeGale.tick(now, player));
-        guard("glownight", () -> GlowNight.tick(now, player)); // G5 光る胞子の夜(11-08)。雲の影の地図より前に
         guard("gate", () -> WindGate.tick(player.getX(), player.getZ(), time(0.0F)));
-        guard("leaves", () -> FallingLeaves.tick(mc, now, player));
         guard("sound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWindSound.tick(mc, now, player, time(0.0F)));
         guard("water", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestWaterSound.tick(mc, now, player));
         guard("insects", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.ForestInsectSound.tick(mc, now, player));
         guard("cavesound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.CaveSound.tick(mc, now, player));
         guard("uwsound", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.UnderwaterSound.tick(mc, now, player));
+        guard("giantcreak", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.tick(mc, now, player, time(0.0F)));
+        // 段の「なし」(11-23): ここから下は見た目だけ。音と風は上で進めたので、見た目を空にして戻る。
+        if (!VisualQuality.effects()) {
+            clearLooks();
+            // 地下の音が読む地下の度合いだけは測る(見た目のオフで CaveLights は光と地図を持たず、音の分だけ進む)。
+            guard("cave", () -> CaveLights.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
+            return;
+        }
+        guard("glownight", () -> GlowNight.tick(now, player)); // G5 光る胞子の夜(11-08)。雲の影の地図より前に
+        guard("leaves", () -> FallingLeaves.tick(mc, now, player));
         guard("haze", () -> AirHaze.tick(now));
         guard("mist", () -> MistFog.tick(now, mc.gameRenderer.getMainCamera().getPosition(), ticks));
         guard("sunmap", () -> CanopySunMap.tick(now, ticks));
@@ -168,7 +189,6 @@ public final class Atmosphere {
         guard("glowworms", () -> CaveGlowworms.tick(now, player));
         guard("crickets", () -> CaveCrickets.tick(now, player));
         guard("smallcritters", () -> SmallCritters.tick(now, player)); // 見た目だけの小さな生き物 10 種(11-17)
-        guard("giantcreak", () -> com.yayuy.overgrownvegetation.client.atmosphere.sound.GiantTreeCreakSound.tick(mc, now, player, time(0.0F)));
         guard("algae", () -> GlowAlgae.tick(now, player));
         guard("caustics", () -> WaterCaustics.tick(now, ticks));
         guard("waterdepth", () -> WaterDepth.tick(now, ticks)); // 浅瀬と深みの色・岸の泡(11-12 水まわり ②)

@@ -145,7 +145,7 @@ public final class LeyTide {
         }
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null || ShaderPacks.active()) {
+        if (level == null || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return;
         }
         try {

@@ -32,7 +32,7 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 /**
- * <b>フェーズが上がったときの合図</b>(クライアント側。2026-11-16。ユーザー決定の中身は Vault「フェーズの仕組み」の「フェーズが上がったときの現象」)。
+ * <b>フェーズが上がったときの合図</b>(クライアント側。2026-11-16。ユーザー決定の中身は Vault「フェーズの仕組み」の「フェーズが上がったときの現象」 || !com.yayuy.overgrownvegetation.client.VisualQuality.effects( || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()))。
  *
  * <p>理由: フェーズが上がったことを、数字ではなく現象で知らせる(汚れを見た目だけで見せるのと同じ考え)。
  * サーバーの {@code phase/PhaseCues} が {@link PhaseCuePayload} を送ったら、次の流れを 1 回だけ流す(時刻は合図の始まりからの秒。仮決め):
@@ -197,7 +197,7 @@ public final class PhaseCue {
      * 揺らいでから(細かい強弱 3 回ほど)一度深く落ち、すぐ戻る。
      */
     public static float lightDip() {
-        if (!active || phase != 6) {
+        if (!active || phase != 6 || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return 0.0F;
         }
         float t = seconds(0.0F);
@@ -226,7 +226,7 @@ public final class PhaseCue {
     @SubscribeEvent
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
         float s = shake((float) event.getPartialTick());
-        if (s <= 0.001F || Minecraft.getInstance().isPaused()) {
+        if (s <= 0.001F || Minecraft.getInstance().isPaused() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return;
         }
         float amp = s * DesignData.atmosphere().phaseCue().shake();
@@ -255,7 +255,7 @@ public final class PhaseCue {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || ShaderPacks.active()) {
+        if (mc.level == null || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return;
         }
         AtmosphereEye.PhaseCueParams p = DesignData.atmosphere().phaseCue();

@@ -59,7 +59,7 @@ public final class Eclipse {
 
     /** 月の真ん中のずれ(太陽の芯の幅を 1 として。−(M+S)/2 = 触れ始め、0 = 真ん中、+ で通り過ぎる)。起きていなければ NaN。 */
     private static float offset(float partialTick) {
-        if (!WorldEventClient.is(WorldEventKind.ECLIPSE)) {
+        if (!WorldEventClient.is(WorldEventKind.ECLIPSE) || !com.yayuy.overgrownvegetation.client.VisualQuality.effects()) {
             return Float.NaN;
         }
         float len = WorldEventClient.lengthTicks();
@@ -118,7 +118,7 @@ public final class Eclipse {
         float o = offset(partial);
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (Float.isNaN(o) || level == null || ShaderPacks.active() || event.getCamera().getFluidInCamera() != FogType.NONE
+        if (Float.isNaN(o) || level == null || ShaderPacks.active() || !com.yayuy.overgrownvegetation.client.VisualQuality.effects() || event.getCamera().getFluidInCamera() != FogType.NONE
                 || !level.dimensionType().hasSkyLight()) {
             return;
         }

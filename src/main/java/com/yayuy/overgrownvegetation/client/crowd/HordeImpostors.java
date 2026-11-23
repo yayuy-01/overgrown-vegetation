@@ -109,7 +109,8 @@ public final class HordeImpostors {
         look = HordeLook.COMBINED;
         double far = 128.0D;
         try {
-            look = OvergrownClientConfig.CLIENT.hordeLook.get();
+            // 段の「なし」(11-23): 遠くの群れは消さず(大群が見えなくなる)、いちばん軽い板の絵だけで描く
+            look = com.yayuy.overgrownvegetation.client.VisualQuality.effects() ? OvergrownClientConfig.CLIENT.hordeLook.get() : HordeLook.SPRITE;
             far = OvergrownClientConfig.CLIENT.hordeModelFarBlocks.get();
         } catch (IllegalStateException ignored) {
             // 設定を読む前

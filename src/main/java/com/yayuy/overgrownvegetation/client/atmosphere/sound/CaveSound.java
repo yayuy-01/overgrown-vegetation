@@ -145,7 +145,7 @@ public final class CaveSound {
         // 音が 0 なら作らない(Claude 用のテストクライアントは音 0 なので、確かめのときだけは鳴らす = 無音で流す)。
         boolean audible = DEV_LOG || mc.options.getSoundSourceVolume(SoundSource.AMBIENT) > 0.0F && mc.options.getSoundSourceVolume(SoundSource.MASTER) > 0.0F;
         // 11-07: 地下モードは世界全体へ広げたが、洞窟の音(滴・根の軋み)は過繁茂の地域の地下だけ(水の音などと同じ扱い)
-        float mix = CaveLights.overgrownMix();
+        float mix = CaveLights.overgrownSoundMix();
         boolean cave = audible && mix > p.minMix() && !player.isUnderWater();
 
         for (int i = CALLS.size() - 1; i >= 0; i--) {

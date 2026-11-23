@@ -218,7 +218,7 @@ public final class ForestInsectSound {
         float forest = ForestPresence.overgrown();
         boolean place = audible && forest >= p.minForest() && !hushed(level, player, p.hushRadius()) && !player.isUnderWater();
         // 地下モードの分だけ下げる(地下では森の音を 1 − mix 倍。2026-11-01 地下と水中の環境音)。
-        float forestWeight = Mth.clamp((forest - p.minForest()) / 0.2F, 0.0F, 1.0F) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.CaveLights.mix());
+        float forestWeight = Mth.clamp((forest - p.minForest()) / 0.2F, 0.0F, 1.0F) * (1.0F - com.yayuy.overgrownvegetation.client.atmosphere.CaveLights.soundMix());
 
         // ---- コオロギ
         boolean crickets = place && inHours(hour, p.cricketFromHour(), p.cricketToHour()) && level.getRainLevel(1.0F) < 0.2F;

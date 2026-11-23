@@ -2583,6 +2583,18 @@ public final class DevBridge {
                 }
                 log("VISUALSETTINGS 開いた");
             }
+            case "rendertier" -> {
+                // この MOD の演出の段(2026-11-23)。rendertier none|low|medium|high で書き込み、引数なしは今の段。videosettings はビデオ設定を開く
+                String a = arg.trim().toUpperCase(java.util.Locale.ROOT);
+                if (a.equals("VIDEO")) {
+                    mc.setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(mc.screen, mc, mc.options));
+                } else if (!a.isEmpty()) {
+                    com.yayuy.overgrownvegetation.config.QualityPreset.valueOf(a).writeToConfig();
+                    com.yayuy.overgrownvegetation.client.GeoStaticGeometry.applyDetailChange();
+                }
+                var now = com.yayuy.overgrownvegetation.config.QualityPreset.current();
+                log("RENDERTIER " + (now == null ? "CUSTOM" : now.name()));
+            }
             case "impostor" -> {
                 // 遠景の身代わりの重さ比べ(devbridge/impostor/ImpostorBench、2026-11-18)
                 log(com.yayuy.overgrownvegetation.devbridge.impostor.ImpostorBench.command(arg, DevBridge::log));

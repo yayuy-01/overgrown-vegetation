@@ -1,6 +1,7 @@
 package com.yayuy.overgrownvegetation.mixin.client;
 
 import com.yayuy.overgrownvegetation.client.CurledFernOption;
+import com.yayuy.overgrownvegetation.client.RenderTierOption;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
@@ -30,8 +31,10 @@ public abstract class VideoSettingsScreenMixin {
     private static void overgrownvegetation$addFernOption(Options options,
             CallbackInfoReturnable<OptionInstance<?>[]> cir) {
         OptionInstance<?>[] vanilla = cir.getReturnValue();
-        OptionInstance<?>[] withFern = Arrays.copyOf(vanilla, vanilla.length + 1);
-        withFern[vanilla.length] = CurledFernOption.get();
+        OptionInstance<?>[] withFern = Arrays.copyOf(vanilla, vanilla.length + 2);
+        // 2026-11-23: 「この MOD の演出: なし / 低 / 中 / 高」({@link RenderTierOption})をシダの前に。
+        withFern[vanilla.length] = RenderTierOption.get();
+        withFern[vanilla.length + 1] = CurledFernOption.get();
         cir.setReturnValue(withFern);
     }
 }

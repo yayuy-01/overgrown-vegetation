@@ -73,10 +73,14 @@ public final class VisualSettingsScreen extends Screen {
     private static List<Setting> settings() {
         OvergrownClientConfig.Client c = OvergrownClientConfig.CLIENT;
         // .preset(…) を付けた項目は品質の段階(一番上の行)で一式変わる。演出のオンオフは好みなので段階に入れない(仮決め)。
+        // 11-23: 一番上の親「この MOD の演出」(オフ = 段の「なし」)。見た目の項目は親がオフの間押せない(音は押せる)。
+        Toggle fx = new Toggle("visual_effects", c.visualEffects);
+        fx.preset(p -> p != QualityPreset.NONE);
         Toggle atmosphere = new Toggle("atmosphere_enabled", c.atmosphereEnabled);
-        Toggle fog = new Toggle("fog", c.fog, atmosphere);
+        Toggle fog = new Toggle("fog", c.fog, atmosphere).alsoUnder(fx);
         return List.of(
-                atmosphere.section("general"),
+                fx.section("general"),
+                atmosphere,
                 new Choice<>("atmosphere_quality", c.atmosphereQuality, AtmosphereQuality.values()).preset(p -> p.atmosphere),
                 new Choice<>("curled_fern", c.curledFernDetail, CurledFernDetail.values()).preset(p -> p.curledFern),
                 new Toggle("effects_with_shader_pack", c.effectsWithShaderPack),
@@ -84,32 +88,37 @@ public final class VisualSettingsScreen extends Screen {
                 new Toggle("ambient_wind", c.ambientWind, atmosphere),
                 new Toggle("ambient_cave", c.ambientCave, atmosphere),
                 new Toggle("ambient_underwater", c.ambientUnderwater, atmosphere),
-                new Toggle("light_shafts", c.lightShafts, atmosphere).section("light"),
-                new Toggle("canopy_dapple", c.canopyDapple, atmosphere),
-                new Toggle("canopy_light", c.canopyLight, atmosphere),
+                new Toggle("light_shafts", c.lightShafts, atmosphere).alsoUnder(fx).preset(p -> p.lightShafts).section("light"),
+                new Toggle("canopy_dapple", c.canopyDapple, atmosphere).alsoUnder(fx).preset(p -> p.canopyDapple),
+                new Toggle("canopy_light", c.canopyLight, atmosphere).alsoUnder(fx),
+                new Toggle("clouds", c.clouds).alsoUnder(fx).preset(p -> p.clouds),
                 fog.section("fog"),
-                new Toggle("fog_detail", c.fogDetail, fog),
-                new Toggle("motes", c.motes, atmosphere).section("motion"),
-                new Toggle("critters", c.critters, atmosphere),
-                new Toggle("leaf_sway", c.leafSway, atmosphere),
-                new Toggle("water_life", c.waterLife, atmosphere),
-                new Toggle("underwater", c.underwater, atmosphere).section("underwater"),
-                new Toggle("cave_light", c.caveLight, atmosphere).section("cave"),
-                new Toggle("glow_bloom", c.glowBloom, atmosphere),
-                new Toggle("surface_bump", c.surfaceBump, atmosphere),
-                new Toggle("simple_ao", c.simpleAo, atmosphere),
+                new Toggle("fog_detail", c.fogDetail, fog).alsoUnder(fx),
+                new Toggle("motes", c.motes, atmosphere).alsoUnder(fx).section("motion"),
+                new Toggle("critters", c.critters, atmosphere).alsoUnder(fx),
+                new Toggle("leaf_sway", c.leafSway, atmosphere).alsoUnder(fx),
+                new Toggle("water_life", c.waterLife, atmosphere).alsoUnder(fx),
+                new Toggle("underwater", c.underwater, atmosphere).alsoUnder(fx).section("underwater"),
+                new Toggle("cave_light", c.caveLight, atmosphere).alsoUnder(fx).section("cave"),
+                new Toggle("glow_bloom", c.glowBloom, atmosphere).alsoUnder(fx).preset(p -> p.glowBloom),
+                new Toggle("surface_bump", c.surfaceBump, atmosphere).alsoUnder(fx).preset(p -> p.surfaceBump),
+                new Toggle("simple_ao", c.simpleAo, atmosphere).alsoUnder(fx).preset(p -> p.simpleAo),
                 new Percent("gaze_eye_scale", c.gazeEyeScale, 0, 100, "%").section("watched"),
                 new Toggle("gaze_inner_eyes", c.gazeInnerEyes),
                 new Toggle("gaze_pulse", c.gazePulse),
                 new Toggle("crowd_gpu", c.crowdGpuSkinning).section("horde"),   // 大群の描画(11-18 大群の軽量化 C)
-                new Choice<>("horde_look", c.hordeLook, com.yayuy.overgrownvegetation.client.crowd.HordeLook.values()));
+                new Choice<>("horde_look", c.hordeLook, com.yayuy.overgrownvegetation.client.crowd.HordeLook.values()).preset(p -> p.hordeLook));
     }
 
     /** 今の手元の値がどの段階と全部一致するか(どれとも違えば null = カスタム)。 */
     @Nullable
     private QualityPreset currentPreset() {
+        // 11-23: 親「この MOD の演出」がオフなら、ほかの値によらず「なし」({@link QualityPreset} の決まり)。
+        if (settings.stream().anyMatch(s -> s.id.equals("visual_effects") && Boolean.FALSE.equals(s.value()))) {
+            return QualityPreset.NONE;
+        }
         for (QualityPreset p : QualityPreset.values()) {
-            if (settings.stream().allMatch(s -> s.matches(p))) {
+            if (p != QualityPreset.NONE && settings.stream().allMatch(s -> s.matches(p))) {
                 return p;
             }
         }
@@ -208,9 +217,19 @@ public final class VisualSettingsScreen extends Screen {
             this.current = value.get();
         }
 
+        /** もう 1 つの親(見た目の項目の「この MOD の演出」。11-23)。 */
+        @Nullable
+        Toggle also;
+
+        /** 親をもう 1 つ足す(この項目はどちらの親もオンの間だけ押せる)。 */
+        Toggle alsoUnder(Toggle other) {
+            this.also = other;
+            return this;
+        }
+
         @Override
         boolean active() {
-            return parent == null || parent.current && parent.active();
+            return (parent == null || parent.current && parent.active()) && (also == null || also.current && also.active());
         }
 
         Component display() {
@@ -607,7 +626,10 @@ public final class VisualSettingsScreen extends Screen {
 
         private void apply(QualityPreset p) {
             for (Setting s : settings) {
-                s.applyPreset(p);
+                // 「なし」は親をオフにするだけで、ほかの値は残す(11-23)
+                if (p != QualityPreset.NONE || s.id.equals("visual_effects")) {
+                    s.applyPreset(p);
+                }
             }
             for (SettingEntry e : settingEntries) {
                 e.sync();
