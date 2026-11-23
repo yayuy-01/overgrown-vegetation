@@ -154,6 +154,7 @@ public final class FogLurkers {
 
     @SubscribeEvent
     public static void onHurt(LivingAttackEvent event) {
+        if (event.getEntity().level().isClientSide()) return; // 1.20.1: LivingAttackEvent はクライアントでも来る(1.21 の LivingIncomingDamageEvent はサーバーだけ)
         if (event.getEntity() instanceof Mob m && m.getTags().contains(TAG)) wakeUp(m);
     }
 

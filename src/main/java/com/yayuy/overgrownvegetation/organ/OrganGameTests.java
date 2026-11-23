@@ -457,6 +457,11 @@ public final class OrganGameTests {
             public boolean isCreative() {
                 return false;
             }
+
+            @Override
+            public boolean isLocalPlayer() {
+                return true; // 1.21 の makeMockPlayer と同じ
+            }
         };
         p.setPos(end.x, end.y - 0.5D, end.z);
         p.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);

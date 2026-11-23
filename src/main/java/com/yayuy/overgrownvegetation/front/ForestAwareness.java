@@ -247,6 +247,7 @@ public final class ForestAwareness {
 
     @SubscribeEvent
     public static void onDamage(LivingAttackEvent event) {
+        if (event.getEntity().level().isClientSide()) return; // 1.20.1: LivingAttackEvent はクライアントでも来る(1.21 の LivingIncomingDamageEvent はサーバーだけ)
         ServerPlayer p = attacker(event.getSource().getEntity());
         if (p == null) return;
         Act a = fightKind(event.getEntity());
