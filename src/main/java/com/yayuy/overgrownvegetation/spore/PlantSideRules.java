@@ -115,12 +115,16 @@ public final class PlantSideRules {
         return OVERRIDES_TICK_DEATH.get(e.getClass());
     }
 
+    // 1.20.1: 配る jar は SRG の名前(本流は実行時も Mojang の名前)。m_6153_ = LivingEntity#tickDeath。開発の起動では "tickDeath" に読み替わる
+    private static final String TICK_DEATH = net.minecraftforge.fml.util.ObfuscationReflectionHelper.remapName(
+            cpw.mods.modlauncher.api.INameMappingService.Domain.METHOD, "m_6153_");
+
     private static final ClassValue<Boolean> OVERRIDES_TICK_DEATH = new ClassValue<>() {
         @Override
         protected Boolean computeValue(Class<?> type) {
             for (Class<?> c = type; c != null && c != LivingEntity.class; c = c.getSuperclass()) {
                 try {
-                    c.getDeclaredMethod("tickDeath");
+                    c.getDeclaredMethod(TICK_DEATH);
                     return true;
                 } catch (NoSuchMethodException ignored) {
                     // 上へ

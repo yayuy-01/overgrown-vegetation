@@ -276,10 +276,11 @@ public final class FatigueTracker {
     private static Field sleepCounterField() {
         if (sleepCounterField != null || sleepCounterFieldFailed) return sleepCounterField;
         try {
-            Field f = Player.class.getDeclaredField("sleepCounter");
+            // 1.20.1: 配る jar は SRG の名前(本流は実行時も Mojang の名前)。f_36110_ = Player#sleepCounter。開発の起動では Forge が Mojang の名前に読み替える
+            Field f = net.minecraftforge.fml.util.ObfuscationReflectionHelper.findField(Player.class, "f_36110_");
             f.setAccessible(true);
             sleepCounterField = f;
-        } catch (ReflectiveOperationException | RuntimeException e) {
+        } catch (RuntimeException e) { // findField は見つからないと UnableToFindFieldException(実行時の例外)
             sleepCounterFieldFailed = true;
             OvergrownVegetation.LOGGER.error("疲労: Player#sleepCounter に届かない。昼の休みで夜まで飛ぶおそれ", e);
         }
