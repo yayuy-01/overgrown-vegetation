@@ -55,7 +55,7 @@ public final class G1Skill2GameTests {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registration {
         @SubscribeEvent
-        public static void onRegisterG1Skill2GameTests(RegisterGameTestsEvent event) // 1.20.1: Forge の受け手の包みは名前で使い回すので、クラスごとに名前を変える {
+        public static void onRegisterG1Skill2GameTests(RegisterGameTestsEvent event) { // 1.20.1: Forge の受け手の包みは名前で使い回すので、クラスごとに名前を変える
             event.register(G1Skill2GameTests.class);
         }
 
