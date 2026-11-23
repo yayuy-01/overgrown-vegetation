@@ -295,9 +295,40 @@ public final class CliffGameTests {
         z.setTarget(prey);
         int topY = h.absolutePos(new BlockPos(0, TOP + 1, 0)).getY();
         double[] best = {z.getY()};
+        java.util.ArrayDeque<String> trace = new java.util.ArrayDeque<>(); // 揺れの調べ(11-23): 落ちたときに直前の経過を出す
         h.onEachTick(() -> {
             if (z.getTarget() != prey) z.setTarget(prey);
             best[0] = Math.max(best[0], z.getY());
+            if (h.getTick() % 10 == 0) {
+                net.minecraft.world.level.pathfinder.Path pa = z.getNavigation().getPath();
+                Vec3 rp = h.relativeVec(z.position());
+                String next = pa == null ? "なし" : pa.isDone() ? "終わり" : (pa.getNextNodeIndex() + "/" + pa.getNodeCount() + "→" + h.relativeVec(Vec3.atLowerCornerOf(pa.getNextNodePos())));
+                trace.addLast(String.format("t%d(%.1f,%.1f,%.1f)%s%s %s%s", h.getTick(), rp.x, rp.y, rp.z, z.onGround() ? "地" : "宙", RootClimb.touching(z) ? "縄" : "",
+                        next, pa != null && pa.canReach() ? "届" : ""));
+                if (trace.size() > 6) trace.removeFirst();
+                if (h.getTick() == 1180 && z.getY() < topY - 0.01D) {
+                    // 落ちる直前: まわりのブロックと、今いる所からの試しの経路
+                    StringBuilder env = new StringBuilder(" まわり:");
+                    BlockPos bp = z.blockPosition();
+                    for (int dy = -1; dy <= 2; dy++) for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+                        BlockPos q = bp.offset(dx, dy, dz);
+                        net.minecraft.world.level.block.state.BlockState s = h.getLevel().getBlockState(q);
+                        if (s.isAir()) continue;
+                        String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath();
+                        env.append(' ').append(dx).append(',').append(dy).append(',').append(dz).append('=').append(id.replace("tangled_root", "縄").replace("stone", "石"));
+                    }
+                    long a0 = RootPath.addedCount, t0 = RootPath.touchCount;
+                    net.minecraft.world.level.pathfinder.Path probe = z.getNavigation().createPath(prey, 0);
+                    env.append(" 試し:").append(probe == null ? "null" : (probe.canReach() ? "届く" : "届かない") + probe.getNodeCount() + "節");
+                    if (probe != null) for (int i = 0; i < probe.getNodeCount(); i++) {
+                        Vec3 n = h.relativeVec(Vec3.atLowerCornerOf(probe.getNode(i).asBlockPos()));
+                        env.append(String.format(" (%.0f,%.0f,%.0f)", n.x, n.y, n.z));
+                    }
+                    env.append(" 縄の節 +").append(RootPath.addedCount - a0).append(" 取り付き +").append(RootPath.touchCount - t0)
+                            .append(" 延長 ").append(RootPath.climbAllowance(z, java.util.Set.of(prey.blockPosition())));
+                    trace.addLast(env.toString());
+                }
+            }
             if (h.getTick() % 40 == 0) {
                 if (h.getTick() == 40) {
                     net.minecraft.world.level.pathfinder.Path probe = z.getNavigation().createPath(prey, 0);
@@ -313,7 +344,7 @@ public final class CliffGameTests {
             }
         });
         h.succeedWhen(() -> {
-            h.assertTrue(z.getY() >= topY - 0.01D && z.onGround(), String.format("まだ崖の上にいない: 高さ %.1f(いちばん高く %.1f)・縄 %d・崖の縁 %d", z.getY() - (topY - TOP - 1), best[0] - (topY - TOP - 1), placed.ropes, placed.cliffEdges));
+            h.assertTrue(z.getY() >= topY - 0.01D && z.onGround(), String.format("まだ崖の上にいない: 高さ %.1f(いちばん高く %.1f)・縄 %d・崖の縁 %d・経過 %s", z.getY() - (topY - TOP - 1), best[0] - (topY - TOP - 1), placed.ropes, placed.cliffEdges, String.join(" ", trace)));
             OvergrownVegetation.LOGGER.info("[cliff test] 上った tick {}", h.getTick());
         });
     }
