@@ -305,7 +305,7 @@ public final class PlantSideBurstGameTests {
     /** プレイヤー: 傷で暴露量が上がる(防護マスクを被っていても)。今の 30% の抽選で感染に入ったら、その撃ちでは積まない(感染中は積まない決まり)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void woundRaisesPlayerDoseThroughMask(GameTestHelper helper) {
-        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.entity.player.Player player = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD,
                 new net.minecraft.world.item.ItemStack(com.yayuy.overgrownvegetation.registry.ModItems.PROTECTIVE_MASK.get()));
         double per = com.yayuy.overgrownvegetation.data.DesignData.sporeField().mobInfection().woundDosePlayerPerDamage();
@@ -628,7 +628,7 @@ public final class PlantSideBurstGameTests {
     /** ③4: プレイヤーの 30% の抽選は植物側(isInfector)の傷だけ。傷 0・植物側でない相手では、何度殴られてもかからない。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void playerLotteryOnlyOnPlantSideWounds(GameTestHelper helper) {
-        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.entity.player.Player player = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         Mob g1 = helper.spawnWithNoFreeWill(G1Species.ZOMBIE.entityType(), new Vec3(1.5, 2.0, 1.5));
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new Vec3(5.5, 2.0, 5.5));
         for (int i = 0; i < 60; i++) {
@@ -652,7 +652,7 @@ public final class PlantSideBurstGameTests {
     /** ③9: 創造モードのプレイヤーには暴露量がたまらない(観戦と同じ)。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void creativePlayerGetsNoExposure(GameTestHelper helper) {
-        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
+        net.minecraft.world.entity.player.Player player = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.CREATIVE);
         com.yayuy.overgrownvegetation.spore.SporeExposureTracker.tickWith(helper.getLevel(), player, 200, 80.0D);
         helper.assertTrue(com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player) == 0.0D,
                 "創造モードで暴露量がたまった: " + com.yayuy.overgrownvegetation.spore.SporeExposureTracker.dose(player));

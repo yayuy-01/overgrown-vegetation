@@ -28,9 +28,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -221,18 +219,18 @@ public final class GearTierGameTests {
             }
         }
         for (var type : List.of(RecipeType.SMELTING, RecipeType.BLASTING)) {
-            var r = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.RAW_CONDUIT.get())), level);
-            if (r.isEmpty() || !r.get().value().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_INGOT.get())) {
+            var r = level.getRecipeManager().getRecipeFor(type, new net.minecraft.world.SimpleContainer(new ItemStack(ModGear.RAW_CONDUIT.get())), level);
+            if (r.isEmpty() || !r.get().getResultItem(level.registryAccess()).is(ModGear.CONDUIT_INGOT.get())) {
                 helper.fail(type + " で原石が地金にならない");
                 return;
             }
-            var g = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.OVERGROWN_RAW_CONDUIT.get())), level);
-            if (g.isEmpty() || !g.get().value().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
+            var g = level.getRecipeManager().getRecipeFor(type, new net.minecraft.world.SimpleContainer(new ItemStack(ModGear.OVERGROWN_RAW_CONDUIT.get())), level);
+            if (g.isEmpty() || !g.get().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
                 helper.fail(type + " で黄緑の原石が黄緑の地金にならない");
                 return;
             }
-            var go = level.getRecipeManager().getRecipeFor(type, new SingleRecipeInput(new ItemStack(ModGear.OVERGROWN_CONDUIT_ORE.get())), level);
-            if (go.isEmpty() || !go.get().value().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
+            var go = level.getRecipeManager().getRecipeFor(type, new net.minecraft.world.SimpleContainer(new ItemStack(ModGear.OVERGROWN_CONDUIT_ORE.get())), level);
+            if (go.isEmpty() || !go.get().getResultItem(level.registryAccess()).is(ModGear.OVERGROWN_CONDUIT_INGOT.get())) {
                 helper.fail(type + " で飲み込まれた導晶鉱が黄緑の地金にならない");
                 return;
             }
@@ -264,7 +262,7 @@ public final class GearTierGameTests {
     /** 作業台の作り方のどれかが {@code result} を作り、材料に {@code ingredient} を使うか。 */
     static boolean craftedFrom(ServerLevel level, net.minecraft.world.item.Item result, net.minecraft.world.item.Item ingredient) {
         for (var holder : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
-            var r = holder.value();
+            var r = holder; // 1.20.1: RecipeHolder は無い
             if (!r.getResultItem(level.registryAccess()).is(result)) continue;
             for (var ing : r.getIngredients()) if (ing.test(new ItemStack(ingredient))) return true;
         }
@@ -481,18 +479,17 @@ public final class GearTierGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void conduitChargeSurvivesSave(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        var reg = level.registryAccess();
         ItemStack pick = new ItemStack(ModGear.CONDUIT_PICKAXE.get());
         LeyCharge.set(pick, 12345);
         pick.setDamageValue(7);
-        ItemStack back = ItemStack.parseOptional(reg, (CompoundTag) pick.save(reg));
+        ItemStack back = ItemStack.of(pick.save(new CompoundTag())); // 1.20.1: NBT の形
         if (!back.is(ModGear.CONDUIT_PICKAXE.get()) || LeyCharge.stored(back) != 12345 || back.getDamageValue() != 7) {
             helper.fail("道具を読み直すと力・傷が違う: " + LeyCharge.stored(back) + "・" + back.getDamageValue());
             return;
         }
         CompoundTag tag = new CompoundTag();
-        LeyBatteryHolder.save(tag, reg, pick);
-        ItemStack held = LeyBatteryHolder.load(tag, reg);
+        LeyBatteryHolder.save(tag, pick);
+        ItemStack held = LeyBatteryHolder.load(tag);
         if (LeyCharge.stored(held) != 12345) {
             helper.fail("電池の口に差したまま保存すると力が消える: " + LeyCharge.stored(held));
             return;

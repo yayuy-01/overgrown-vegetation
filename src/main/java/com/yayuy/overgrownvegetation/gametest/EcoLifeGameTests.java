@@ -141,9 +141,9 @@ public final class EcoLifeGameTests {
         helper.assertTrue(d.count() == 1 && "hylonomus".equals(d.species()), "中身が違う: " + d.count() + " " + d.species());
         helper.assertTrue(helper.getLevel().getBlockState(abs).getValue(com.yayuy.overgrownvegetation.ecosystem.life.EcoDenBlock.OCCUPIED), "入口の絵が「いる」にならない");
         // 保存して読み直す
-        net.minecraft.nbt.CompoundTag tag = d.saveWithFullMetadata(helper.getLevel().registryAccess());
+        net.minecraft.nbt.CompoundTag tag = d.saveWithFullMetadata();
         var copy = new com.yayuy.overgrownvegetation.ecosystem.life.EcoDenBlockEntity(abs, helper.getLevel().getBlockState(abs));
-        copy.loadWithComponents(tag, helper.getLevel().registryAccess());
+        copy.load(tag);
         helper.assertTrue(copy.count() == 1 && "hylonomus".equals(copy.species()), "保存して読み直すと中身が消える");
         // 出す
         java.util.List<Mob> out = new java.util.ArrayList<>();

@@ -250,7 +250,7 @@ public final class ClimbingVineGameTests {
             helper.fail("幹の脇の狙いの箱が広すぎる: " + box);
             return;
         }
-        net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.entity.player.Player player = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         player.setOnGround(true);
         net.minecraft.world.level.block.state.BlockState segment = level.getBlockState(trunkSide);
         float hand = segment.getDestroyProgress(player, level, trunkSide);

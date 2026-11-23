@@ -323,8 +323,8 @@ public final class G1Skill3GameTests {
         DevelopedParasitized skeleton = spawnDev(helper, G1Developed.SKELETON, new Vec3(3.5, 2.0, 1.0));
         skeleton.goalSelector.removeAllGoals(g -> true);
         Vec3 at = helper.absoluteVec(new Vec3(3.5, 2.0, 5.0));
-        Player shielded = helper.makeMockPlayer(GameType.SURVIVAL);
-        Player bare = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player shielded = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
+        Player bare = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         for (Player p : List.of(shielded, bare)) {
             p.setPos(at);
             p.setYRot(180.0F); // 北(−Z)= スケルトンの方を向く

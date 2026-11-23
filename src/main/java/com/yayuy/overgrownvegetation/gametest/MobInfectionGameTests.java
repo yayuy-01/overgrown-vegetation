@@ -222,7 +222,7 @@ public final class MobInfectionGameTests {
     /** プレイヤーと植物側は感染しない(プレイヤーは今の 10 段階のまま、植物側は測らない)。 */
     @GameTest(template = "gametest_empty7", batch = BATCH)
     public static void playersAndPlantSideAreExcluded(GameTestHelper helper) {
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.moveTo(helper.absoluteVec(new net.minecraft.world.phys.Vec3(3.5D, 2.0D, 3.5D)));
         for (int i = 0; i < stepsToInfect() * 2; i++) SporeExposureTracker.tickWith(helper.getLevel(), p, spec().countStepTicks(), exposedPercent());
         LivingEntity plant = (LivingEntity) com.yayuy.overgrownvegetation.registry.ModEntities.BLIGHT_FERN.get().create(helper.getLevel());

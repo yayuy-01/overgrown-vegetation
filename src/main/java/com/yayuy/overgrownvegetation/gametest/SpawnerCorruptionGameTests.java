@@ -101,26 +101,14 @@ public final class SpawnerCorruptionGameTests {
     /** スポナーの SpawnData と SpawnPotentials の中の Mob の id(重複なし、出てきた順)。 */
     private static List<String> spawnerIds(GameTestHelper helper, BlockPos pos) {
         ServerLevel level = helper.getLevel();
-        CompoundTag tag = level.getBlockEntity(pos).saveWithoutMetadata(level.registryAccess());
+        CompoundTag tag = level.getBlockEntity(pos).saveWithoutMetadata();
         List<String> ids = new ArrayList<>();
         collect(tag.get("SpawnData"), ids);
         collect(tag.get("SpawnPotentials"), ids);
         return ids;
     }
 
-    /**
-     * 試練のスポナーが今持っている通常・不吉の設定の Mob の id(それぞれの最初の 1 つ)。保存した NBT ではなく本体を見る
-     * —— バニラは不吉の設定が通常と同じなら保存を省き、読むときに通常から補う。
-     */
-    private static List<String> trialIds(GameTestHelper helper, BlockPos pos) {
-        var spawner = ((net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity) helper.getLevel().getBlockEntity(pos)).getTrialSpawner();
-        List<String> ids = new ArrayList<>();
-        for (var config : List.of(spawner.getNormalConfig(), spawner.getOminousConfig())) {
-            var entries = config.spawnPotentialsDefinition().unwrap();
-            ids.add(entries.isEmpty() ? "(無し)" : entries.get(0).data().entityToSpawn().getString("id"));
-        }
-        return ids;
-    }
+    // 1.20.1: 試練のスポナーは無い(決定 1)ので、その Mob の id を読む助け手 trialIds は外した。
 
     private static void collect(Tag tag, List<String> out) {
         if (tag instanceof CompoundTag compound) {

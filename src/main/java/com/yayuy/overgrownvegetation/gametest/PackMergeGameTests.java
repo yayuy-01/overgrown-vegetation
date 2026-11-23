@@ -58,7 +58,7 @@ public final class PackMergeGameTests {
 
     /** 動いている個体にする(11-18 A: まとめるのは群れが動くときだけ)。相手に偽のプレイヤーを渡す。 */
     private static void aim(GameTestHelper helper, List<? extends Mob> ms) {
-        net.minecraft.world.entity.player.Player p = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.entity.player.Player p = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         p.setPos(Vec3.atCenterOf(helper.absolutePos(new net.minecraft.core.BlockPos(3, 2, 30))));
         for (Mob m : ms) m.setTarget(p);
     }

@@ -268,7 +268,7 @@ public final class FalcimnesGameTests {
         husk.setInvulnerable(true);
         // 本体(x 2.7〜4.3・z 0.7〜2.3)に触れない隅に置く(触れるとボートが本体を乗せてしまう)。
         Boat boat = helper.spawn(EntityType.BOAT, new Vec3(1.0D, 2.0D, 5.5D));
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         DamageSource punch = helper.getLevel().damageSources().playerAttack(player);
         if (!f.grab(husk)) {
             helper.fail("ハスクを掴めない");
@@ -332,7 +332,7 @@ public final class FalcimnesGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 60)
     public static void hitDuringThreatLowersTheScythes(GameTestHelper helper) {
         FalcimnesEntity f = place(helper);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         DamageSource punch = helper.getLevel().damageSources().playerAttack(player);
         f.forceAction(FalcimnesEntity.ACT_THREAT);
         helper.runAfterDelay(20L, () -> {
@@ -397,7 +397,7 @@ public final class FalcimnesGameTests {
     public static void hitStopsAnIdleFidget(GameTestHelper helper) {
         FalcimnesEntity f = place(helper);
         f.setNoAi(true);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         DamageSource punch = helper.getLevel().damageSources().playerAttack(player);
         f.startIdle(FalcimnesEntity.IDLE_GAPE);
         helper.runAfterDelay(10L, () -> {
@@ -435,7 +435,7 @@ public final class FalcimnesGameTests {
     public static void fifteenDamageBreaksTheGrip(GameTestHelper helper) {
         FalcimnesEntity f = placeForGrab(helper);
         Sheep sheep = helper.spawnWithNoFreeWill(EntityType.SHEEP, new BlockPos(3, 2, 4));
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         // 素手(適応の台帳は「unarmed」、誰も積んでいないので回避も軽減も起きない)。
         DamageSource punch = helper.getLevel().damageSources().playerAttack(player);
         if (!f.grab(sheep)) {
@@ -471,7 +471,7 @@ public final class FalcimnesGameTests {
         MinecraftServer server = helper.getLevel().getServer();
         String species = Adaptation.speciesId(ModEntities.FALCIMNES.get());
         FalcimnesEntity f = place(helper);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
         DamageSource sword = helper.getLevel().damageSources().playerAttack(player);
         try {
@@ -720,7 +720,7 @@ public final class FalcimnesGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 60)
     public static void turnIsLimitedToSevenDegreesPerTick(GameTestHelper helper) {
         FalcimnesEntity f = place(helper);
-        Player behind = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player behind = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         behind.moveTo(helper.absoluteVec(new net.minecraft.world.phys.Vec3(3.5D, 2.0D, -1.5D)));
         float[] last = {Float.NaN};
         float[] turned = {0.0F};
@@ -769,7 +769,7 @@ public final class FalcimnesGameTests {
         MinecraftServer server = helper.getLevel().getServer();
         String species = Adaptation.speciesId(ModEntities.FALCIMNES.get());
         FalcimnesEntity f = place(helper);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         // 本体は (3.5, 2, 1.5) で +Z を向いている。右は −X。
         player.moveTo(helper.absoluteVec(new net.minecraft.world.phys.Vec3(0.5D, 2.0D, 1.5D)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
@@ -810,7 +810,7 @@ public final class FalcimnesGameTests {
         MinecraftServer server = helper.getLevel().getServer();
         String species = Adaptation.speciesId(ModEntities.FALCIMNES.get());
         FalcimnesEntity f = place(helper);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
         DamageSource sword = helper.getLevel().damageSources().playerAttack(player);
         try {
@@ -1287,7 +1287,7 @@ public final class FalcimnesGameTests {
     @GameTest(template = "gametest_empty7", timeoutTicks = 20)
     public static void hitPartsTakeCriticalHits(GameTestHelper helper) {
         FalcimnesEntity f = place(helper);
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
         helper.runAfterDelay(2L, () -> {
             var part = f.hitParts().part(f.hitParts().indexOf("abdomen_a"));
@@ -1331,7 +1331,7 @@ public final class FalcimnesGameTests {
         FalcimnesEntity f = place(helper);
         helper.runAfterDelay(2L, () -> {
             var part = f.hitParts().part(f.hitParts().indexOf("head"));
-            part.igniteForSeconds(4.0F);
+            part.setSecondsOnFire(4); // 1.20.1: igniteForSeconds は無い
             if (f.getRemainingFireTicks() < 60) {
                 helper.fail("部位に付けた火が本体に移らない: " + f.getRemainingFireTicks());
                 return;

@@ -552,7 +552,7 @@ public final class VenamnesGameTests {
     }
 
     private static net.minecraft.world.entity.player.Player watcher(GameTestHelper helper, VenamnesEntity v) {
-        net.minecraft.world.entity.player.Player pl = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        net.minecraft.world.entity.player.Player pl = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
         Vec3 at = helper.absoluteVec(new Vec3(3.5D, 2.0D, 3.0D));
         pl.moveTo(at.x, at.y, at.z, 180.0F, 0.0F);   // 北(ヴェナムネスの方)を向く
         pl.setYHeadRot(180.0F);

@@ -235,7 +235,7 @@ public final class GenericInfectionGameTests {
     @GameTest(template = "gametest_empty7", batch = BATCH)
     public static void ownerConversionAndRevert(GameTestHelper helper) {
         net.minecraft.world.entity.animal.Wolf wolf = helper.spawnWithNoFreeWill(EntityType.WOLF, new BlockPos(1, 2, 1));
-        wolf.setTame(true, false);
+        wolf.setTame(true);
         wolf.setOwnerUUID(java.util.UUID.randomUUID());
         int targetsBefore = wolf.targetSelector.getAvailableGoals().size();
         GenericInfection.turn(wolf, true);
@@ -245,7 +245,7 @@ public final class GenericInfectionGameTests {
         }
         Mob husk = helper.spawnWithNoFreeWill(EntityType.HUSK, new BlockPos(5, 2, 5));
         GenericInfection.turn(husk, true);
-        if (net.neoforged.neoforge.event.EventHooks.canLivingConvert(husk, EntityType.ZOMBIE, t -> {
+        if (net.minecraftforge.event.ForgeEventFactory.canLivingConvert(husk, EntityType.ZOMBIE, t -> {
         })) {
             helper.fail("変わったハスクが変身できる");
             return;
@@ -266,9 +266,9 @@ public final class GenericInfectionGameTests {
         Horse h = helper.spawnWithNoFreeWill(EntityType.HORSE, new BlockPos(5, 2, 5));
         GenericInfection.turn(h, true);
         int before = com.yayuy.overgrownvegetation.infect.GenericInfectionVoice.playedCount;
-        plain.makeSound(net.minecraft.sounds.SoundEvents.HORSE_AMBIENT);
+        plain.playAmbientSound(); // 1.20.1: makeSound は無い(G7 の mixin は playAmbientSound の中の playSound を見る)
         int afterPlain = com.yayuy.overgrownvegetation.infect.GenericInfectionVoice.playedCount;
-        h.makeSound(net.minecraft.sounds.SoundEvents.HORSE_AMBIENT);
+        h.playAmbientSound(); // 1.20.1: makeSound は無い(G7 の mixin は playAmbientSound の中の playSound を見る)
         int afterTurned = com.yayuy.overgrownvegetation.infect.GenericInfectionVoice.playedCount;
         if (afterPlain != before || afterTurned != before + 1) {
             helper.fail("声の差し替えの数が違う: 変わっていない馬で +" + (afterPlain - before) + "・変わった馬で +" + (afterTurned - afterPlain));
@@ -684,7 +684,7 @@ public final class GenericInfectionGameTests {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE)
     public static final class SporeImmunity {
         @SubscribeEvent
-        public static void onIncoming(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+        public static void onIncoming(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
             if (event.getEntity().getTags().contains(SPORE_IMMUNE_TAG)
                     && event.getSource().is(com.yayuy.overgrownvegetation.registry.ModDamageTypes.SPORE_INFECTION)) {
                 event.setCanceled(true);

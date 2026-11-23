@@ -263,7 +263,7 @@ public final class WaterSporeGameTests {
     @GameTest(template = "gametest_empty7", batch = "water_spore")
     public static void sproutlingStepsOneBlock(GameTestHelper helper) {
         BlightFernEntity fern = helper.spawnWithNoFreeWill(ModEntities.BLIGHT_FERN.get(), new BlockPos(3, 2, 3));
-        double step = fern.getAttributeValue(PortAttributes.STEP_HEIGHT.get());
+        double step = fern.getStepHeight(); // 1.20.1: 属性は Forge の 0.6 への足し分(PortAttributes.stepHeightBase)。実際の段差の高さで見る
         helper.assertTrue(Math.abs(step - 1.0D) < 1.0E-6D, "段差の高さが 1 でない: " + step);
         helper.succeed();
     }

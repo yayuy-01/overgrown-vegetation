@@ -235,7 +235,7 @@ public final class G1Skill2GameTests {
         DevelopedParasitized sheep = spawnDev(helper, G1Developed.SHEEP, new Vec3(3.5, 2.0, 3.5));
         sheep.goalSelector.removeAllGoals(g -> true);
         Cow near = spawnCow(helper, new Vec3(3.5, 2.0, 2.2));
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHEARS));
         helper.runAfterDelay(5, () -> {
             helper.assertTrue(sheep.interact(player, InteractionHand.MAIN_HAND).consumesAction(), "鋏で刈れない");
@@ -555,9 +555,9 @@ public final class G1Skill2GameTests {
         spawnCow(helper, new Vec3(4.5, 3.2, 4.5));
         DevelopedParasitized chicken = spawnDev(helper, G1Developed.CHICKEN, new Vec3(1.5, 3.2, 1.5));
         chicken.goalSelector.removeAllGoals(g -> true);
-        helper.assertTrue(CorruptedEggBlock.tramples(helper.getLevel(), helper.makeMockPlayer(GameType.SURVIVAL)), "サバイバルのプレイヤーが割れない");
-        helper.assertTrue(CorruptedEggBlock.tramples(helper.getLevel(), helper.makeMockPlayer(GameType.CREATIVE)), "創造のプレイヤーが割れない");
-        helper.assertTrue(!CorruptedEggBlock.tramples(helper.getLevel(), helper.makeMockPlayer(GameType.SPECTATOR)), "観戦のプレイヤーが割れる");
+        helper.assertTrue(CorruptedEggBlock.tramples(helper.getLevel(), GtCompat.mockPlayer(helper, GameType.SURVIVAL)), "サバイバルのプレイヤーが割れない");
+        helper.assertTrue(CorruptedEggBlock.tramples(helper.getLevel(), GtCompat.mockPlayer(helper, GameType.CREATIVE)), "創造のプレイヤーが割れない");
+        helper.assertTrue(!CorruptedEggBlock.tramples(helper.getLevel(), GtCompat.mockPlayer(helper, GameType.SPECTATOR)), "観戦のプレイヤーが割れる");
         helper.assertTrue(!CorruptedEggBlock.tramples(helper.getLevel(), chicken), "植物側が割れる");
         helper.runAfterDelay(60, () -> {
             helper.assertBlockPresent(Blocks.AIR, trampled);

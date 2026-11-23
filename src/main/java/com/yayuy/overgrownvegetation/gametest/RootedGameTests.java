@@ -135,7 +135,7 @@ public final class RootedGameTests {
         int[] windupTicks = {0};
         helper.onEachTick(() -> {
             if (m.action() == RootedParasitized.ACTION_SHOOT_WINDUP) windupTicks[0]++;
-            List<G1SporeLump> lumps = helper.getLevel().getEntitiesOfClass(G1SporeLump.class, helper.getBounds().inflate(1.0D),
+            List<G1SporeLump> lumps = helper.getLevel().getEntitiesOfClass(G1SporeLump.class, GtCompat.bounds(helper).inflate(1.0D),
                     l -> l.getOwner() == m);
             if (lumps.isEmpty()) return;
             helper.assertTrue(windupTicks[0] >= R.shootWindup - 1, "溜めが短い: " + windupTicks[0] + " < " + R.shootWindup);
@@ -223,7 +223,7 @@ public final class RootedGameTests {
         int omen = DesignData.director().rootOmenTicks;
         helper.runAfterDelay(20 + omen + 6, () -> {
             helper.assertTrue(zombie.isRemoved(), "根を下ろしても段階 0 が残っている");
-            List<RootedParasitized> found = helper.getLevel().getEntitiesOfClass(RootedParasitized.class, helper.getBounds());
+            List<RootedParasitized> found = helper.getLevel().getEntitiesOfClass(RootedParasitized.class, GtCompat.bounds(helper));
             helper.assertTrue(found.size() == 1, "根付きのゾンビが 1 体でない: " + found.size());
             RootedParasitized rooted = found.get(0);
             helper.assertTrue(rooted.rooted() == G1Rooted.ZOMBIE && rooted.isEmerging(), "生え始めていない");
@@ -241,12 +241,12 @@ public final class RootedGameTests {
         m.setCooldownsForTests(9999, 9999, 0);
         helper.runAfterDelay(5, () -> {
             helper.assertTrue(helper.getLevel().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class,
-                    helper.getBounds()).isEmpty(), "叩かれる前から煙が出ている");
+                    GtCompat.bounds(helper)).isEmpty(), "叩かれる前から煙が出ている");
             m.hurt(helper.getLevel().damageSources().mobAttack(cow), 1.0F);
         });
         helper.onEachTick(() -> {
             List<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud> clouds = helper.getLevel().getEntitiesOfClass(
-                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, helper.getBounds());
+                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, GtCompat.bounds(helper));
             if (clouds.isEmpty()) return;
             clouds.forEach(net.minecraft.world.entity.Entity::discard);
             m.discard();
@@ -297,7 +297,7 @@ public final class RootedGameTests {
         keepTarget(helper, m, cow);
         helper.onEachTick(() -> {
             List<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt> bolts = helper.getLevel().getEntitiesOfClass(
-                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt.class, helper.getBounds().inflate(1.0D), b -> b.getOwner() == m);
+                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeBolt.class, GtCompat.bounds(helper).inflate(1.0D), b -> b.getOwner() == m);
             if (bolts.isEmpty()) return;
             helper.assertTrue(bolts.get(0).getY() > m.getY() + 3.5D, "弾が弓の高さから出ていない: " + (bolts.get(0).getY() - m.getY()));
             // 根付きは +Z を向く。牛は (+X, +Z) の斜め = 正面から左へ 45°(左 = +X)
@@ -330,7 +330,7 @@ public final class RootedGameTests {
         });
         helper.runAfterDelay(5 + 26 + 45, () -> {
             List<com.yayuy.overgrownvegetation.entity.RootGuardian> all = helper.getLevel().getEntitiesOfClass(
-                    com.yayuy.overgrownvegetation.entity.RootGuardian.class, helper.getBounds());
+                    com.yayuy.overgrownvegetation.entity.RootGuardian.class, GtCompat.bounds(helper));
             helper.assertTrue(all.size() == 1, "守り手が 1 体でない: " + all.size());
             helper.assertTrue(!all.get(0).isEmerging() && all.get(0).getTarget() == cow, "守り手が殴ってきた相手を狙っていない");
             all.forEach(net.minecraft.world.entity.Entity::discard);
@@ -374,7 +374,7 @@ public final class RootedGameTests {
         helper.onEachTick(() -> {
             if (m.action() == RootedParasitized.ACTION_SHOOT_WINDUP) windup[0]++;
             List<com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud> clouds = helper.getLevel().getEntitiesOfClass(
-                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, helper.getBounds());
+                    com.yayuy.overgrownvegetation.entity.g1.skill.G1SporeCloud.class, GtCompat.bounds(helper));
             if (clouds.isEmpty()) return;
             helper.assertTrue(windup[0] >= G1Rooted.COW.shootWindup - 1, "溜めが短い: " + windup[0]);
             helper.assertTrue(cow.getHealth() == 200.0F, "背から咲く型が獲物を打った(薙ぎ払いは無いはず)");
@@ -392,7 +392,7 @@ public final class RootedGameTests {
         m.setCooldownsForTests(9999, 9999, 0);
         helper.onEachTick(() -> {
             List<com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle> puddles = helper.getLevel().getEntitiesOfClass(
-                    com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle.class, helper.getBounds().inflate(6.0D),
+                    com.yayuy.overgrownvegetation.entity.g1.skill.G1MilkPuddle.class, GtCompat.bounds(helper).inflate(6.0D),
                     p -> p.distanceTo(m) < 7.0D);
             if (puddles.isEmpty()) return;
             puddles.forEach(net.minecraft.world.entity.Entity::discard);
@@ -557,7 +557,7 @@ public final class RootedGameTests {
         helper.runAfterDelay(20 + omen + 10, () -> {
             helper.assertTrue(sawOmen[0], "根を下ろそうとしていない");
             helper.assertTrue(zombie.isAlive(), "入らないのに入れ替わった");
-            helper.assertTrue(helper.getLevel().getEntitiesOfClass(RootedParasitized.class, helper.getBounds()).isEmpty(), "入らない所に根付きが出た");
+            helper.assertTrue(helper.getLevel().getEntitiesOfClass(RootedParasitized.class, GtCompat.bounds(helper)).isEmpty(), "入らない所に根付きが出た");
             helper.assertTrue(fate.route() == com.yayuy.overgrownvegetation.director.ForestDirector.Route.ROOTED && fate.walkingAway(),
                     "入らなかっただけで根付きを諦めた: " + fate.route() + " / 前兆 " + zombie.omen());
             zombie.discard();

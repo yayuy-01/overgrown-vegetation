@@ -359,7 +359,7 @@ public final class BaseMemoryGameTests {
         helper.assertTrue(copy.march().active() && copy.march().baseId() == farBase.id(), "使いが保存されていない");
         z.fate().beginEvolve();
         helper.runAfterDelay(DesignData.director().evolveOmenTicks + 10, () -> {
-            List<DevelopedParasitized> dev = helper.getLevel().getEntitiesOfClass(DevelopedParasitized.class, helper.getBounds());
+            List<DevelopedParasitized> dev = helper.getLevel().getEntitiesOfClass(DevelopedParasitized.class, GtCompat.bounds(helper));
             helper.assertTrue(dev.size() == 1, "進化していない: " + dev.size());
             DevelopedParasitized d = dev.get(0);
             helper.assertTrue(d.march().active() && d.march().baseId() == farBase.id(), "進化したら拠点へ向かわなくなった");

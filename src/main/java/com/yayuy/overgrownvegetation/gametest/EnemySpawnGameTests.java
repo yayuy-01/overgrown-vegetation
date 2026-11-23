@@ -234,7 +234,7 @@ public final class EnemySpawnGameTests {
             long spawnedBefore = DirectorHooks.sentSpawned;
             double budget0 = director.available(level);
             int sentG3 = DirectorHooks.send(level, b, 1, RandomSource.create(4L), 3);
-            List<Mob> g3s = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(4.0D),
+            List<Mob> g3s = level.getEntitiesOfClass(Mob.class, GtCompat.bounds(helper).inflate(4.0D),
                     m -> PlantMarch.active(m) && DirectorHooks.groupOf(m.getType()) == 3);
             made.addAll(g3s);
             helper.assertTrue(sentG3 == 1 && DirectorHooks.sentSpawned == spawnedBefore + 1 && g3s.size() == 1,

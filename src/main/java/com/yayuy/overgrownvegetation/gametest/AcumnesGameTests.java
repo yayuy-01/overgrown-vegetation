@@ -470,7 +470,7 @@ public final class AcumnesGameTests {
             if (z.getHealth() < hp0) helper.fail("縫い止めが狙撃の長さで撃った(約 3 秒のはず)");
         });
         helper.runAfterDelay(AcumnesEntity.PIN_AIM_TICKS + 8, () -> {
-            if (!z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED)) {
+            if (!z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED.get())) {
                 helper.fail("縫い止められていない(体力 " + z.getHealth() + ")");
                 return;
             }
@@ -484,7 +484,7 @@ public final class AcumnesGameTests {
             }
         });
         helper.runAfterDelay(AcumnesEntity.PIN_AIM_TICKS + 40, () -> {
-            if (z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED)) {
+            if (z.hasEffect(com.yayuy.overgrownvegetation.registry.ModMobEffects.ACUMNES_PINNED.get())) {
                 helper.fail("1 秒で解けない");
                 return;
             }

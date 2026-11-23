@@ -26,7 +26,6 @@ import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -286,9 +285,9 @@ public final class VentGameTests {
         OvItemData.set(f, ModVent.FILTER_WASHES.get(), 2);
         vent.setFilter(f);
         ServerLevel level = helper.getLevel();
-        CompoundTag tag = vent.saveWithFullMetadata(level.registryAccess());
+        CompoundTag tag = vent.saveWithFullMetadata();
         VentBlockEntity copy = new VentBlockEntity(vent.getBlockPos(), vent.getBlockState());
-        copy.loadWithComponents(tag, level.registryAccess());
+        copy.load(tag);
         if (copy.energy() != 1234 || AirFilters.used(copy.filter()) != 4321 || AirFilters.washes(copy.filter()) != 2) {
             helper.fail("保存と復元で変わった: FE " + copy.energy() + "・詰まり " + AirFilters.used(copy.filter())
                     + "・洗った回数 " + AirFilters.washes(copy.filter()));
@@ -366,7 +365,7 @@ public final class VentGameTests {
     /** 詰まったマスクにフィルターを重ねると入れ替わる: マスクは新品に、古いフィルター(詰まりそのまま)が手か持ち物に戻る。 */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void maskFilterSwaps(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         ItemStack mask = new ItemStack(ModItems.PROTECTIVE_MASK.get());
         int cap = (int) Math.ceil(AirFilters.capacity(mask));
         OvItemData.set(mask, ModDataComponents.MASK_FILTER_USED, cap);
@@ -376,7 +375,7 @@ public final class VentGameTests {
         }
         // つかんでいるのが 2 枚: 1 枚がマスクへ、古いのは持ち物へ
         ItemStack[] hand = {new ItemStack(ModVent.AIR_FILTER.get(), 2)};
-        SlotAccess access = SlotAccess.of(() -> hand[0], s -> hand[0] = s);
+        SlotAccess access = GtCompat.slotAccess(() -> hand[0], s -> hand[0] = s);
         ProtectiveMaskItem.swapFilter(mask, hand[0], player, access);
         if (ProtectiveMaskItem.used(mask) != 0 || hand[0].getCount() != 1) {
             helper.fail("2 枚から 1 枚入らない: マスクの詰まり " + ProtectiveMaskItem.used(mask) + "・手 " + hand[0].getCount());
@@ -520,7 +519,7 @@ public final class VentGameTests {
      */
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void ventNeedsRoomAbove(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         BlockPos floorRel = new BlockPos(3, 1, 3);
         BlockPos rel = floorRel.above();
         BlockPos stoneRel = rel.above(2);
@@ -569,8 +568,8 @@ public final class VentGameTests {
                 helper.fail("作り方が読み込まれていない: " + id);
                 return;
             }
-            RecipeHolder<?> r = holder.get();
-            for (Ingredient in : r.value().getIngredients()) {
+            var r = holder.get(); // 1.20.1: RecipeHolder は無い
+            for (Ingredient in : r.getIngredients()) {
                 for (ItemStack s : in.getItems()) {
                     if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).getNamespace().equals("minecraft")) {
                         helper.fail(id + " の材料にバニラでない物: " + s);

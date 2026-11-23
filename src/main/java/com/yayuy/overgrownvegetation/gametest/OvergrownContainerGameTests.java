@@ -11,7 +11,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
-import net.minecraft.world.RandomizableContainer;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -143,17 +143,17 @@ public final class OvergrownContainerGameTests {
     public static void lootChestDoesNotDuplicate(GameTestHelper helper) {
         BlockPos rel = new BlockPos(3, 1, 3);
         helper.setBlock(rel, Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, Direction.NORTH));
-        RandomizableContainer chest = (RandomizableContainer) helper.<BlockEntity>getBlockEntity(rel);
-        chest.setLootTable(BuiltInLootTables.VILLAGE_WEAPONSMITH);
+        RandomizableContainerBlockEntity chest = (RandomizableContainerBlockEntity) helper.<BlockEntity>getBlockEntity(rel);
+        chest.setLootTable(BuiltInLootTables.VILLAGE_WEAPONSMITH, 0L); // 1.20.1: 種の引数が要る
 
         corruptNow(helper, rel);
 
         helper.runAfterDelay(5, () -> {
             helper.assertBlockPresent(ModBlocks.OVERGROWN_CHEST.get(), rel);
             assertNoDrops(helper);
-            RandomizableContainer fresh = (RandomizableContainer) helper.<BlockEntity>getBlockEntity(rel);
-            helper.assertTrue(BuiltInLootTables.VILLAGE_WEAPONSMITH.equals(fresh.getLootTable()),
-                    "loot table not carried over: " + fresh.getLootTable());
+            RandomizableContainerBlockEntity fresh = (RandomizableContainerBlockEntity) helper.<BlockEntity>getBlockEntity(rel);
+            helper.assertTrue(BuiltInLootTables.VILLAGE_WEAPONSMITH.equals(GtCompat.lootTable(fresh)),
+                    "loot table not carried over: " + GtCompat.lootTable(fresh));
             // 開封(getItem)で 1 回だけ生成される。生成後はルートテーブルが消え、落下アイテムは依然として無い。
             int generated = 0;
             Container container = (Container) fresh;
@@ -161,7 +161,7 @@ public final class OvergrownContainerGameTests {
                 generated += container.getItem(i).getCount();
             }
             helper.assertTrue(generated > 0, "loot table did not generate on open");
-            helper.assertTrue(fresh.getLootTable() == null, "loot table should be consumed after open");
+            helper.assertTrue(GtCompat.lootTable(fresh) == null, "loot table should be consumed after open");
             assertNoDrops(helper);
             helper.succeed();
         });
@@ -231,7 +231,7 @@ public final class OvergrownContainerGameTests {
     }
 
     private static void assertNoDrops(GameTestHelper helper) {
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
+        List<ItemEntity> drops = GtCompat.entities(helper, EntityType.ITEM);
         helper.assertTrue(drops.isEmpty(), "items were dropped on conversion: " + drops.stream()
                 .map(e -> e.getItem().toString()).toList());
     }

@@ -64,12 +64,12 @@ public final class VirtualHordeGameTests {
 
     /** テスト場の中の印つきの本物の数。 */
     private static int realIn(GameTestHelper helper) {
-        AABB box = helper.getBounds().inflate(16.0D);
+        AABB box = GtCompat.bounds(helper).inflate(16.0D);
         return helper.getLevel().getEntitiesOfClass(Mob.class, box, m -> m.isAlive() && m.getTags().contains(VirtualHordes.TAG)).size();
     }
 
     private static void cleanup(GameTestHelper helper) {
-        AABB box = helper.getBounds().inflate(16.0D);
+        AABB box = GtCompat.bounds(helper).inflate(16.0D);
         for (Mob m : helper.getLevel().getEntitiesOfClass(Mob.class, box, m -> m.getTags().contains(VirtualHordes.TAG))) m.discard();
         VirtualHordes.playersForTests = null;
         VirtualHordes.realCapForTests = null;
@@ -164,7 +164,7 @@ public final class VirtualHordeGameTests {
         VirtualHordes.Swarm s = h.spawn(c.x, c.y, c.z, -1, c.x + 300.0D, c.z, "", Map.of(g1, 4));
         expectTrue(helper, s != null && s.size() == 4, "G1 の群れを作れない");
         h.materialize(helper.getLevel(), DesignData.perf());
-        AABB box = helper.getBounds().inflate(16.0D);
+        AABB box = GtCompat.bounds(helper).inflate(16.0D);
         List<com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster> got = helper.getLevel().getEntitiesOfClass(
                 com.yayuy.overgrownvegetation.entity.AbstractParasitizedMonster.class, box, m -> m.getTags().contains(VirtualHordes.TAG));
         boolean marching = !got.isEmpty() && got.stream().allMatch(m -> m.march().active());

@@ -226,47 +226,7 @@ public final class CodeReview2GameTests {
         helper.succeed();
     }
 
-    /** ②12(ユーザー決定 5): クラフターも、研究の節が開いていない作り方は作れない。開けば作れる。 */
-    @GameTest(template = "gametest_empty7", batch = "review2_crafter_lock", timeoutTicks = 20)
-    public static void crafterHonoursResearchLock(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        ResearchData.get(server).clearAll();
-        try {
-            for (ResearchTree.Node n : ResearchTree.get().nodes().values()) {
-                for (net.minecraft.resources.ResourceLocation id : n.unlocks()) {
-                    var holder = server.getRecipeManager().byKey(id).orElse(null);
-                    if (holder == null || !(holder.value() instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped)) continue;
-                    List<ItemStack> items = new ArrayList<>();
-                    boolean ok = true;
-                    for (net.minecraft.world.item.crafting.Ingredient ing : shaped.getIngredients()) {
-                        if (ing.isEmpty()) {
-                            items.add(ItemStack.EMPTY);
-                            continue;
-                        }
-                        ItemStack[] opts = ing.getItems();
-                        if (opts.length == 0) {
-                            ok = false;
-                            break;
-                        }
-                        items.add(opts[0].copy());
-                    }
-                    if (!ok) continue;
-                    var input = net.minecraft.world.item.crafting.CraftingInput.of(shaped.getWidth(), shaped.getHeight(), items);
-                    var found = net.minecraft.world.level.block.CrafterBlock.getPotentialResults(level, input);
-                    helper.assertTrue(found.isEmpty() || !found.get().id().equals(id), "研究で閉じた作り方 " + id + " をクラフターが作れる");
-                    Research.open(server, n.id(), false);
-                    var after = net.minecraft.world.level.block.CrafterBlock.getPotentialResults(level, input);
-                    helper.assertTrue(after.isPresent(), "研究を開いてもクラフターが " + id + " を作れない");
-                    helper.succeed();
-                    return;
-                }
-            }
-            helper.fail("試せる形のある作り方が研究ツリーに無い");
-        } finally {
-            ResearchData.get(server).clearAll();
-        }
-    }
+    // 1.20.1: ②12 crafterHonoursResearchLock(クラフターも研究の鍵に従う)は外した。1.20.1 に自動作業台は無い(決定 14)。
 
     private static Mob spawnAttacker(ServerLevel level, Vec3 at, double raid, List<Mob> made) {
         Mob m = (Mob) gregaria().create(level);

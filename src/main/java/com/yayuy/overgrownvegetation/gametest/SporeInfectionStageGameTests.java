@@ -24,7 +24,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.common.EffectCures;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.event.RegisterGameTestsEvent;
@@ -121,8 +120,8 @@ public final class SporeInfectionStageGameTests {
                 return;
             }
             EffectTable.StageSpec ten = spec.stage(stage);
-            AttributeModifier armor = player.getAttribute(Attributes.ARMOR).getModifier(ARMOR_ID);
-            if (armor == null || Math.abs(armor.amount() + ten.armorReduction()) > 1.0E-6D) {
+            AttributeModifier armor = com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(player.getAttribute(Attributes.ARMOR), ARMOR_ID);
+            if (armor == null || Math.abs(armor.getAmount() + ten.armorReduction()) > 1.0E-6D) {
                 helper.fail("感染10 の防御力の低下が " + ten.armorReduction() + " でない: " + armor);
                 return;
             }
@@ -131,7 +130,7 @@ public final class SporeInfectionStageGameTests {
                 return;
             }
             SporeInfectionEffects.setPlayerStage(player, 0);
-            if (player.getMaxHealth() != baseMax || player.getAttribute(Attributes.ARMOR).getModifier(ARMOR_ID) != null) {
+            if (player.getMaxHealth() != baseMax || com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(player.getAttribute(Attributes.ARMOR), ARMOR_ID) != null) {
                 helper.fail("治ったのに最大体力・防御力が戻らない");
                 return;
             }
@@ -294,7 +293,7 @@ public final class SporeInfectionStageGameTests {
         FakePlayer player = player(helper, "ov_spore_stage_milk");
         try {
             SporeInfectionEffects.setPlayerStage(player, 3);
-            player.removeEffectsCuredBy(EffectCures.MILK);
+            player.curePotionEffects(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.MILK_BUCKET)); // 1.20.1: 牛乳で治す口
             if (SporeInfectionEffects.stageOf(player) != 3) {
                 helper.fail("牛乳で治った(段階 " + SporeInfectionEffects.stageOf(player) + ")");
                 return;

@@ -333,7 +333,7 @@ public final class G1StrikeAGameTests {
     // ------------------------------------------------------------------ 盾で防がれたとき(A-5)・スケルトンの攻撃(A-7)
     /** 盾を構えて 1 段目の方を向いた偽プレイヤー(1 段目の正面 1.2 ブロック)。 */
     private static Player shieldedPlayer(GameTestHelper helper, DevelopedParasitized mob) {
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.setPos(mob.getX(), mob.getY(), mob.getZ() + 1.2D);
         p.setYRot(180.0F); // 北(−Z)= 1 段目の方を向く
         p.setYHeadRot(180.0F);

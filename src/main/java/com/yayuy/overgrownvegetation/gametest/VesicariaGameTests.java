@@ -253,7 +253,7 @@ public final class VesicariaGameTests {
         for (VesicariaEntity v : new VesicariaEntity[]{a, b, c, far}) v.setNoAi(true);
         helper.runAfterDelay(2L, () -> {
             net.minecraft.world.entity.projectile.Arrow arrow = new net.minecraft.world.entity.projectile.Arrow(helper.getLevel(),
-                    a.getX(), a.getY() + 3.0D, a.getZ(), new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
+                    a.getX(), a.getY() + 3.0D, a.getZ()); // 1.20.1: 矢の物・弓の引数は無い
             if (!a.hurt(a.damageSources().arrow(arrow, null), 1.0F)) helper.fail("矢の傷が通らない");
             if (a.isAlive()) helper.fail("矢が当たっても弾けない");
         });

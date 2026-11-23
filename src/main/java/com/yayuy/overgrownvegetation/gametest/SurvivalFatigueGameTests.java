@@ -29,12 +29,9 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.attachment.AttachmentInternals;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
-import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
@@ -282,34 +279,14 @@ public final class SurvivalFatigueGameTests {
         FatigueSpec s = spec();
         try {
             BlockPos bed = placeBed(helper);
-            // 横になれるか(昼): 夜しか眠れない → 問題なし
-            CanPlayerSleepEvent ev = new CanPlayerSleepEvent(p, bed, Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
-            FatigueTracker.onCanSleep(ev);
-            if (ev.getProblem() != null) {
-                helper.fail("昼にベッドへ横になれない: " + ev.getProblem());
-                return;
-            }
-            // ほかの問題(遠い・塞がっている)は外さない
-            CanPlayerSleepEvent far = new CanPlayerSleepEvent(p, bed, Player.BedSleepingProblem.TOO_FAR_AWAY);
-            FatigueTracker.onCanSleep(far);
-            if (far.getProblem() != Player.BedSleepingProblem.TOO_FAR_AWAY) {
-                helper.fail("遠いベッドの問題まで外した");
-                return;
-            }
-            // 敵がいれば横になれない
-            var zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(4, 2, 4));
-            CanPlayerSleepEvent unsafe = new CanPlayerSleepEvent(p, bed, Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
-            FatigueTracker.onCanSleep(unsafe);
-            zombie.discard();
-            if (s.dayRestNeedsSafety() && unsafe.getProblem() != Player.BedSleepingProblem.NOT_SAFE) {
-                helper.fail("敵がいるのに昼に横になれた: " + unsafe.getProblem());
-                return;
-            }
-            // 朝になっても追い出さない
-            CanContinueSleepingEvent cont = new CanContinueSleepingEvent(p, Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
-            FatigueTracker.onCanContinueSleeping(cont);
-            if (!cont.mayContinueSleeping()) {
-                helper.fail("昼にベッドから追い出される");
+            // 横になれるか(昼)・眠り続けられるか: 1.20.1 は 1.21 の CanPlayerSleepEvent・CanContinueSleepingEvent の代わりに
+            // Forge の時間の判定 SleepingTimeCheckEvent 1 つ(横になる時と眠り続ける時の両方で呼ばれる)を FatigueTracker が ALLOW にする。
+            // 1.21 版で見ていた「遠い・塞がっているは外さない」「敵がいれば横になれない」は、1.20.1 では時間の判定の外(バニラの判定のまま)なので見ない。
+            net.minecraftforge.event.entity.player.SleepingTimeCheckEvent ev =
+                    new net.minecraftforge.event.entity.player.SleepingTimeCheckEvent(p, java.util.Optional.of(bed));
+            FatigueTracker.onSleepingTimeCheck(ev);
+            if (ev.getResult() != net.minecraftforge.eventbus.api.Event.Result.ALLOW) {
+                helper.fail("昼にベッドへ横になれない(時間の判定が " + ev.getResult() + ")");
                 return;
             }
             // 少しずつ戻る
@@ -342,12 +319,14 @@ public final class SurvivalFatigueGameTests {
         FakePlayer moved = player(helper, "ov_fatigue_clone_moved");
         try {
             FatigueTracker.set(from, 73.5D);
-            AttachmentInternals.copyEntityAttachments(from, died, true);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.Clone(died, from, true));
+            from.reviveCaps(); // 1.20.1: 添付の写しは作り直しのイベントで(port の AttachmentEvents)。あちらが元の Capability を閉じるので開き直す
             check(helper, "死んで復活", FatigueTracker.value(died), 0.0D);
-            AttachmentInternals.copyEntityAttachments(from, moved, false);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.Clone(moved, from, false));
+            from.reviveCaps(); // 1.20.1: 添付の写しは作り直しのイベントで(port の AttachmentEvents)。あちらが元の Capability を閉じるので開き直す
             check(helper, "死なずに作り直し(保存 → 読み込み)", FatigueTracker.value(moved), 73.5D);
-            Tag tag = Fatigue.CODEC.encodeStart(NbtOps.INSTANCE, OvAttach.getData(from, ModAttachments.FATIGUE)).getOrThrow();
-            Fatigue back = Fatigue.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
+            Tag tag = Fatigue.CODEC.encodeStart(NbtOps.INSTANCE, OvAttach.getData(from, ModAttachments.FATIGUE)).getOrThrow(false, e -> { }); // 1.20.1 の DFU
+            Fatigue back = Fatigue.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow(false, e -> { }); // 1.20.1 の DFU
             check(helper, "コーデック", back.value, 73.5D);
             helper.succeed();
         } finally {

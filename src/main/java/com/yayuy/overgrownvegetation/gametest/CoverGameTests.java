@@ -35,7 +35,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -58,8 +57,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.common.CommonHooks;
-import net.neoforged.neoforge.common.util.TriState;
 import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.gametest.GameTestHolder;
@@ -314,7 +311,7 @@ public final class CoverGameTests {
                         .setValue(DoorBlock.OPEN, true).setValue(DoorBlock.HINGE, DoorHingeSide.RIGHT), true),
                 new Case(new BlockPos(3, 2, 2), Blocks.SPRUCE_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.NORTH), false),
                 new Case(new BlockPos(5, 2, 2), Blocks.IRON_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.SOUTH), true),
-                new Case(new BlockPos(1, 2, 5), Blocks.WAXED_OXIDIZED_COPPER_DOOR.defaultBlockState().setValue(DoorBlock.OPEN, true), false));
+                new Case(new BlockPos(1, 2, 5), Blocks.BIRCH_DOOR.defaultBlockState() /* 1.20.1: 銅のドアは無い(決定 4)。開いた木のドアで代える */.setValue(DoorBlock.OPEN, true), false));
         for (Case c : cases) {
             BlockPos lower = helper.absolutePos(c.rel());
             place(helper, lower, c.door());
@@ -419,10 +416,10 @@ public final class CoverGameTests {
     public static void coveredInteractablesSometimesStick(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         clear(helper);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(new BlockPos(3, 2, 3));
         double chance = DesignData.cover().stuckChance();
-        for (Block block : List.of(Blocks.OAK_DOOR, Blocks.COPPER_DOOR, Blocks.OAK_TRAPDOOR, Blocks.OAK_FENCE_GATE, Blocks.OAK_BUTTON,
+        for (Block block : List.of(Blocks.OAK_DOOR, /* 1.20.1: 銅のドアは無い(決定 4) */ Blocks.OAK_TRAPDOOR, Blocks.OAK_FENCE_GATE, Blocks.OAK_BUTTON,
                 Blocks.STONE_BUTTON, Blocks.LEVER)) {
             BlockState closed = closed(block.defaultBlockState());
             if (CoveredInteractions.movable(closed) != CoveredInteractions.Movable.ACTIVATING) {
@@ -451,8 +448,8 @@ public final class CoverGameTests {
         // 手で動かすものでない覆われたブロックはブロックの右クリックを起こさない(画面を開かない)
         place(helper, abs, Blocks.CRAFTING_TABLE.defaultBlockState());
         OvergrownLayerData.cover(level, abs);
-        PlayerInteractEvent.RightClickBlock event = CommonHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, abs, hit(abs));
-        if (event.getUseBlock() != TriState.FALSE || event.getUseItem() == TriState.FALSE || event.isCanceled()) {
+        PlayerInteractEvent.RightClickBlock event = net.minecraftforge.common.ForgeHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, abs, hit(abs));
+        if (event.getUseBlock() != net.minecraftforge.eventbus.api.Event.Result.DENY || event.getUseItem() == net.minecraftforge.eventbus.api.Event.Result.DENY || event.isCanceled()) {
             helper.fail("覆った作業台の右クリックが止まらない / 手に持った物まで止まった");
             return;
         }
@@ -525,9 +522,9 @@ public final class CoverGameTests {
         BlockPos plank = helper.absolutePos(new BlockPos(4, 2, 4));
         place(helper, plank, Blocks.OAK_PLANKS.defaultBlockState());
         OvergrownLayerData.cover(level, plank);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHEARS));
-        PlayerInteractEvent.RightClickBlock event = CommonHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, plank, hit(plank));
+        PlayerInteractEvent.RightClickBlock event = net.minecraftforge.common.ForgeHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, plank, hit(plank));
         if (!event.isCanceled() || OvergrownLayerData.isCovered(level, plank)) {
             helper.fail("ハサミの右クリックで覆いが剥がれない");
             return;
@@ -676,9 +673,9 @@ public final class CoverGameTests {
                 new Case(3, 2, List.of(b, b, b, b, b, b), ModBlocks.OVERGROWN_WALL.get().asItem(), 6),
                 new Case(3, 3, List.of(b, e, e, b, b, e, b, b, b), ModBlocks.OVERGROWN_STONE_STAIRS.get().asItem(), 4));
         for (Case c : cases) {
-            CraftingInput grid = CraftingInput.of(c.w(), c.h(), c.grid());
+            var grid = GtCompat.craftingGrid(c.w(), c.h(), c.grid());
             ItemStack out = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, grid, level)
-                    .map(holder -> holder.value().assemble(grid, level.registryAccess())).orElse(ItemStack.EMPTY);
+                    .map(recipe -> recipe.assemble(grid, level.registryAccess())).orElse(ItemStack.EMPTY);
             if (!out.is(c.result()) || out.getCount() != c.count()) {
                 helper.fail(BuiltInRegistries.ITEM.getKey(c.result()) + " ×" + c.count() + " が作れない: " + out);
                 return;
@@ -867,7 +864,7 @@ public final class CoverGameTests {
             if (covered) {
                 OvergrownLayerData.cover(level, abs);
             }
-            PlayerInteractEvent.RightClickBlock event = CommonHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, abs, hit(abs));
+            PlayerInteractEvent.RightClickBlock event = net.minecraftforge.common.ForgeHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, abs, hit(abs));
             if (event.isCanceled()) {
                 stuck++;
             }

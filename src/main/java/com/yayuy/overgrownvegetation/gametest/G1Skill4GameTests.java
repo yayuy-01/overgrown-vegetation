@@ -308,8 +308,8 @@ public final class G1Skill4GameTests {
         DevelopedParasitized spider = spawnDev(helper, G1Developed.SPIDER, new Vec3(3.5, 2.0, 1.0));
         spider.goalSelector.removeAllGoals(g -> true);
         Vec3 at = helper.absoluteVec(new Vec3(3.5, 2.0, 5.0));
-        Player shielded = helper.makeMockPlayer(GameType.SURVIVAL);
-        Player bare = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player shielded = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
+        Player bare = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         for (Player p : List.of(shielded, bare)) {
             p.setPos(at);
             p.setYRot(180.0F); // 北(−Z)= クモの方を向く
@@ -447,7 +447,7 @@ public final class G1Skill4GameTests {
         // 目を合わせる版の転移だけ残す(渡った後に掴み・叩きつけが続かないように)
         ender.goalSelector.removeAllGoals(g -> !(g instanceof com.yayuy.overgrownvegetation.entity.g1.skill.G1TeleportGoal t && t.gaze()));
         ender.setTeleportRangeOverride(3.0D, 3.5D);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         Vec3 at = helper.absoluteVec(new Vec3(5.5, 2.0, 5.5));
         player.setPos(at);
         // エンダーマンの目の高さを見る向き

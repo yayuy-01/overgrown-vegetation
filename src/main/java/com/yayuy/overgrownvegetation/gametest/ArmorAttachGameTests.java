@@ -26,9 +26,7 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.level.GameType;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
@@ -70,7 +68,7 @@ public final class ArmorAttachGameTests {
         h.assertTrue(ArmorAttachments.canHold(new ItemStack(Items.LEATHER_BOOTS)), "革の靴に付かない");
         h.assertTrue(ArmorAttachments.canHold(new ItemStack(Items.TURTLE_HELMET)), "亀の甲羅に付かない");
         h.assertTrue(ArmorAttachments.canHold(new ItemStack(ModItems.PROTECTIVE_MASK.get())), "防護マスク(この MOD の防具)に付かない");
-        h.assertFalse(ArmorAttachments.canHold(new ItemStack(Items.WOLF_ARMOR)), "狼の鎧に付いた");
+        // 1.20.1: 狼の鎧は無い(決定 4)ので、その確かめは外した
         h.assertFalse(ArmorAttachments.canHold(new ItemStack(Items.IRON_HORSE_ARMOR)), "馬鎧に付いた");
         h.assertFalse(ArmorAttachments.canHold(new ItemStack(Items.ELYTRA)), "エリトラに付いた");
         h.assertFalse(ArmorAttachments.canHold(new ItemStack(Items.STICK)), "棒に付いた");
@@ -106,27 +104,26 @@ public final class ArmorAttachGameTests {
         ArmorAttachments.detach(legs, 1);
         ArmorAttachments.detach(legs, 2);
         h.assertFalse(OvItemData.has(legs, ModArmorAttach.ATTACHMENTS.get()), "全部外してもコンポーネントが残る(素の防具と重ならない)");
-        h.assertTrue(ItemStack.isSameItemSameComponents(legs, new ItemStack(Items.IRON_LEGGINGS)), "外した防具が素の防具と同じにならない");
+        h.assertTrue(ItemStack.isSameItemSameTags(legs, new ItemStack(Items.IRON_LEGGINGS)), "外した防具が素の防具と同じにならない");
         h.succeed();
     }
 
     /** 保存と復元(NBT と通信の両方)で付け物と中身が残る。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void saveAndLoad(GameTestHelper h) {
-        var reg = h.getLevel().registryAccess();
         ItemStack legs = new ItemStack(Items.DIAMOND_LEGGINGS);
         ItemStack belt = new ItemStack(ModArmorAttach.STORAGE_BELT.get());
         OvItemData.set(belt, ModArmorAttach.BELT_CONTENTS.get(), com.yayuy.overgrownvegetation.port.component.ItemContainerContents.fromItems(
                 java.util.List.of(new ItemStack(Items.TORCH, 12), ItemStack.EMPTY, new ItemStack(Items.BREAD, 3))));
         ArmorAttachments.attach(legs, 1, belt);
         ArmorAttachments.attach(legs, 2, bark());
-        Tag tag = legs.save(reg);
-        ItemStack back = ItemStack.parseOptional(reg, (net.minecraft.nbt.CompoundTag) tag);
-        h.assertTrue(ItemStack.isSameItemSameComponents(legs, back), "NBT の往復で変わった");
-        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), reg);
-        ItemStack.STREAM_CODEC.encode(buf, legs);
-        ItemStack net = ItemStack.STREAM_CODEC.decode(buf);
-        h.assertTrue(ItemStack.isSameItemSameComponents(legs, net), "通信の往復で変わった");
+        Tag tag = legs.save(new net.minecraft.nbt.CompoundTag()); // 1.20.1: NBT の形
+        ItemStack back = ItemStack.of((net.minecraft.nbt.CompoundTag) tag);
+        h.assertTrue(ItemStack.isSameItemSameTags(legs, back), "NBT の往復で変わった");
+        net.minecraft.network.FriendlyByteBuf buf = new net.minecraft.network.FriendlyByteBuf(Unpooled.buffer()); // 1.20.1: 通信は writeItem・readItem
+        buf.writeItem(legs);
+        ItemStack net = buf.readItem();
+        h.assertTrue(ItemStack.isSameItemSameTags(legs, net), "通信の往復で変わった");
         ItemStack belt2 = ArmorAttachments.get(back, 1);
         var c = OvItemData.get(belt2, ModArmorAttach.BELT_CONTENTS.get());
         h.assertTrue(c != null && c.getStackInSlot(0).getCount() == 12 && c.getStackInSlot(2).is(Items.BREAD), "ベルトの中身が残らない");
@@ -139,10 +136,10 @@ public final class ArmorAttachGameTests {
         var level = h.getLevel();
         ItemStack chest = new ItemStack(Items.DIAMOND_CHESTPLATE);
         ArmorAttachments.attach(chest, 0, bark());
-        SmithingRecipeInput in = new SmithingRecipeInput(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE), chest, new ItemStack(Items.NETHERITE_INGOT));
-        RecipeHolder<?> r = level.getRecipeManager().getRecipeFor(RecipeType.SMITHING, in, level).orElse(null);
+        net.minecraft.world.SimpleContainer in = new net.minecraft.world.SimpleContainer(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE), chest, new ItemStack(Items.NETHERITE_INGOT));
+        net.minecraft.world.item.crafting.SmithingRecipe r = level.getRecipeManager().getRecipeFor(RecipeType.SMITHING, in, level).orElse(null); // 1.20.1: RecipeHolder は無い
         h.assertTrue(r != null, "ネザライト化のレシピが見つからない");
-        ItemStack out = ((net.minecraft.world.item.crafting.SmithingRecipe) r.value()).assemble(in, level.registryAccess());
+        ItemStack out = r.assemble(in, level.registryAccess());
         h.assertTrue(out.is(Items.NETHERITE_CHESTPLATE) && ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1, "ネザライト化で付け物が消えた");
         h.succeed();
     }
@@ -173,7 +170,7 @@ public final class ArmorAttachGameTests {
     /** 口覆いの布: 鉄の兜に付けるとフィルターを使う頭になり、胞子を防いでフィルターが減る。外すと詰まりが布へ戻る。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void mouthClothFiltersSpores(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         h.assertFalse(FilterMask.isMask(helmet), "素の兜がフィルターを使う頭になった");
         ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
@@ -213,7 +210,7 @@ public final class ArmorAttachGameTests {
         h.assertTrue(Math.abs(ArmorAttachments.leyCostFactor(husk) - 0.9D) < 1e-9, "倍率 " + ArmorAttachments.leyCostFactor(husk));
         h.assertTrue(ArmorAttachments.leyCost(husk, 100) == 90 && ArmorAttachments.leyCost(husk, 1) == 1, "払う量 " + ArmorAttachments.leyCost(husk, 100));
         // 導晶のつるはしで 1 ブロック分払う(LeyCharge.spend から読まれている)
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         player.setItemSlot(EquipmentSlot.LEGS, legs.copy());
         ItemStack pick = new ItemStack(com.yayuy.overgrownvegetation.gear.ModGear.CONDUIT_PICKAXE.get());
         int cap = com.yayuy.overgrownvegetation.gear.LeyCharge.capacity(pick);
@@ -267,7 +264,7 @@ public final class ArmorAttachGameTests {
     /** 台で口覆いの布を別の付け物と入れ替えても、手に来た布にフィルターの詰まりが付いてくる(新品にすり替わらない)。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void benchSwapKeepsFilterState(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         var inv = player.getInventory();
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         ItemStack cloth = new ItemStack(ModArmorAttach.MOUTH_CLOTH.get());
@@ -290,7 +287,7 @@ public final class ArmorAttachGameTests {
     /** ベルトの小物入れ: 入れた物がベルトに入り、開き直しても残る。ベルトを外すと中身ごと持ち運べる。脚を替えると閉じる。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void beltPouchStoresItems(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         ItemStack legs = new ItemStack(Items.LEATHER_LEGGINGS);
         ArmorAttachments.attach(legs, 0, bark());
         ArmorAttachments.attach(legs, 1, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
@@ -321,7 +318,7 @@ public final class ArmorAttachGameTests {
      */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void filterSwapsOnClothHelmet(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         var menu = player.inventoryMenu;
         ItemStack helmet = new ItemStack(Items.IRON_HELMET);
         ArmorAttachments.attach(helmet, 0, new ItemStack(ModArmorAttach.MOUTH_CLOTH.get()));
@@ -399,11 +396,11 @@ public final class ArmorAttachGameTests {
     /** 着ている兜が壊れると、付け物(布はフィルターの詰まりごと)がプレイヤーの持ち物へ入る。Mob の物は足元に落ちる。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void brokenArmorDropsAttachments(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         int max = new ItemStack(Items.IRON_HELMET).getMaxDamage();
         ItemStack helmet = helmetWith(max - 1, bark(), usedCloth(300));
         player.setItemSlot(EquipmentSlot.HEAD, helmet);
-        helmet.hurtAndBreak(5, h.getLevel(), player, item -> { });
+        helmet.hurtAndBreak(5, player, item -> { });
         h.assertTrue(player.getItemBySlot(EquipmentSlot.HEAD).isEmpty(), "兜が壊れない");
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "樹皮が持ち物に戻らない");
         ItemStack cloth = ItemStack.EMPTY;
@@ -414,7 +411,7 @@ public final class ArmorAttachGameTests {
         Husk husk = h.spawnWithNoFreeWill(EntityType.HUSK, 3, 2, 3);
         ItemStack mobHelmet = helmetWith(max - 1, bark());
         husk.setItemSlot(EquipmentSlot.HEAD, mobHelmet);
-        mobHelmet.hurtAndBreak(5, h.getLevel(), husk, item -> { });
+        mobHelmet.hurtAndBreak(5, husk, item -> { });
         h.runAfterDelay(2, () -> {
             boolean dropped = !h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, husk.getBoundingBox().inflate(3),
                     e -> e.getItem().is(ModArmorAttach.BARK_PLATE.get())).isEmpty();
@@ -426,7 +423,7 @@ public final class ArmorAttachGameTests {
     /** 金床: 2 つの兜を合わせて直すと、両方の付け物が結果に載る(同じ物の 2 つ目は受け取ったときに持ち物へ返る)。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void anvilRepairKeepsAttachments(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.CREATIVE);
+        Player player = GtCompat.mockPlayer(h, GameType.CREATIVE);
         var access = ContainerLevelAccess.create(h.getLevel(), h.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1)));
         var menu = new net.minecraft.world.inventory.AnvilMenu(1, player.getInventory(), access);
         ItemStack left = helmetWith(100, bark());
@@ -446,7 +443,7 @@ public final class ArmorAttachGameTests {
     /** 砥石: 2 つの兜を合わせると、両方の付け物が結果に載る。載らない物は受け取ったときに返る。1 つだけ置いても付け物は残る。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void grindstoneKeepsAttachments(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         var access = ContainerLevelAccess.create(h.getLevel(), h.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1)));
         var menu = new net.minecraft.world.inventory.GrindstoneMenu(1, player.getInventory(), access);
         ItemStack top = helmetWith(100, bark());
@@ -456,7 +453,7 @@ public final class ArmorAttachGameTests {
         ItemStack out = menu.getSlot(2).getItem();
         h.assertTrue(out.is(Items.IRON_HELMET) && ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out)
                 && AirFilters.used(out) == 200, "砥石の結果に付け物が載らない: " + out + " " + ArmorAttachments.list(out));
-        AttachEffects.onGrindstoneTake(new net.minecraftforge.event.GrindstoneEvent.OnTakeItem(access, player, top, bottom, 0));
+        AttachEffects.onGrindstoneTake(new net.minecraftforge.event.GrindstoneEvent.OnTakeItem(top, bottom, 0) /* 1.20.1: プレイヤーと場所を持たない(受け取り手は砥石を開いているサーバーのプレイヤーから探す) */);
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
         menu.getSlot(1).set(ItemStack.EMPTY);
         ItemStack single = menu.getSlot(2).getItem();
@@ -467,7 +464,7 @@ public final class ArmorAttachGameTests {
     /** 作業台の修理(兜 2 つ): 結果に両方の付け物を載せ、載らない物を返す。染め直し(防具 1 つ)は触らない(増えない)。 */
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void craftingRepairKeepsAttachments(GameTestHelper h) {
-        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         net.minecraft.world.SimpleContainer grid = new net.minecraft.world.SimpleContainer(4);
         grid.setItem(0, helmetWith(150, bark()));
         grid.setItem(1, helmetWith(150, bark(), usedCloth(50)));
@@ -476,7 +473,7 @@ public final class ArmorAttachGameTests {
         h.assertTrue(ArmorAttachments.count(out, ModArmorAttach.BARK_PLATE.get()) == 1 && ArmorAttachments.hasMouthCloth(out) && AirFilters.used(out) == 50,
                 "作業台の修理の結果に付け物が載らない: " + ArmorAttachments.list(out));
         h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "載らなかった樹皮が返らない");
-        Player p2 = h.makeMockPlayer(GameType.SURVIVAL);
+        Player p2 = GtCompat.mockPlayer(h, GameType.SURVIVAL);
         net.minecraft.world.SimpleContainer dye = new net.minecraft.world.SimpleContainer(4);
         ItemStack leather = new ItemStack(Items.LEATHER_HELMET);
         ArmorAttachments.attach(leather, 0, bark());
@@ -504,7 +501,7 @@ public final class ArmorAttachGameTests {
             h.assertTrue(ArmorAttachments.list(legs).size() == 2, "枠が 2 つに見えない");
             ArmorAttachments.detach(legs, 1); // 枠の中を書き換えても、超えた所の樹皮は残る
             h.assertTrue(ArmorAttachments.count(legs, ModArmorAttach.BARK_PLATE.get()) == 1, "書き換えで超えた所の樹皮が消えた");
-            Player player = h.makeMockPlayer(GameType.SURVIVAL);
+            Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
             player.getInventory().setItem(5, legs);
             AttachEffects.onPlayerTick(new com.yayuy.overgrownvegetation.port.event.tick.PlayerTickEvent.Post(player));
             h.assertTrue(countIn(player, ModArmorAttach.BARK_PLATE.get()) == 1, "超えた所の樹皮が持ち主へ返らない");
@@ -523,18 +520,15 @@ public final class ArmorAttachGameTests {
     @GameTest(template = T, batch = BATCH, timeoutTicks = 20)
     public static void beltCannotHideInsideAnotherContainer(GameTestHelper h) {
         ItemStack bundle = new ItemStack(Items.BUNDLE);
-        bundle.set(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS,
-                new net.minecraft.world.item.component.BundleContents(java.util.List.of(new ItemStack(ModArmorAttach.STORAGE_BELT.get()))));
+        GtCompat.putItems(bundle.getOrCreateTag(), java.util.List.of(new ItemStack(ModArmorAttach.STORAGE_BELT.get()))); // 1.20.1: 袋の中身は NBT の Items
         h.assertFalse(BeltPouchMenu.allowed(bundle), "ベルトを入れた袋が小物入れに入る");
         ItemStack legs = new ItemStack(Items.LEATHER_LEGGINGS);
         ArmorAttachments.attach(legs, 0, new ItemStack(ModArmorAttach.STORAGE_BELT.get()));
         ItemStack chest = new ItemStack(Items.CHEST);
-        chest.set(net.minecraft.core.component.DataComponents.CONTAINER,
-                com.yayuy.overgrownvegetation.port.component.ItemContainerContents.fromItems(java.util.List.of(legs)));
+        GtCompat.putItems(chest.getOrCreateTagElement("BlockEntityTag"), java.util.List.of(legs)); // 1.20.1: 箱の中身は NBT の BlockEntityTag.Items
         h.assertFalse(BeltPouchMenu.allowed(chest), "ベルトの付いた防具を入れた箱が小物入れに入る");
         ItemStack plainBundle = new ItemStack(Items.BUNDLE);
-        plainBundle.set(net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS,
-                new net.minecraft.world.item.component.BundleContents(java.util.List.of(new ItemStack(Items.TORCH, 4))));
+        GtCompat.putItems(plainBundle.getOrCreateTag(), java.util.List.of(new ItemStack(Items.TORCH, 4))); // 1.20.1: 袋の中身は NBT の Items
         h.assertTrue(BeltPouchMenu.allowed(plainBundle), "ふつうの袋まで入らなくなった");
         h.succeed();
     }
@@ -546,7 +540,7 @@ public final class ArmorAttachGameTests {
         int before = e.max;
         try {
             e.max = 2; // 「1 つまで」に頼らずに確かめる
-            Player player = h.makeMockPlayer(GameType.SURVIVAL);
+            Player player = GtCompat.mockPlayer(h, GameType.SURVIVAL);
             var inv = player.getInventory();
             inv.setItem(0, helmetWith(0, usedCloth(5000)));
             AttachBenchMenu menu = new AttachBenchMenu(1, inv, ContainerLevelAccess.NULL);

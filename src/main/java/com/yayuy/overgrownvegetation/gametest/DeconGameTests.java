@@ -119,12 +119,12 @@ public final class DeconGameTests {
         ServerLevel level = helper.getLevel();
         for (Map.Entry<Item, Item> e : expectedConversions().entrySet()) {
             ItemStack in = new ItemStack(e.getKey());
-            Optional<net.minecraft.world.item.crafting.RecipeHolder<DeconRecipe>> r = Decon.recipe(level, in);
+            Optional<DeconRecipe> r = Decon.recipe(level, in); // 1.20.1: RecipeHolder は無い
             if (r.isEmpty()) {
                 helper.fail("変換表が無い: " + BuiltInRegistries.ITEM.getKey(e.getKey()));
                 return;
             }
-            DeconRecipe recipe = r.get().value();
+            DeconRecipe recipe = r.get();
             if (!recipe.result().is(e.getValue()) || recipe.result().getCount() != 1 || recipe.spores() <= 0.0F) {
                 helper.fail(BuiltInRegistries.ITEM.getKey(e.getKey()) + " → " + recipe.result() + "・胞子 " + recipe.spores());
                 return;
@@ -173,7 +173,7 @@ public final class DeconGameTests {
     public static void handWashUsesWater(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos pos = cauldron(helper, 3);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.getPersistentData().remove(HandWash.WORK_KEY);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.OVERGROWN_BEEF.get(), 64));
         int perLevel = (int) Math.ceil(spec().handWorkPerLevel() / (double) Math.max(1, spec().handWorkMaterial()));
@@ -216,7 +216,7 @@ public final class DeconGameTests {
     public static void handWashFilterWearsOut(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos pos = cauldron(helper, 3);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         player.getPersistentData().remove(HandWash.WORK_KEY);
         var vent = DesignData.sporeField().vent();
         int max = vent.filterWashesMax();
@@ -380,9 +380,9 @@ public final class DeconGameTests {
         be.insert(new ItemStack(ModItems.OVERGROWN_WOOL.get(), 5));
         be.items().setStackInSlot(WasherBlockEntity.INPUTS + 2, new ItemStack(Items.WHITE_WOOL, 3));
         ServerLevel level = helper.getLevel();
-        CompoundTag tag = be.saveWithFullMetadata(level.registryAccess());
+        CompoundTag tag = be.saveWithFullMetadata();
         WasherBlockEntity copy = new WasherBlockEntity(be.getBlockPos(), be.getBlockState());
-        copy.loadWithComponents(tag, level.registryAccess());
+        copy.load(tag);
         if (copy.energy() != 1234 || !copy.items().getStackInSlot(0).is(ModItems.OVERGROWN_WOOL.get())
                 || copy.items().getStackInSlot(0).getCount() != 5 || copy.items().getStackInSlot(WasherBlockEntity.INPUTS + 2).getCount() != 3) {
             helper.fail("保存と復元で変わった: FE " + copy.energy() + "・" + copy.items().getStackInSlot(0));
@@ -401,7 +401,7 @@ public final class DeconGameTests {
             helper.fail("洗い場の作り方が無い");
             return;
         }
-        for (var ing : holder.get().value().getIngredients()) {
+        for (var ing : holder.get().getIngredients()) {
             for (ItemStack s : ing.getItems()) {
                 if (!BuiltInRegistries.ITEM.getKey(s.getItem()).getNamespace().equals("minecraft")) {
                     helper.fail("バニラでない材料: " + s);
@@ -433,7 +433,7 @@ public final class DeconGameTests {
         BlockPos floorRel = new BlockPos(3, 1, 3);
         BlockPos rel = floorRel.above();
         BlockPos abs = helper.absolutePos(rel);
-        Player placer = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player placer = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         net.minecraft.world.phys.Vec3 standAt = net.minecraft.world.phys.Vec3.atBottomCenterOf(helper.absolutePos(rel.south(2)));
         placer.moveTo(standAt.x, standAt.y, standAt.z, 180.0F, 30.0F); // 北を向く
         ItemStack stack = new ItemStack(ModDecon.WASHER_ITEM.get());
@@ -531,14 +531,14 @@ public final class DeconGameTests {
             helper.fail("描く物は " + WasherBlockEntity.SHOWN_MAX + " つまでのはず: " + shown);
             return;
         }
-        CompoundTag tag = be.getUpdateTag(level.registryAccess());
+        CompoundTag tag = be.getUpdateTag();
         if (tag.contains("energy") || tag.contains("items") || !tag.contains("shown")) {
             helper.fail("クライアントへ描く物以外も送る: " + tag.getAllKeys());
             return;
         }
         WasherBlockEntity copy = new WasherBlockEntity(be.getBlockPos(), be.getBlockState());
         copy.energyPort().receiveEnergy(500, false);
-        copy.handleUpdateTag(tag, level.registryAccess());
+        copy.handleUpdateTag(tag);
         if (copy.shown().size() != WasherBlockEntity.SHOWN_MAX || !WasherBlockEntity.sameItems(copy.shown(), shown) || copy.energy() != 500) {
             helper.fail("受け取った側: 描く物 " + copy.shown() + "・FE " + copy.energy() + "(500 のまま のはず)");
             return;
@@ -557,16 +557,16 @@ public final class DeconGameTests {
         BlockPos rel = new BlockPos(3, 2, 3);
         WasherBlockEntity be = placeWasher(helper, rel);
         be.insert(new ItemStack(ModItems.OVERGROWN_LEATHER.get(), 4));
-        CompoundTag saved = be.saveWithoutMetadata(level.registryAccess());
+        CompoundTag saved = be.saveWithoutMetadata();
         // 置き直して保存した中身を読み込む(枠の読み込みは onContentsChanged を通らないので、shown は空のまま = 開き直した直後と同じ)
         helper.setBlock(rel, Blocks.AIR);
         WasherBlockEntity loaded = placeWasher(helper, rel);
-        loaded.loadWithComponents(saved, level.registryAccess());
+        loaded.load(saved);
         if (!loaded.shown().isEmpty() || loaded.computeShown().size() != 1) {
             helper.fail("読み込んだ直後の形が想定と違う: shown " + loaded.shown() + "・中身 " + loaded.computeShown());
             return;
         }
-        loaded.getUpdateTag(level.registryAccess()); // チャンクを送るときと同じ
+        loaded.getUpdateTag(); // チャンクを送るときと同じ
         if (loaded.shown().size() != 1) {
             helper.fail("送った物を覚えていない: " + loaded.shown());
             return;

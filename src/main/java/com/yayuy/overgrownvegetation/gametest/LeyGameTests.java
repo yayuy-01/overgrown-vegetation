@@ -392,10 +392,10 @@ public final class LeyGameTests {
         fill(pump, 3000);
         int energy = pump.energy();
 
-        CompoundTag pt = pylon.saveWithFullMetadata(level.registryAccess());
-        CompoundTag mt = pump.saveWithFullMetadata(level.registryAccess());
-        BlockEntity p2 = BlockEntity.loadStatic(o, pylonState, pt, level.registryAccess());
-        BlockEntity m2 = BlockEntity.loadStatic(o.offset(2, 0, 0), level.getBlockState(o.offset(2, 0, 0)), mt, level.registryAccess());
+        CompoundTag pt = pylon.saveWithFullMetadata();
+        CompoundTag mt = pump.saveWithFullMetadata();
+        BlockEntity p2 = BlockEntity.loadStatic(o, pylonState, pt);
+        BlockEntity m2 = BlockEntity.loadStatic(o.offset(2, 0, 0), level.getBlockState(o.offset(2, 0, 0)), mt);
         helper.assertTrue(p2 instanceof LeyPylonBlockEntity, "柱が読めない");
         helper.assertTrue(m2 instanceof LeyPumpBlockEntity, "汲み上げ器が読めない");
         LeyPylonBlockEntity rp = (LeyPylonBlockEntity) p2;

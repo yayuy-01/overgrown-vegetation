@@ -344,7 +344,7 @@ public final class CorpseCollapseGameTests {
             helper.assertTrue(items.isEmpty(), "死体になったゾンビが元のドロップを出した: " + items.size());
             net.minecraft.world.level.block.state.BlockState state = helper.getLevel().getBlockState(cell);
             net.minecraft.world.level.block.entity.BlockEntity be = helper.getLevel().getBlockEntity(cell);
-            net.minecraft.world.entity.player.Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+            net.minecraft.world.entity.player.Player player = GtCompat.mockPlayer(helper, net.minecraft.world.level.GameType.SURVIVAL);
             helper.getLevel().removeBlock(cell, false);
             state.getBlock().playerDestroy(helper.getLevel(), player, cell, state, be, net.minecraft.world.item.ItemStack.EMPTY);
             boolean fiber = helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new AABB(cell).inflate(3.0))

@@ -56,7 +56,7 @@ public final class RaidSpotGameTests {
     }
 
     /** 森の方角(西)が海: 決めた扇(±40°)では見つからず、広げると東の陸に湧く。足元は水でない固い地面。 */
-    @GameTest(template = T, batch = "raid_spot", timeoutTicks = 20, skyAccess = true)
+    @GameTest(template = T, batch = "raid_spot", timeoutTicks = 20) // 1.20.1: skyAccess は無い(テスト場に天井の壁がもともと無い)
     public static void seaFacingBaseSpawnsOnLand(GameTestHelper h) {
         halfSea(h, 12);
         ServerLevel level = h.getLevel();
@@ -83,7 +83,7 @@ public final class RaidSpotGameTests {
     }
 
     /** 全周が水(島の拠点)なら、広げても見つからない(呼ぶ側の流れ木もどきに任せる)。 */
-    @GameTest(template = T, batch = "raid_spot", timeoutTicks = 20, skyAccess = true)
+    @GameTest(template = T, batch = "raid_spot", timeoutTicks = 20) // 1.20.1: skyAccess は無い(テスト場に天井の壁がもともと無い)
     public static void islandStillFindsNothing(GameTestHelper h) {
         halfSea(h, 24);
         ServerLevel level = h.getLevel();

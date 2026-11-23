@@ -27,9 +27,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -264,20 +262,20 @@ public final class ExpeditionGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void cureDraughtCraftsWithMushroomOrSac(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        ItemStack water = net.minecraft.world.item.alchemy.PotionContents.createItemStack(
-                net.minecraft.world.item.Items.POTION, net.minecraft.world.item.alchemy.Potions.WATER);
+        ItemStack water = net.minecraft.world.item.alchemy.PotionUtils.setPotion(
+                new ItemStack(net.minecraft.world.item.Items.POTION), net.minecraft.world.item.alchemy.Potions.WATER);
         ItemStack roast = new ItemStack(ModExpedition.ROASTED_SPORES.get());
         for (ItemStack reagent : new ItemStack[]{new ItemStack(ModExpedition.SPORE_EATER_MUSHROOM_ITEM.get()), new ItemStack(ModExpedition.DORMANCY_SAC.get())}) {
-            var in = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, java.util.List.of(roast.copy(), roast.copy(), reagent, water.copy()));
+            var in = GtCompat.craftingGrid(2, 2, java.util.List.of(roast.copy(), roast.copy(), reagent, water.copy()));
             var r = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, in, level);
-            if (r.isEmpty() || !r.get().value().assemble(in, level.registryAccess()).is(ModExpedition.CURE_DRAUGHT.get())) {
+            if (r.isEmpty() || !r.get().assemble(in, level.registryAccess()).is(ModExpedition.CURE_DRAUGHT.get())) {
                 helper.fail(reagent + " で駆胞薬が作れない");
                 return;
             }
         }
-        var none = net.minecraft.world.item.crafting.CraftingInput.of(2, 2, java.util.List.of(roast.copy(), roast.copy(), roast.copy(), water.copy()));
+        var none = GtCompat.craftingGrid(2, 2, java.util.List.of(roast.copy(), roast.copy(), roast.copy(), water.copy()));
         var bad = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, none, level);
-        if (bad.isPresent() && bad.get().value().assemble(none, level.registryAccess()).is(ModExpedition.CURE_DRAUGHT.get())) {
+        if (bad.isPresent() && bad.get().assemble(none, level.registryAccess()).is(ModExpedition.CURE_DRAUGHT.get())) {
             helper.fail("濃い所の素材なしで駆胞薬が作れる");
             return;
         }
@@ -290,15 +288,15 @@ public final class ExpeditionGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void sporesRoastInFurnaceAndSmoker(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        SingleRecipeInput in = new SingleRecipeInput(new ItemStack(ModItems.SPORE.get()));
-        Optional<? extends RecipeHolder<?>> smelt = level.getRecipeManager().getRecipeFor(RecipeType.SMELTING, in, level);
-        Optional<? extends RecipeHolder<?>> smoke = level.getRecipeManager().getRecipeFor(RecipeType.SMOKING, in, level);
+        net.minecraft.world.SimpleContainer in = new net.minecraft.world.SimpleContainer(new ItemStack(ModItems.SPORE.get()));
+        Optional<? extends net.minecraft.world.item.crafting.Recipe<?>> smelt = level.getRecipeManager().getRecipeFor(RecipeType.SMELTING, in, level);
+        Optional<? extends net.minecraft.world.item.crafting.Recipe<?>> smoke = level.getRecipeManager().getRecipeFor(RecipeType.SMOKING, in, level);
         if (smelt.isEmpty() || smoke.isEmpty()) {
             helper.fail("胞子を焼くレシピが無い: かまど " + smelt.isPresent() + " 燻製器 " + smoke.isPresent());
             return;
         }
-        ItemStack a = smelt.get().value().getResultItem(level.registryAccess());
-        ItemStack b = smoke.get().value().getResultItem(level.registryAccess());
+        ItemStack a = smelt.get().getResultItem(level.registryAccess());
+        ItemStack b = smoke.get().getResultItem(level.registryAccess());
         if (!a.is(ModExpedition.ROASTED_SPORES.get()) || !b.is(ModExpedition.ROASTED_SPORES.get())) {
             helper.fail("焼いた結果が焼いた胞子でない: " + a + " / " + b);
             return;

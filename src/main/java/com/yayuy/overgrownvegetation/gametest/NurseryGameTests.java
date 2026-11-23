@@ -65,7 +65,7 @@ public final class NurseryGameTests {
     }
 
     private static List<BlightFernEntity> ferns(GameTestHelper helper) {
-        return helper.getLevel().getEntitiesOfClass(BlightFernEntity.class, helper.getBounds().inflate(1.0D));
+        return helper.getLevel().getEntitiesOfClass(BlightFernEntity.class, GtCompat.bounds(helper).inflate(1.0D));
     }
 
     /** 11 種とも登録されていて、芽と大きな嚢の数が書き出しの記録どおり(チビゾンビと鶏は 4・1、ほかは 6・2)。 */
@@ -160,7 +160,7 @@ public final class NurseryGameTests {
         helper.onEachTick(() -> {
             if (!rich[0]) return;
             if (m.action() == NurseryParasitized.ACTION_HATCH) hatchTicks[0]++;
-            List<Pig> pigs = level.getEntitiesOfClass(Pig.class, helper.getBounds());
+            List<Pig> pigs = level.getEntitiesOfClass(Pig.class, GtCompat.bounds(helper));
             if (pigs.isEmpty()) return;
             helper.assertTrue(hatchTicks[0] >= G1Nursery.HATCH_AT, "嚢が割れる前に出た: " + hatchTicks[0]);
             double left = director.available(level);
@@ -230,7 +230,7 @@ public final class NurseryGameTests {
         int omen = DesignData.director().rootOmenTicks;
         helper.runAfterDelay(20 + omen + 6, () -> {
             helper.assertTrue(cow.isRemoved(), "根を下ろしても段階 0 が残っている");
-            List<NurseryParasitized> found = helper.getLevel().getEntitiesOfClass(NurseryParasitized.class, helper.getBounds());
+            List<NurseryParasitized> found = helper.getLevel().getEntitiesOfClass(NurseryParasitized.class, GtCompat.bounds(helper));
             helper.assertTrue(found.size() == 1, "苗床が 1 体でない: " + found.size());
             NurseryParasitized n = found.get(0);
             helper.assertTrue(n.nursery() == G1Nursery.COW && n.isEmerging(), "牛の苗床として生え始めていない");
@@ -349,7 +349,7 @@ public final class NurseryGameTests {
         });
         helper.runAfterDelay(3 + 2 * (G1Nursery.HATCH + 8) + 4, () -> {
             director.setBudget(level, before);
-            level.getEntitiesOfClass(Pig.class, helper.getBounds()).forEach(net.minecraft.world.entity.Entity::discard);
+            level.getEntitiesOfClass(Pig.class, GtCompat.bounds(helper)).forEach(net.minecraft.world.entity.Entity::discard);
             helper.assertTrue(!m.isAlive() && m.spent(), "決めた回数孵しても枯れない: " + m.hatches());
             helper.succeed();
         });

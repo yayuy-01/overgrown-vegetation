@@ -67,7 +67,7 @@ public final class GearDirtGameTests {
     }
 
     static Player suited(GameTestHelper helper) {
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
         p.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
         p.setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.IRON_LEGGINGS));
@@ -111,7 +111,7 @@ public final class GearDirtGameTests {
             return;
         }
         // 創造では汚れない
-        Player c = helper.makeMockPlayer(GameType.CREATIVE);
+        Player c = GtCompat.mockPlayer(helper, GameType.CREATIVE);
         c.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
         for (int i = 0; i < seconds; i++) GearDirt.step(level, c, 20, 100.0D);
         if (GearDirt.dirt(c.getItemBySlot(EquipmentSlot.CHEST)) != 0) {
@@ -172,7 +172,7 @@ public final class GearDirtGameTests {
     @GameTest(template = TEMPLATE, batch = BATCH, timeoutTicks = 20)
     public static void dirtLowersPerformanceWithoutNumbers(GameTestHelper helper) {
         DirtSpec s = spec();
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         ItemStack chest = new ItemStack(Items.DIAMOND_CHESTPLATE);
         ItemStack clean = chest.copy();
         p.setItemSlot(EquipmentSlot.CHEST, chest);
@@ -182,12 +182,12 @@ public final class GearDirtGameTests {
             GearDirt.setDirt(chest, v);
             GearDirt.setDirt(p.getMainHandItem(), v);
             GearDirt.applyModifiers(p);
-            AttributeModifier a = p.getAttribute(Attributes.ARMOR).getModifier(GearDirt.ARMOR_ID);
-            AttributeModifier t = p.getAttribute(Attributes.ARMOR_TOUGHNESS).getModifier(GearDirt.TOUGHNESS_ID);
+            AttributeModifier a = com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(p.getAttribute(Attributes.ARMOR), GearDirt.ARMOR_ID);
+            AttributeModifier t = com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(p.getAttribute(Attributes.ARMOR_TOUGHNESS), GearDirt.TOUGHNESS_ID);
             double loss = s.armorLossPerStage()[stage - 1];
             // ダイヤの胸当て = 守り 8・強靭さ 2
-            if (a == null || Math.abs(a.amount() + 8.0D * loss) > 1e-6 || t == null || Math.abs(t.amount() + 2.0D * loss) > 1e-6) {
-                helper.fail("段 " + stage + ": 守りの修飾 " + (a == null ? "なし" : a.amount()) + "・強靭さ " + (t == null ? "なし" : t.amount()));
+            if (a == null || Math.abs(a.getAmount() + 8.0D * loss) > 1e-6 || t == null || Math.abs(t.getAmount() + 2.0D * loss) > 1e-6) {
+                helper.fail("段 " + stage + ": 守りの修飾 " + (a == null ? "なし" : a.getAmount()) + "・強靭さ " + (t == null ? "なし" : t.getAmount()));
                 return;
             }
             double f = GearDirt.breakSpeedFactor(p);
@@ -200,15 +200,15 @@ public final class GearDirtGameTests {
         GearDirt.setDirt(chest, 0);
         GearDirt.setDirt(p.getMainHandItem(), 0);
         GearDirt.applyModifiers(p);
-        if (p.getAttribute(Attributes.ARMOR).getModifier(GearDirt.ARMOR_ID) != null || GearDirt.breakSpeedFactor(p) != 1.0D) {
+        if (com.yayuy.overgrownvegetation.port.entity.OvModifiers.get(p.getAttribute(Attributes.ARMOR), GearDirt.ARMOR_ID) != null || GearDirt.breakSpeedFactor(p) != 1.0D) {
             helper.fail("きれいにしても修飾が残る");
             return;
         }
         // 説明文(高度な表示も)に汚れの数字が出ない
         GearDirt.setDirt(chest, s.full());
-        var ctx = Item.TooltipContext.of(helper.getLevel());
-        var dirtyLines = chest.getTooltipLines(ctx, p, TooltipFlag.Default.NORMAL).stream().map(c -> c.getString()).toList();
-        var cleanLines = clean.getTooltipLines(ctx, p, TooltipFlag.Default.NORMAL).stream().map(c -> c.getString()).toList();
+        // 1.20.1: TooltipContext は無い
+        var dirtyLines = chest.getTooltipLines(p, TooltipFlag.Default.NORMAL).stream().map(c -> c.getString()).toList();
+        var cleanLines = clean.getTooltipLines(p, TooltipFlag.Default.NORMAL).stream().map(c -> c.getString()).toList();
         if (!dirtyLines.equals(cleanLines)) {
             helper.fail("汚れで説明文が変わった: " + dirtyLines);
             return;
@@ -222,7 +222,7 @@ public final class GearDirtGameTests {
         ServerLevel level = helper.getLevel();
         DirtSpec s = spec();
         ItemStack clean = new ItemStack(Items.IRON_PICKAXE);
-        clean.hurtAndBreak(100, level, (net.minecraft.world.entity.LivingEntity) null, i -> { });
+        clean.hurtAndBreak(100, GtCompat.wearer(level), i -> { });
         if (clean.getDamageValue() != 100) {
             helper.fail("きれいなつるはしの耐久の減り " + clean.getDamageValue() + "(100 のはず)");
             return;
@@ -230,7 +230,7 @@ public final class GearDirtGameTests {
         for (int stage = 1; stage <= 3; stage++) {
             ItemStack dirty = new ItemStack(Items.IRON_PICKAXE);
             GearDirt.setDirt(dirty, stage == 1 ? s.stage1() : stage == 2 ? s.stage2() : s.stage3());
-            dirty.hurtAndBreak(100, level, (net.minecraft.world.entity.LivingEntity) null, i -> { });
+            dirty.hurtAndBreak(100, GtCompat.wearer(level), i -> { });
             double expect = 100.0D * (1.0D + s.wearExtraPerStage()[stage - 1]);
             if (Math.abs(dirty.getDamageValue() - expect) > 1.0D) {
                 helper.fail("段 " + stage + " の耐久の減り " + dirty.getDamageValue() + "(約 " + expect + " のはず。差し込みが効いていない?)");
@@ -248,8 +248,8 @@ public final class GearDirtGameTests {
         // 保存と復元
         ItemStack chest = new ItemStack(Items.IRON_CHESTPLATE);
         GearDirt.setDirt(chest, 777);
-        Tag tag = chest.save(level.registryAccess());
-        ItemStack back = ItemStack.parseOptional(level.registryAccess(), (net.minecraft.nbt.CompoundTag) tag);
+        Tag tag = chest.save(new net.minecraft.nbt.CompoundTag()); // 1.20.1: NBT の形
+        ItemStack back = ItemStack.of((net.minecraft.nbt.CompoundTag) tag);
         if (GearDirt.dirt(back) != 777) {
             helper.fail("保存で汚れが変わった: " + GearDirt.dirt(back));
             return;
@@ -258,7 +258,7 @@ public final class GearDirtGameTests {
         BlockPos rel = new BlockPos(3, 2, 3);
         helper.setBlock(rel, Blocks.WATER_CAULDRON.defaultBlockState().setValue(LayeredCauldronBlock.LEVEL, 3));
         BlockPos abs = helper.absolutePos(rel);
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.getPersistentData().remove(HandWash.WORK_KEY);
         ItemStack held = new ItemStack(Items.IRON_CHESTPLATE);
         GearDirt.setDirt(held, s.full());

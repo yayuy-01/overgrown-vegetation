@@ -61,7 +61,7 @@ public final class GestatrixGameTests {
     }
 
     private static List<GregariaEntity> brood(GameTestHelper helper) {
-        return helper.getLevel().getEntitiesOfClass(GregariaEntity.class, helper.getBounds().inflate(8.0D));
+        return helper.getLevel().getEntitiesOfClass(GregariaEntity.class, GtCompat.bounds(helper).inflate(8.0D));
     }
 
     /** 前触れの後に broodMin〜broodMax 匹を産み、嚢が 1 つ減る。産むのを重ねても、生きている手先は broodCap を超えない。 */
@@ -160,7 +160,7 @@ public final class GestatrixGameTests {
         });
         int hatchedAt = rootedAt + GestatrixEntity.HATCH_T + 4;
         helper.runAfterDelay(hatchedAt, () -> {
-            List<Pig> pigs = level.getEntitiesOfClass(Pig.class, helper.getBounds().inflate(4.0D));
+            List<Pig> pigs = level.getEntitiesOfClass(Pig.class, GtCompat.bounds(helper).inflate(4.0D));
             helper.assertTrue(!pigs.isEmpty() && g.hatches() == 1 && g.isAlive(), "根付いた後に孵さない・1 回で枯れた: 豚 " + pigs.size() + "・孵した回 " + g.hatches());
             pigs.forEach(net.minecraft.world.entity.Entity::discard);
         });
@@ -176,7 +176,7 @@ public final class GestatrixGameTests {
             DirectorGates.setPhaseForTests(phaseBefore);
             DirectorGates.setStageForTests(stageBefore);
             director.setBudget(level, budgetBefore);
-            level.getEntitiesOfClass(Pig.class, helper.getBounds().inflate(4.0D)).forEach(net.minecraft.world.entity.Entity::discard);
+            level.getEntitiesOfClass(Pig.class, GtCompat.bounds(helper).inflate(4.0D)).forEach(net.minecraft.world.entity.Entity::discard);
             helper.assertTrue(!g.isAlive() && g.spent(), "決めた回数孵しても枯れない: " + g.hatches() + " / " + dt.nurseryLifeHatches);
             helper.succeed();
         });

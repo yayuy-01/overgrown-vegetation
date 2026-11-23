@@ -60,7 +60,7 @@ public final class DirectorGameTests {
     }
 
     private static List<DevelopedParasitized> developedInArena(GameTestHelper helper) {
-        return helper.getLevel().getEntitiesOfClass(DevelopedParasitized.class, helper.getBounds());
+        return helper.getLevel().getEntitiesOfClass(DevelopedParasitized.class, GtCompat.bounds(helper));
     }
 
     // ------------------------------------------------------------------ 予算
@@ -348,7 +348,7 @@ public final class DirectorGameTests {
             }
             if (!zombie.isRemoved()) return;
             List<net.minecraft.world.entity.animal.Pig> pigs = helper.getLevel().getEntitiesOfClass(
-                    net.minecraft.world.entity.animal.Pig.class, helper.getBounds());
+                    net.minecraft.world.entity.animal.Pig.class, GtCompat.bounds(helper));
             helper.assertTrue(sawRootOmen[0], "根を下ろす前兆なしに入れ替わった");
             helper.assertTrue(omenAt[0] >= 4.0D - 1.0E-6D, "森の縁から 4 ブロック離れる前に根を下ろした: " + omenAt[0]);
             helper.assertTrue(pigs.size() == 1, "根付きの姿(代わりの豚)が 1 体でない: " + pigs.size());
@@ -391,7 +391,7 @@ public final class DirectorGameTests {
             zombie.kill();
         });
         helper.runAfterDelay(120, () -> {
-            helper.assertTrue(helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.animal.Pig.class, helper.getBounds()).isEmpty(),
+            helper.assertTrue(helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.animal.Pig.class, GtCompat.bounds(helper)).isEmpty(),
                     "歩いている途中で倒したのに根付きが出た");
             helper.succeed();
         });

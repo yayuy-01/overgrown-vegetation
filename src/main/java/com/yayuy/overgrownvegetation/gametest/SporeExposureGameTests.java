@@ -140,7 +140,7 @@ public final class SporeExposureGameTests {
             return;
         }
         helper.setBlock(new BlockPos(3, 5, 3), Blocks.STONE);
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.moveTo(helper.absoluteVec(new net.minecraft.world.phys.Vec3(3.5D, 2.0D, 3.5D)));
         SporeExposureTracker.tickWith(level, p, 20, 100.0D);
         if (Math.abs(SporeExposureTracker.dose(p) - 100.0D) > 1e-6) {

@@ -166,7 +166,7 @@ public final class WorldDifficultyGameTests {
             folder = Files.createTempDirectory("ov_world_difficulty");
             WorldDifficultyData.writeInitial(folder, v);
             DimensionDataStorage storage = new DimensionDataStorage(folder.resolve("data").toFile(),
-                    level.getServer().getFixerUpper(), level.registryAccess());
+                    level.getServer().getFixerUpper()); // 1.20.1: registries の引数は無い
             WorldDifficultyData data = WorldDifficultyData.readFrom(storage);
             check(helper, data.snapshot().equals(v), "作成画面のファイルが読めない: " + data.snapshot());
             check(helper, data.tier() == ModDifficulty.CUSTOM, "詳細があるのにカスタムでない");

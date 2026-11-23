@@ -86,18 +86,18 @@ public final class ConduitWeaponArmorGameTests {
 
     /** 手に持った剣の攻撃を、ゲームが持ち替えのときにするのと同じ形で付けて読む(素手の 1 を含む)。 */
     private static double attackWith(FakePlayer player, ItemStack sword) {
-        var mods = sword.getAttributeModifiers();
-        mods.forEach(EquipmentSlot.MAINHAND, (attr, mod) -> player.getAttribute(attr).addOrUpdateTransientModifier(mod));
+        var mods = sword.getAttributeModifiers(EquipmentSlot.MAINHAND); // 1.20.1: 手の枠ごとの Multimap
+        player.getAttributes().addTransientAttributeModifiers(mods);
         double v = player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        mods.forEach(EquipmentSlot.MAINHAND, (attr, mod) -> player.getAttribute(attr).removeModifier(mod.id()));
+        player.getAttributes().removeAttributeModifiers(mods);
         return v;
     }
 
     private static double speedWith(FakePlayer player, ItemStack sword) {
-        var mods = sword.getAttributeModifiers();
-        mods.forEach(EquipmentSlot.MAINHAND, (attr, mod) -> player.getAttribute(attr).addOrUpdateTransientModifier(mod));
+        var mods = sword.getAttributeModifiers(EquipmentSlot.MAINHAND); // 1.20.1: 手の枠ごとの Multimap
+        player.getAttributes().addTransientAttributeModifiers(mods);
         double v = player.getAttributeValue(Attributes.ATTACK_SPEED);
-        mods.forEach(EquipmentSlot.MAINHAND, (attr, mod) -> player.getAttribute(attr).removeModifier(mod.id()));
+        player.getAttributes().removeAttributeModifiers(mods);
         return v;
     }
 
@@ -155,35 +155,35 @@ public final class ConduitWeaponArmorGameTests {
         ServerLevel level = helper.getLevel();
         GearTierTable.Crossbow c = t().crossbow;
         FakePlayer player = player(helper, "ov_conduit_crossbowman");
-        int vanilla = CrossbowItem.getChargeDuration(new ItemStack(Items.CROSSBOW), player);
+        int vanilla = CrossbowItem.getChargeDuration(new ItemStack(Items.CROSSBOW));
         ItemStack bow = new ItemStack(ModGear.CONDUIT_CROSSBOW.get());
-        if (CrossbowItem.getChargeDuration(bow, player) != vanilla) {
-            helper.fail("力の無い弩の装填 " + CrossbowItem.getChargeDuration(bow, player) + " ≠ バニラ " + vanilla);
+        if (CrossbowItem.getChargeDuration(bow) != vanilla) {
+            helper.fail("力の無い弩の装填 " + CrossbowItem.getChargeDuration(bow) + " ≠ バニラ " + vanilla);
             return;
         }
         LeyCharge.set(bow, c.capacity);
-        int fast = CrossbowItem.getChargeDuration(bow, player);
+        int fast = CrossbowItem.getChargeDuration(bow);
         int expect = Math.max(1, (int) Math.round(vanilla * c.chargedLoadMultiplier));
-        if (fast != expect || bow.getUseDuration(player) != fast + 3) {
-            helper.fail("力のある弩の装填 " + fast + "(期待 " + expect + ")・使う時間 " + bow.getUseDuration(player));
+        if (fast != expect || bow.getUseDuration() != fast + 3) {
+            helper.fail("力のある弩の装填 " + fast + "(期待 " + expect + ")・使う時間 " + bow.getUseDuration());
             return;
         }
         // 速い時間だけ引いて離すと込もる(力が無いと同じ時間では込もらない)
         player.setItemInHand(InteractionHand.MAIN_HAND, bow); // 先に手へ(矢を先に入れると手の枠に入って弩で上書きされる)
         player.getInventory().add(new ItemStack(Items.ARROW, 8));
-        bow.releaseUsing(level, player, bow.getUseDuration(player) - fast);
+        bow.releaseUsing(level, player, bow.getUseDuration() - fast);
         if (!CrossbowItem.isCharged(bow)) {
             helper.fail("力のある弩が速い時間で込もらない");
             return;
         }
         ItemStack slow = new ItemStack(ModGear.CONDUIT_CROSSBOW.get());
-        slow.releaseUsing(level, player, slow.getUseDuration(player) - fast);
+        slow.releaseUsing(level, player, slow.getUseDuration() - fast);
         if (CrossbowItem.isCharged(slow)) {
             helper.fail("力の無い弩が速い時間で込もった");
             return;
         }
         int before = LeyCharge.stored(bow);
-        ((CrossbowItem) bow.getItem()).performShooting(level, player, InteractionHand.MAIN_HAND, bow, 3.15F, 1.0F, null);
+        CrossbowItem.performShooting(level, player, InteractionHand.MAIN_HAND, bow, 3.15F, 1.0F); // 1.20.1: static・狙いの引数なし
         if (CrossbowItem.isCharged(bow) || LeyCharge.stored(bow) != before - c.fePerShot) {
             helper.fail("撃って減った力 " + (before - LeyCharge.stored(bow)) + "(期待 " + c.fePerShot + ")・まだ込もっている " + CrossbowItem.isCharged(bow));
             return;
@@ -195,13 +195,13 @@ public final class ConduitWeaponArmorGameTests {
         }
         // 込めていないまま撃っても減らない
         before = LeyCharge.stored(bow);
-        ((CrossbowItem) bow.getItem()).performShooting(level, player, InteractionHand.MAIN_HAND, bow, 3.15F, 1.0F, null);
+        CrossbowItem.performShooting(level, player, InteractionHand.MAIN_HAND, bow, 3.15F, 1.0F); // 1.20.1: static・狙いの引数なし
         if (LeyCharge.stored(bow) != before) {
             helper.fail("空撃ちで力が減った");
             return;
         }
-        if (bow.getMaxDamage() != c.durability || !bow.is(net.minecraft.tags.ItemTags.CROSSBOW_ENCHANTABLE)) {
-            helper.fail("弩の壊れにくさ " + bow.getMaxDamage() + "・弩のエンチャントのタグ " + bow.is(net.minecraft.tags.ItemTags.CROSSBOW_ENCHANTABLE));
+        if (bow.getMaxDamage() != c.durability || !net.minecraft.world.item.enchantment.EnchantmentCategory.CROSSBOW.canEnchant(bow.getItem())) {
+            helper.fail("弩の壊れにくさ " + bow.getMaxDamage() + "・弩のエンチャントのタグ " + net.minecraft.world.item.enchantment.EnchantmentCategory.CROSSBOW.canEnchant(bow.getItem()));
             return;
         }
         helper.succeed();

@@ -21,7 +21,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
@@ -71,7 +70,7 @@ public final class ManagerDumpGameTests {
     }
 
     /** {@code mobs.json} の鍵 → 属性。 */
-    private static final Map<String, Holder<Attribute>> ATTRIBUTES = new LinkedHashMap<>();
+    private static final Map<String, Attribute> ATTRIBUTES = new LinkedHashMap<>();
 
     static {
         ATTRIBUTES.put("maxHealth", Attributes.MAX_HEALTH);
@@ -82,7 +81,7 @@ public final class ManagerDumpGameTests {
         ATTRIBUTES.put("armorToughness", Attributes.ARMOR_TOUGHNESS);
         ATTRIBUTES.put("knockbackResistance", Attributes.KNOCKBACK_RESISTANCE);
         ATTRIBUTES.put("followRange", Attributes.FOLLOW_RANGE);
-        ATTRIBUTES.put("stepHeight", PortAttributes.STEP_HEIGHT.get());
+        ATTRIBUTES.put("stepHeight", PortAttributes.STEP_HEIGHT.get()); // 1.20.1: Forge の 0.6 への足し分。書き出しでは 0.6 を足して 1.21 と同じ値にする
         ATTRIBUTES.put("flyingSpeed", Attributes.FLYING_SPEED);
         ATTRIBUTES.put("scale", PortAttributes.SCALE.get());
     }
@@ -114,7 +113,7 @@ public final class ManagerDumpGameTests {
             }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("block", item instanceof BlockItem);
-            m.put("stack", item.getDefaultMaxStackSize());   // 作り方の完成品の個数はこれを超えるとゲームが読まない
+            m.put("stack", item.getMaxStackSize());   // 作り方の完成品の個数はこれを超えるとゲームが読まない
             items.put(id.getPath(), m);
         }
         out.put("items", items);
@@ -128,29 +127,31 @@ public final class ManagerDumpGameTests {
             @SuppressWarnings("unchecked")
             AttributeSupplier supplier = DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) type);
             Map<String, Object> m = new LinkedHashMap<>();
-            for (Map.Entry<String, Holder<Attribute>> e : ATTRIBUTES.entrySet()) {
+            for (Map.Entry<String, Attribute> e : ATTRIBUTES.entrySet()) {
                 if (supplier.hasAttribute(e.getValue())) {
-                    m.put(e.getKey(), round(supplier.getBaseValue(e.getValue())));
+                    double base = supplier.getBaseValue(e.getValue());
+                    if ("stepHeight".equals(e.getKey())) base += PortAttributes.VANILLA_STEP; // stepHeightBase の逆
+                    m.put(e.getKey(), round(base));
                 }
             }
-            m.put("width", round(type.getDimensions().width()));
-            m.put("height", round(type.getDimensions().height()));
+            m.put("width", round(type.getDimensions().width));
+            m.put("height", round(type.getDimensions().height));
             mobs.put(id.getPath(), m);
         }
         out.put("mobs", mobs);
 
         // ゲームが実際に読み込んだ作り方とドロップ(マネージャーの保存がゲームに効いたかを見比べる用)
         Map<String, Object> recipes = new TreeMap<>();
-        for (RecipeHolder<?> holder : level.getServer().getRecipeManager().getRecipes()) {
-            if (!OvergrownVegetation.MODID.equals(holder.id().getNamespace())) {
+        for (var holder : level.getServer().getRecipeManager().getRecipes()) { // 1.20.1: RecipeHolder は無い(レシピが id を持つ)
+            if (!OvergrownVegetation.MODID.equals(holder.getId().getNamespace())) {
                 continue;
             }
-            ItemStack result = holder.value().getResultItem(level.registryAccess());
+            ItemStack result = holder.getResultItem(level.registryAccess());
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("type", String.valueOf(BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType())));
+            m.put("type", String.valueOf(BuiltInRegistries.RECIPE_TYPE.getKey(holder.getType())));
             m.put("result", BuiltInRegistries.ITEM.getKey(result.getItem()).toString());
             m.put("count", result.getCount());
-            recipes.put(holder.id().getPath(), m);
+            recipes.put(holder.getId().getPath(), m);
         }
         out.put("recipes", recipes);
 
@@ -160,12 +161,11 @@ public final class ManagerDumpGameTests {
             if (!OvergrownVegetation.MODID.equals(id.getNamespace()) || !DefaultAttributes.hasSupplier(type)) {
                 continue;
             }
-            LootTable table = level.getServer().reloadableRegistries().getLootTable(type.getDefaultLootTable());
+            LootTable table = level.getServer().getLootData().getLootTable(type.getDefaultLootTable());
             if (table == LootTable.EMPTY) {
                 continue;
             }
-            LootTable.DIRECT_CODEC.encodeStart(level.registryAccess().createSerializationContext(JsonOps.INSTANCE), table)
-                    .result().ifPresent(json -> loot.put(id.getPath(), json));
+            loot.put(id.getPath(), net.minecraft.world.level.storage.loot.LootDataType.TABLE.parser().toJsonTree(table)); // 1.20.1: ルートテーブルは Gson で書く
         }
         out.put("loot", loot);
 

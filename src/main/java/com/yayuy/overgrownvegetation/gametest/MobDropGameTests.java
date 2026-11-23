@@ -15,7 +15,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
@@ -27,7 +26,6 @@ import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
-import net.neoforged.neoforge.registries.datamaps.builtin.NeoForgeDataMaps;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -107,8 +105,8 @@ public final class MobDropGameTests {
 
     /** {@code entity} を倒したときのドロップを {@code rolls} 回引いて、全部まとめる。{@code killer} が null なら誰も倒していない扱い。 */
     private static List<ItemStack> roll(ServerLevel level, LivingEntity entity, FakePlayer killer, int rolls) {
-        ResourceKey<LootTable> key = entity.getLootTable();
-        LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
+        net.minecraft.resources.ResourceLocation key = entity.getLootTable(); // 1.20.1: ルートテーブルは id で引く
+        LootTable table = level.getServer().getLootData().getLootTable(key);
         DamageSource src = killer != null ? level.damageSources().playerAttack(killer) : level.damageSources().generic();
         List<ItemStack> out = new ArrayList<>();
         for (int i = 0; i < rolls; i++) {
@@ -118,8 +116,8 @@ public final class MobDropGameTests {
                     .withParameter(LootContextParams.DAMAGE_SOURCE, src);
             if (killer != null) {
                 b.withParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer)
-                        .withParameter(LootContextParams.ATTACKING_ENTITY, killer)
-                        .withParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer);
+                        .withParameter(LootContextParams.KILLER_ENTITY, killer)
+                        .withParameter(LootContextParams.DIRECT_KILLER_ENTITY, killer);
             }
             out.addAll(table.getRandomItems(b.create(LootContextParamSets.ENTITY)));
         }
@@ -174,17 +172,17 @@ public final class MobDropGameTests {
     public static void everyDropHasAUse(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         List<Ingredient> ingredients = new ArrayList<>();
-        for (RecipeHolder<?> r : level.getRecipeManager().getRecipes()) {
-            ingredients.addAll(r.value().getIngredients());
+        for (var r : level.getRecipeManager().getRecipes()) { // 1.20.1: RecipeHolder は無い
+            ingredients.addAll(r.getIngredients());
         }
         List<String> unused = new ArrayList<>();
         for (var d : ModMobDrops.all()) {
             String id = d.getId().getPath();
             if (SPECIMEN_ONLY.contains(id) || AWAITING_GEAR_REMAKE.contains(id)) continue;
             ItemStack stack = new ItemStack(d.get());
-            boolean use = stack.has(net.minecraft.core.component.DataComponents.FOOD)
-                    || d.get().builtInRegistryHolder().getData(NeoForgeDataMaps.FURNACE_FUELS) != null
-                    || d.get().builtInRegistryHolder().getData(NeoForgeDataMaps.COMPOSTABLES) != null
+            boolean use = stack.isEdible() // 1.20.1: 食べ物・燃料・堆肥はデータコンポーネント・データマップでなく、この 3 つ
+                    || net.minecraftforge.common.ForgeHooks.getBurnTime(stack, null) > 0
+                    || net.minecraft.world.level.block.ComposterBlock.COMPOSTABLES.containsKey(d.get())
                     || ingredients.stream().anyMatch(i -> i.test(stack));
             if (!use) unused.add(id);
         }

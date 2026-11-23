@@ -72,7 +72,7 @@ public final class OreDropGameTests {
         BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
         ItemStack pickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
         ItemStack silk = new ItemStack(Items.DIAMOND_PICKAXE);
-        Holder<Enchantment> silkTouch = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH);
+        Enchantment silkTouch = Enchantments.SILK_TOUCH; // 1.20.1: エンチャントは登録の値そのもの
         silk.enchant(silkTouch, 1);
         ItemStack[] tiers = {new ItemStack(Items.WOODEN_PICKAXE), new ItemStack(Items.STONE_PICKAXE), new ItemStack(Items.IRON_PICKAXE)};
         for (String name : OVERGROWN_VANILLA_ORES) {
@@ -121,7 +121,9 @@ public final class OreDropGameTests {
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         for (int i = 0; i < 400; i++) {
-            int xp = state.getExpDrop(level, pos, null, null, tool);
+            int xp = state.getExpDrop(level, level.random, pos, // 1.20.1: 道具の代わりに幸運・シルクタッチの段
+                    net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, tool),
+                    net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, tool));
             min = Math.min(min, xp);
             max = Math.max(max, xp);
         }

@@ -96,7 +96,7 @@ public final class LargeRaidGameTests {
                 total += LargeRaids.step(level, RandomSource.create(10L + i));
             }
             // G2・G3 の攻め手も印を持つ(11-15 enemy-spawns。顔ぶれの plantShare に当たった回)
-            List<Mob> attackers = level.getEntitiesOfClass(Mob.class, helper.getBounds().inflate(8.0D),
+            List<Mob> attackers = level.getEntitiesOfClass(Mob.class, GtCompat.bounds(helper).inflate(8.0D),
                     m -> m.getTags().contains(LargeRaids.ATTACKER_TAG));
             helper.assertTrue(total >= 1 && attackers.size() == total, "攻め手が湧かない・印が無い: " + total + " / " + attackers.size());
             helper.assertTrue(attackers.stream().allMatch(m -> m instanceof AbstractParasitizedMonster g ? g.march().active() : com.yayuy.overgrownvegetation.spawn.PlantMarch.active(m)), "攻め手が拠点へ向かわない");

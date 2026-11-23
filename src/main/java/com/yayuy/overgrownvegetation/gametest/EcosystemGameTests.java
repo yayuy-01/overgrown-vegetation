@@ -192,7 +192,7 @@ public final class EcosystemGameTests {
             helper.assertTrue(Ecosystem.health(level) == 1.0D && Ecosystem.incomeFactor(level) == 1.0D, "始めの健康が 100% でない");
 
             // ---- 数える殺し手
-            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            Player player = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
             Mob frog = EntityType.FROG.create(level);
             frog.moveTo(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
             frog.addTag(Ecosystem.STUB_TAG_PREY);

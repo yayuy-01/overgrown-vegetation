@@ -159,7 +159,7 @@ public final class CorruptionDropGameTests {
         helper.runAfterDelay(2, () -> {
             helper.assertBlockPresent(Blocks.AIR, FLOWER);
             helper.assertBlockPresent(Blocks.AIR, GRASS);
-            List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
+            List<ItemEntity> drops = GtCompat.entities(helper, EntityType.ITEM);
             helper.assertTrue(drops.stream().anyMatch(e -> e.getItem().is(Items.DANDELION)),
                     "a dandelion should drop outside the corruption scope, got " + describe(drops));
             helper.succeed();
@@ -212,7 +212,7 @@ public final class CorruptionDropGameTests {
     }
 
     private static void assertNoDrops(GameTestHelper helper) {
-        List<ItemEntity> drops = helper.getEntities(EntityType.ITEM);
+        List<ItemEntity> drops = GtCompat.entities(helper, EntityType.ITEM);
         helper.assertTrue(drops.isEmpty(), "items were dropped: " + describe(drops));
     }
 

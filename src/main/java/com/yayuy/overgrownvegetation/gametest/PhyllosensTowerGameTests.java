@@ -126,13 +126,13 @@ public final class PhyllosensTowerGameTests {
     }
 
     private static Player player(GameTestHelper helper, StiltGameTests.Arena a, double x, double y, double z) {
-        Player pl = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player pl = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         pl.moveTo(a.x0() + x, y, a.z0() + z, 0.0F, 0.0F);
         return pl;
     }
 
     private static boolean marked(Player pl) {
-        return pl.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH);
+        return pl.hasEffect(ModPhyllosens.PHYLLOSENS_WATCH.get());
     }
 
     private static String why(StiltGameTests.Arena a, PhyllosensEntity e) {

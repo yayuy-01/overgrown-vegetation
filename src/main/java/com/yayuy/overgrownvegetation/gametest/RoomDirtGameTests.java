@@ -88,7 +88,7 @@ public final class RoomDirtGameTests {
     }
 
     static Player dirtyPlayerAt(GameTestHelper helper, BlockPos abs) {
-        Player p = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player p = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
         p.setPos(abs.getX() + 0.5D, abs.getY(), abs.getZ() + 0.5D);
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             ItemStack st = new ItemStack(switch (slot) {
@@ -123,7 +123,7 @@ public final class RoomDirtGameTests {
                 return;
             }
             // きれいな人は汚さない
-            Player clean = helper.makeMockPlayer(GameType.SURVIVAL);
+            Player clean = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
             clean.setPos(a.getX() + 0.5D, a.getY(), a.getZ() + 0.5D);
             clean.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
             for (int i = 0; i < 10; i++) GearDirt.step(level, clean, 20, 0.0D);
@@ -159,7 +159,7 @@ public final class RoomDirtGameTests {
                 return;
             }
             // 汚れた部屋では、きれいな装備の人にも暴露量がゆっくりたまる(部屋の汚れ 1% あたり roomSeepPerPercent。2026-11-14 決定 35)
-            Player guest = helper.makeMockPlayer(GameType.SURVIVAL);
+            Player guest = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
             guest.setPos(a.getX() + 0.5D, a.getY(), a.getZ() + 0.5D);
             for (int i = 0; i < 10; i++) SporeExposureTracker.tick(level, guest, 20);
             double expectDose = got * s.roomSeepPerPercent() * 10.0D;
@@ -187,7 +187,7 @@ public final class RoomDirtGameTests {
                 return;
             }
             // 覆われた○○ は 1 枠 1 点
-            Player carrier = helper.makeMockPlayer(GameType.SURVIVAL);
+            Player carrier = GtCompat.mockPlayer(helper, GameType.SURVIVAL);
             carrier.getInventory().add(new ItemStack(ModItems.OVERGROWN_BEEF.get(), 10));
             carrier.getInventory().add(new ItemStack(ModItems.OVERGROWN_BONE.get(), 3));
             if (GearDirt.carriedPoints(carrier) != 2.0D) {
