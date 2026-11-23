@@ -1,5 +1,5 @@
 # G8 GameTest(2026-11-23): 決定 11(共通の助け手と大事な物 = 侵食・フェーズ・保存だけ移し、残りは後)で後に回す gametest。
-# 頭の ! で Gradle のコンパイルから外す(ファイルは消さない。probe では全部 0 件で通る)。移したのは gametest/ の 36 ファイル(この一覧に無い物)。
+# 頭の ! で Gradle のコンパイルから外す(ファイルは消さない。probe では全部 0 件で通る)。移したのは元の gametest/ の 35 ファイルと新しい助け手 2 つ(GtCompat・GtServerSetup)= この一覧に無い物。
 # 後で移すときは、ここから 1 行消して runGameTestServer で確かめる。
 !com/yayuy/overgrownvegetation/gametest/AcumnesGameTests.java
 !com/yayuy/overgrownvegetation/gametest/AiTierGameTests.java
