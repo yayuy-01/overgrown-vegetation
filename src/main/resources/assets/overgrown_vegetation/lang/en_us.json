@@ -1004,5 +1004,8 @@
   "armor_attachment.overgrown_vegetation.slots": "Attachments %s / %s",
   "armor_attachment.overgrown_vegetation.no_belt": "Your leg armor has no Storage Belt",
   "key.categories.overgrown_vegetation": "Overgrown Vegetation",
-  "key.overgrown_vegetation.belt_pouch": "Open Belt Pouch"
+  "key.overgrown_vegetation.belt_pouch": "Open Belt Pouch",
+  "attribute.name.generic.scale": "Scale",
+  "attribute.name.generic.jump_strength": "Jump Strength",
+  "attribute.name.player.block_break_speed": "Block Break Speed"
 }

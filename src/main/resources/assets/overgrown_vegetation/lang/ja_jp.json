@@ -1004,5 +1004,8 @@
   "armor_attachment.overgrown_vegetation.slots": "付け物 %s / %s",
   "armor_attachment.overgrown_vegetation.no_belt": "脚の防具に収納付きベルトが付いていない",
   "key.categories.overgrown_vegetation": "Overgrown Vegetation",
-  "key.overgrown_vegetation.belt_pouch": "ベルトの小物入れを開く"
+  "key.overgrown_vegetation.belt_pouch": "ベルトの小物入れを開く",
+  "attribute.name.generic.scale": "サイズ",
+  "attribute.name.generic.jump_strength": "跳躍力",
+  "attribute.name.player.block_break_speed": "ブロック破壊速度"
 }

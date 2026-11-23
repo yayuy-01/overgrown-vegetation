@@ -1004,5 +1004,8 @@
   "armor_attachment.overgrown_vegetation.slots": "Навески %s / %s",
   "armor_attachment.overgrown_vegetation.no_belt": "На поножах нет пояса с подсумком",
   "key.categories.overgrown_vegetation": "Overgrown Vegetation",
-  "key.overgrown_vegetation.belt_pouch": "Открыть поясной подсумок"
+  "key.overgrown_vegetation.belt_pouch": "Открыть поясной подсумок",
+  "attribute.name.generic.scale": "Размер",
+  "attribute.name.generic.jump_strength": "Сила прыжка",
+  "attribute.name.player.block_break_speed": "Скорость разрушения блоков"
 }
