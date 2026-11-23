@@ -64,6 +64,8 @@ legacyForge {
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
+            // 2026-11-23 統合 I: ゲームフォルダは環境変数 OV_GT_DIR(例 runs/gt_g8)で変えられる。無ければ MDG の既定(run/)
+            if (System.getenv('OV_GT_DIR')) gameDirectory = project.file(System.getenv('OV_GT_DIR'))
         }
         // Claude が自分で起動して確かめる用のクライアント。ゲームフォルダは runs/claude(環境変数 OV_CC_DIR で変えられる。本流と同じ)。
         // ./gradlew runClaudeClient -Dov.autoQuit=title で、タイトル画面に着いたら自分で終わる(port/dev/AutoQuit。ユーザーの決定 12)
@@ -190,6 +192,27 @@ tasks.named('jar', Jar).configure {
                 // 1.20.1 の Forge は mods.toml の [[mixins]] を読まない。jar の manifest で知らせる
                 'MixinConfigs'            : "${mod_id}.mixins.json,${mod_id}.port.mixins.json"
         ])
+    }
+}
+
+// GameTest のサーバーを 1.21 のテストサーバーと同じ平らな世界・NORMAL で作る(2026-11-23 統合 I。G8 の init スクリプトから移した)。
+// Forge 1.20.1 の runGameTestServer は普通のサーバーの起動で、世界は server.properties の level-type で作る(既定 normal = テストの場が地下・上に海)。
+// ゲームのルールは gametest/GtServerSetup(G8)。OV_GT_DIR が runs/gt_* のときは、流す前に world を消して毎回新しい世界で流す(OV_GT_KEEP_WORLD=1 で残す)。
+tasks.matching { it.name == 'runGameTestServer' }.configureEach { t ->
+    t.doFirst {
+        File dir = t.gameDirectory.get().asFile.canonicalFile
+        boolean ours = dir.name.startsWith('gt_') && dir.parentFile != null && dir.parentFile.name == 'runs'
+        File world = new File(dir, 'world')
+        if (ours && world.isDirectory() && System.getenv('OV_GT_KEEP_WORLD') != '1') {
+            logger.lifecycle(world.deleteDir() ? "OV_GT 前の回のワールドを消した: ${world}" : "OV_GT 前の回のワールドを消し切れなかった(使用中?): ${world}")
+        }
+        dir.mkdirs()
+        File props = new File(dir, 'server.properties')
+        List<String> lines = props.isFile() ? props.readLines('UTF-8').findAll { !it.startsWith('level-type=') && !it.startsWith('difficulty=') } : []
+        lines << 'level-type=minecraft\\:flat'
+        lines << 'difficulty=normal'
+        props.write(lines.join('\n') + '\n', 'UTF-8')
+        logger.lifecycle("OV_GT ${dir}: server.properties に level-type=flat・difficulty=normal")
     }
 }
 
