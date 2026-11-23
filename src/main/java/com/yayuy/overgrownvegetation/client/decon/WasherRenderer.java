@@ -2,6 +2,7 @@ package com.yayuy.overgrownvegetation.client.decon;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.RenderType;
 import com.mojang.math.Axis;
 import com.yayuy.overgrownvegetation.survival.decon.WasherBlock;
 import com.yayuy.overgrownvegetation.survival.decon.WasherBlockEntity;
@@ -47,16 +48,19 @@ public class WasherRenderer extends GeoBlockRenderer<WasherBlockEntity> {
 
     @Override
     public void preRender(PoseStack poseStack, WasherBlockEntity animatable, BakedGeoModel model, @Nullable MultiBufferSource bufferSource,
-                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         if (!isReRender) {
             WasherModel.showParts(model, false, running(animatable));
         }
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
+    // 1.20.1(GeckoLib 4.8.4): GeoBlockRenderer#render は 1 つ目が BlockEntity で宣言されていて、型を絞って上書きできない(名前がぶつかる)。
+    // render は this.animatable を入れて defaultRender を呼ぶだけ(重ねの値は使わない)なので、defaultRender を上書きする
     @Override
-    public void render(WasherBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int packedLight, int packedOverlay) {
-        super.render(be, partialTick, poseStack, buffers, packedLight, packedOverlay); // 槽の模型
+    public void defaultRender(PoseStack poseStack, WasherBlockEntity be, MultiBufferSource buffers, @Nullable RenderType renderType,
+                              @Nullable VertexConsumer buffer, float yaw, float partialTick, int packedLight) {
+        super.defaultRender(poseStack, be, buffers, renderType, buffer, yaw, partialTick, packedLight); // 槽の模型
         renderShown(be, partialTick, poseStack, buffers, packedLight);
     }
 

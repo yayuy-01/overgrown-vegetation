@@ -13,7 +13,6 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
-import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 
@@ -41,7 +40,14 @@ public final class G1Glow<T extends GeoAnimatable> extends AutoGlowingGeoLayer<T
     /** {@code texture} に光る絵 {@code <texture>_glowmask.png} があるか。 */
     public static boolean hasGlow(ResourceLocation texture) {
         return HAS.computeIfAbsent(texture, t -> Minecraft.getInstance().getResourceManager()
-                .getResource(AutoGlowingTexture.getEmissiveResource(t)).isPresent());
+                .getResource(glowmask(t)).isPresent());
+    }
+
+    /** 1.20.1(GeckoLib 4.8.4): AutoGlowingTexture#getEmissiveResource は private(しかも絵を作る副作用つき)。名前だけ同じ決まりで作る */
+    private static ResourceLocation glowmask(ResourceLocation texture) {
+        String path = texture.getPath();
+        int dot = path.lastIndexOf('.');
+        return ResourceLocation.fromNamespaceAndPath(texture.getNamespace(), dot < 0 ? path + "_glowmask" : path.substring(0, dot) + "_glowmask" + path.substring(dot));
     }
 
     @Override

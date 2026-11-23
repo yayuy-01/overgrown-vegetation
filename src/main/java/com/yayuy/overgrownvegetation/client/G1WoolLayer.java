@@ -44,9 +44,9 @@ public abstract class G1WoolLayer<T extends GeoAnimatable> extends GeoRenderLaye
             return;
         }
         RenderType type = RenderType.entityCutoutNoCull(intact(animatable) ? INTACT_WOOL : WOOL);
-        int colour = Sheep.getColor(DyeColor.byId(id));
+        float[] colour = Sheep.getColorArray(DyeColor.byId(id)); // 1.20.1: 1.21 の Sheep.getColor(int) と同じ色を float で
         getRenderer().reRender(model, poseStack, bufferSource, animatable, type, bufferSource.getBuffer(type), partialTick, packedLight,
-                packedOverlay, colour);
+                packedOverlay, colour[0], colour[1], colour[2], 1.0F);
     }
 
     /** 死体ブロック用(羊の死体だけ描く)。 */

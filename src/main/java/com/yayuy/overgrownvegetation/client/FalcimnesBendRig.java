@@ -49,7 +49,7 @@ public final class FalcimnesBendRig {
         if (DEV) {   // 骨はモデルで共有なので、ほかの個体では毎回戻す
             // 確かめ用(テストクライアントだけ): 翅を隠して腹のつなぎ目を見る。bendtest_old は直す前(回す中心を移さない)
             for (String w : new String[]{"wing", "wing2"}) {
-                GeoBone b = model.getAnimationProcessor().getBone(w);
+                GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(w);
                 if (b != null) b.setHidden(dev.startsWith("bendtest"));
             }
         }
@@ -71,7 +71,7 @@ public final class FalcimnesBendRig {
      */
     private static void shiftPivot(GeoModel<FalcimnesEntity> model, String name, float deg, float jointZ) {
         if (deg == 0.0F) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         float ry = -LEFT * deg * Mth.DEG_TO_RAD;   // yaw(…, false) で足した中の回転
         float d = b.getPivotZ() - jointZ;          // p − q(中の座標、z だけ)
@@ -86,7 +86,7 @@ public final class FalcimnesBendRig {
     /** 体に対して左へ {@code deg} 度(前の骨か後ろの骨かで回す向きが逆)。 */
     private static void yaw(GeoModel<FalcimnesEntity> model, String name, float deg, boolean front) {
         if (deg == 0.0F) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         float sign = front ? LEFT : -LEFT;
         b.setRotY(b.getRotY() + sign * deg * Mth.DEG_TO_RAD);

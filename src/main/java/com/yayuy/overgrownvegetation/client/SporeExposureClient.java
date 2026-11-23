@@ -4,12 +4,10 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.network.SporeExposurePayload;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -18,8 +16,9 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import org.joml.Matrix4f;
 
 /**
@@ -70,7 +69,7 @@ public final class SporeExposureClient {
         shown = 0.0F;
     }
 
-    private static void render(GuiGraphics graphics, DeltaTracker delta) {
+    private static void render(ForgeGui gui, GuiGraphics graphics, float partialTick, int screenWidth, int screenHeight) {
         Minecraft mc = Minecraft.getInstance();
         long now = System.nanoTime();
         float dt = lastNanos == 0L ? 0.0F : Math.min(0.25F, (now - lastNanos) / 1.0E9F);
@@ -81,7 +80,7 @@ public final class SporeExposureClient {
 
         int w = graphics.guiWidth();
         int h = graphics.guiHeight();
-        float time = (mc.level != null ? mc.level.getGameTime() + delta.getGameTimeDeltaPartialTick(false) : 0.0F) / 20.0F;
+        float time = (mc.level != null ? mc.level.getGameTime() + partialTick : 0.0F) / 20.0F;
         float alpha = MAX_ALPHA * shown;
         float depth = Math.min(w, h) * (0.10F + 0.16F * shown);
 
@@ -92,11 +91,12 @@ public final class SporeExposureClient {
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         Matrix4f m = graphics.pose().last().pose();
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         // 2 重に描く: 外の濃い薄帯 + 内へ長く消える帯(端ほど急に濃く、内へなだらかに)
         edges(b, m, w, h, depth * 0.45F, alpha * 0.55F, time, 0.0F);
         edges(b, m, w, h, depth, alpha * 0.6F, time * 0.7F, 3.1F);
-        MeshData mesh = b.build();
+        BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
         if (mesh != null) BufferUploader.drawWithShader(mesh);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
@@ -128,10 +128,10 @@ public final class SporeExposureClient {
     /** 外の 2 点(濃さ aOut0・aOut1)と内の 2 点(透明)の四角。頂点は外 0 → 外 1 → 内 1 → 内 0 の順。 */
     private static void quad(BufferBuilder b, Matrix4f m, float ox0, float oy0, float ox1, float oy1,
                              float ix1, float iy1, float ix0, float iy0, float aOut0, float aOut1) {
-        b.addVertex(m, ox0, oy0, 0.0F).setColor(R, G, B, aOut0);
-        b.addVertex(m, ix0, iy0, 0.0F).setColor(R, G, B, 0.0F);
-        b.addVertex(m, ix1, iy1, 0.0F).setColor(R, G, B, 0.0F);
-        b.addVertex(m, ox1, oy1, 0.0F).setColor(R, G, B, aOut1);
+        b.vertex(m, ox0, oy0, 0.0F).color(R, G, B, aOut0).endVertex();
+        b.vertex(m, ix0, iy0, 0.0F).color(R, G, B, 0.0F).endVertex();
+        b.vertex(m, ix1, iy1, 0.0F).color(R, G, B, 0.0F).endVertex();
+        b.vertex(m, ox1, oy1, 0.0F).color(R, G, B, aOut1).endVertex();
     }
 
     /** 0.55〜1.0 のゆっくりした揺れ(区画の番号と時刻から。乱数を使わないので毎フレーム同じ形が続く)。 */
@@ -146,8 +146,9 @@ public final class SporeExposureClient {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Layers {
         @SubscribeEvent
-        public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-            event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS, OvergrownVegetation.id("spore_exposure_haze"),
+        public static void onRegisterGuiLayers(RegisterGuiOverlaysEvent event) {
+            // 1.20.1: 1.21 の CAMERA_OVERLAYS(ビネット・望遠鏡・かぼちゃ・凍え・ポータル)の後 = PORTAL の後
+            event.registerAbove(VanillaGuiOverlay.PORTAL.id(), "spore_exposure_haze",
                     SporeExposureClient::render);
         }
 

@@ -25,7 +25,7 @@ public class GestatrixRenderer extends SmallCrawlerRenderer<GestatrixEntity> {
 
     @Override
     public void preRender(PoseStack poseStack, GestatrixEntity animatable, BakedGeoModel model, MultiBufferSource bufferSource, VertexConsumer buffer,
-                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         int left = animatable.sacs();
         for (int i = 0; i < SACS.length; i++) {
             boolean hidden = i < SACS.length - left;
@@ -35,6 +35,6 @@ public class GestatrixRenderer extends SmallCrawlerRenderer<GestatrixEntity> {
         boolean rooted = animatable.rooted();
         for (int i = 1; i <= GestatrixEntity.SPROUTS; i++) model.getBone("sprout_" + i).ifPresent(b -> b.setHidden(!rooted));
         for (int i = 1; i <= GestatrixEntity.PODS; i++) model.getBone("hatch_" + i).ifPresent(b -> b.setHidden(!rooted));
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 }

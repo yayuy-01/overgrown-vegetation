@@ -82,7 +82,7 @@ public final class HorizonShadow {
     }
 
     private static void draw(RenderLevelStageEvent event, ClientLevel level) {
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         WorldEventLooks.Shadow p = DesignData.sky().events.shadow;
         float elapsed = WorldEventClient.elapsedTicks(partial);
         float len = WorldEventClient.lengthTicks();
@@ -134,9 +134,10 @@ public final class HorizonShadow {
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-        buf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        buf = Tesselator.getInstance().getBuilder();
+        buf.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         figure(walked, pausing, t);
-        var mesh = buf.build();
+        var mesh = buf.endOrDiscardIfEmpty();
         buf = null;
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);
@@ -236,7 +237,7 @@ public final class HorizonShadow {
         float el = el0 + y * scale;
         float ce = Mth.cos(el);
         float a = ca * Mth.clamp((el + 0.075F) / 0.03F, 0.0F, 1.0F);
-        buf.addVertex((float) Math.cos(az) * ce * 100.0F, Mth.sin(el) * 100.0F, (float) Math.sin(az) * ce * 100.0F).setColor(cr, cg, cb, a);
+        buf.vertex((float) Math.cos(az) * ce * 100.0F, Mth.sin(el) * 100.0F, (float) Math.sin(az) * ce * 100.0F).color(cr, cg, cb, a).endVertex();
     }
 
     /** 確かめ用の 1 行(見えている度合いと、いる方位。方位は度で、+X が 0・+Z が 90)。 */

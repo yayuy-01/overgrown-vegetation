@@ -25,7 +25,8 @@ import software.bernie.geckolib.model.GeoModel;
 public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoModel<T> {
 
     @Override
-    public void handleAnimations(T animatable, long instanceId, AnimationState<T> animationState, float partialTick) {
+    public void handleAnimations(T animatable, long instanceId, AnimationState<T> animationState) {
+        float partialTick = animationState.getPartialTick(); // 1.20.1(GeckoLib 4.8.4): partialTick は引数でなく状態から
         if (com.yayuy.overgrownvegetation.client.crowd.CrowdRenderDev.skipAnim) {
             restPose();   // 確かめ用(大群の描画の重さの切り分け)。ふだんは通らない
             return;
@@ -34,7 +35,7 @@ public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoM
             com.yayuy.overgrownvegetation.client.crowd.TickRatePose.handle(this, animatable, instanceId, animationState, partialTick);
             return;
         }
-        super.handleAnimations(animatable, instanceId, animationState, partialTick);
+        super.handleAnimations(animatable, instanceId, animationState);
     }
 
     /**
@@ -47,16 +48,24 @@ public abstract class LodGeoModel<T extends Entity & GeoAnimatable> extends GeoM
 
     /** GeckoLib のいつもの計算({@link TickRatePose} から決まった時刻で呼ぶ)。 */
     public void handleAnimationsNow(T animatable, long instanceId, AnimationState<T> animationState, float partialTick) {
-        super.handleAnimations(animatable, instanceId, animationState, partialTick);
+        // 1.20.1(GeckoLib 4.8.4): handleAnimations は時刻に Minecraft#getFrameTime() を足す(4.7.6 は引数の partialTick)。
+        // 決まった時刻で計算させる所(TickRatePose は partialTick 0)のために、足される分の差を TICK に入れておく
+        float frame = net.minecraft.client.Minecraft.getInstance().getFrameTime();
+        if (partialTick != frame) {
+            Double tick = animationState.getData(software.bernie.geckolib.constant.DataTickets.TICK);
+            double base = tick != null ? tick : animatable.tickCount;
+            animationState.setData(software.bernie.geckolib.constant.DataTickets.TICK, base + partialTick - frame);
+        }
+        super.handleAnimations(animatable, instanceId, animationState);
     }
 
     /** 使い回しの骨をレストポーズへ戻す(まだ 1 度も描かれていなければ、登録済みの骨は空で何もしない)。 */
     private void restPose() {
-        for (GeoBone bone : getAnimationProcessor().getRegisteredBones()) {
+        for (GeoBone bone : com.yayuy.overgrownvegetation.client.PortGeoBones.registered(getAnimationProcessor())) {
             BoneSnapshot rest = bone.getInitialSnapshot();
-            bone.updateRotation(rest.getRotX(), rest.getRotY(), rest.getRotZ());
-            bone.updatePosition(rest.getOffsetX(), rest.getOffsetY(), rest.getOffsetZ());
-            bone.updateScale(rest.getScaleX(), rest.getScaleY(), rest.getScaleZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateRotation(bone, rest.getRotX(), rest.getRotY(), rest.getRotZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updatePosition(bone, rest.getOffsetX(), rest.getOffsetY(), rest.getOffsetZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateScale(bone, rest.getScaleX(), rest.getScaleY(), rest.getScaleZ());
         }
     }
 }

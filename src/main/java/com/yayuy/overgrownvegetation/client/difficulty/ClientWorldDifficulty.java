@@ -62,7 +62,8 @@ public final class ClientWorldDifficulty {
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        if (!(event.getScreen() instanceof PauseScreen pause) || !pause.showsPauseMenu()) {
+        // 1.20.1: showsPauseMenu() が無い。メニューの無い一時停止(F3+Esc)には「設定」のボタンが無いので、下の findButton が null で抜ける
+        if (!(event.getScreen() instanceof PauseScreen pause)) {
             return;
         }
         AbstractWidget options = findButton(event.getListenersList(), "menu.options");

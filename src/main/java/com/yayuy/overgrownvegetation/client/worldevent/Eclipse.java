@@ -90,7 +90,7 @@ public final class Eclipse {
 
     /** 今のフレームの暗さ(部分 tick を持たない読み手用)。 */
     public static float dark() {
-        return dark(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        return dark(Minecraft.getInstance().getFrameTime());
     }
 
     /** 霧の色: いちばん最後に、夜の色(真っ暗な間は地平の夕焼けを少し映した暗い色)へ寄せる。 */
@@ -114,7 +114,7 @@ public final class Eclipse {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || broken) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float o = offset(partial);
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -142,7 +142,7 @@ public final class Eclipse {
         ShaderInstance shader = WorldEventShaders.eclipse();
         float glow = d * p.horizonStrength * (1.0F - 0.7F * level.getRainLevel(partial)) * (1.0F - DenseFog.skyFillPublic()) * (1.0F - ForestPresence.underground());
         if (shader != null && glow > 0.003F) {
-            shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert());
+            shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose()).invert());
             shader.safeGetUniform("Glow").set(WorldEventSky.rgb(p.horizonColor, 0), WorldEventSky.rgb(p.horizonColor, 1), WorldEventSky.rgb(p.horizonColor, 2), glow);
             shader.safeGetUniform("Band").set(Math.max(0.01F, p.horizonHeight), p.horizonToward, 0.0F, 0.0F);
             shader.safeGetUniform("SunFlat").set((float) sun.x, (float) sun.z, 0.0F, 0.0F);
@@ -176,7 +176,8 @@ public final class Eclipse {
         if (corona > 0.01F) {
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE,
                     GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-            BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder b = Tesselator.getInstance().getBuilder();
+            b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
             // 太陽の真ん中(月ではなく)を中心に。
             float ox = sx * dist, oy = sy * dist, oz = sz * dist;
             int n = 24;
@@ -190,26 +191,27 @@ public final class Eclipse {
                     float r1 = base * (0.75F + 0.5F * spike((i + 1) % n, layer));
                     float c0 = (float) Math.cos(a0) * r0, s0 = (float) Math.sin(a0) * r0;
                     float c1 = (float) Math.cos(a1) * r1, s1 = (float) Math.sin(a1) * r1;
-                    b.addVertex(ox, oy, oz).setColor(1.0F, 0.97F, 0.90F, alpha);
-                    b.addVertex(ox + e2x * s0, oy + e2y * s0, oz + c0).setColor(1.0F, 0.97F, 0.90F, 0.0F);
-                    b.addVertex(ox + e2x * s1, oy + e2y * s1, oz + c1).setColor(1.0F, 0.97F, 0.90F, 0.0F);
-                    b.addVertex(ox, oy, oz).setColor(1.0F, 0.97F, 0.90F, alpha);
+                    b.vertex(ox, oy, oz).color(1.0F, 0.97F, 0.90F, alpha).endVertex();
+                    b.vertex(ox + e2x * s0, oy + e2y * s0, oz + c0).color(1.0F, 0.97F, 0.90F, 0.0F).endVertex();
+                    b.vertex(ox + e2x * s1, oy + e2y * s1, oz + c1).color(1.0F, 0.97F, 0.90F, 0.0F).endVertex();
+                    b.vertex(ox, oy, oz).color(1.0F, 0.97F, 0.90F, alpha).endVertex();
                 }
             }
-            BufferUploader.drawWithShader(b.buildOrThrow());
+            BufferUploader.drawWithShader(b.end());
         }
 
         // 月: その時の空の色の四角で、太陽の絵を覆う(新月は空と同じ色で、太陽に掛かった所だけ見える)。
         Vec3 sky = level.getSkyColor(event.getCamera().getPosition(), partial);
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         float r = (float) sky.x, g = (float) sky.y, bl = (float) sky.z;
-        b.addVertex(cx - e2x * moon, cy - e2y * moon, cz - moon).setColor(r, g, bl, seen);
-        b.addVertex(cx + e2x * moon, cy + e2y * moon, cz - moon).setColor(r, g, bl, seen);
-        b.addVertex(cx + e2x * moon, cy + e2y * moon, cz + moon).setColor(r, g, bl, seen);
-        b.addVertex(cx - e2x * moon, cy - e2y * moon, cz + moon).setColor(r, g, bl, seen);
-        BufferUploader.drawWithShader(b.buildOrThrow());
+        b.vertex(cx - e2x * moon, cy - e2y * moon, cz - moon).color(r, g, bl, seen).endVertex();
+        b.vertex(cx + e2x * moon, cy + e2y * moon, cz - moon).color(r, g, bl, seen).endVertex();
+        b.vertex(cx + e2x * moon, cy + e2y * moon, cz + moon).color(r, g, bl, seen).endVertex();
+        b.vertex(cx - e2x * moon, cy - e2y * moon, cz + moon).color(r, g, bl, seen).endVertex();
+        BufferUploader.drawWithShader(b.end());
 
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();

@@ -31,6 +31,6 @@ public class DirtyGeoArmorLayer<T extends net.minecraft.world.item.Item & softwa
         if (dust == null) return;
         RenderType rt = RenderType.armorCutoutNoCull(dust);
         getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, rt, bufferSource.getBuffer(rt), partialTick,
-                packedLight, packedOverlay, -1);
+                packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
     }
 }

@@ -24,8 +24,9 @@ public class CoelurosauravusRenderer extends SimpleLizardRenderer<Coelurosauravu
     }
 
     @Override
-    protected void applyRotations(CoelurosauravusEntity e, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTick, float nativeScale) {
-        super.applyRotations(e, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+    protected void applyRotations(CoelurosauravusEntity e, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(e); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
+        super.applyRotations(e, poseStack, ageInTicks, rotationYaw, partialTick);
         if (e.climbing()) {
             float in = (float) (e.getBbWidth() * 0.5D / Math.max(nativeScale, 0.05F) - CoelurosauravusEntity.CLIMB_REACH);
             poseStack.translate(0.0F, (float) CoelurosauravusEntity.CLIMB_TAIL, -in);   // 回したモデルの前は −Z

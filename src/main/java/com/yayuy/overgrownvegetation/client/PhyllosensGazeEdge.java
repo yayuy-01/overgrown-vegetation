@@ -3,7 +3,6 @@ package com.yayuy.overgrownvegetation.client;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.config.OvergrownClientConfig;
 import com.yayuy.overgrownvegetation.network.PhyllosensGazePayload;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
@@ -11,8 +10,9 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -175,19 +175,20 @@ public final class PhyllosensGazeEdge {
 
     // ------------------------------------------------------------------ 描画
 
-    static void render(GuiGraphics g, DeltaTracker delta) {
+    static void render(ForgeGui gui, GuiGraphics g, float partialTick, int screenWidth, int screenHeight) {
         // 見た目は PhyllosensGazeEyes(ユーザーの目の絵・仕掛け 6 つ・慣れ。11-14 Fable)。仮の値もそこにまとめてある
-        PhyllosensGazeEyes.render(g, delta);
+        PhyllosensGazeEyes.render(g, partialTick);
     }
 
     /** GUI の層の登録(MOD バス)。 */
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Layers {
         @SubscribeEvent
-        public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
+        public static void onRegisterGuiLayers(RegisterGuiOverlaysEvent event) {
             // 照準のすぐ下 = 画面の効果(CAMERA_OVERLAYS の上に足される暴露量のもや など)より上、照準・ホットバーより下。
             // CAMERA_OVERLAYS の上に足すと、もやとの順が登録の順(決まらない)で入れ替わり、もやが目より上に来ることがあった(11-14)
-            event.registerBelow(VanillaGuiLayers.CROSSHAIR, OvergrownVegetation.id("phyllosens_gaze_edge"), PhyllosensGazeEdge::render);
+            // 1.20.1: ホットバーは照準より先に描かれる(1.21 は後)。もや(PORTAL の上)より上・ホットバーと照準より下 = ホットバーのすぐ下
+            event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "phyllosens_gaze_edge", PhyllosensGazeEdge::render);
         }
 
         private Layers() {

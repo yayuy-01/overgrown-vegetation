@@ -121,7 +121,7 @@ public final class CoverQuads {
     public static BakedQuad creep(BakedQuad q, int x, int y, int z, CoverSprites.Set sprites, CoverTable design, Direction from, int stage,
                                   int layerIndex) {
         TextureAtlasSprite[][] all = sprites.creep();
-        TextureAtlasSprite sprite = all[CoverCreep.variant(x, y, z) - 1][Math.clamp(stage, 1, CoverCreep.STAGES) - 1];
+        TextureAtlasSprite sprite = all[CoverCreep.variant(x, y, z) - 1][net.minecraft.util.Mth.clamp(stage, 1, CoverCreep.STAGES) - 1];
         if (sprite == null) {
             return null;
         }
@@ -156,8 +156,8 @@ public final class CoverQuads {
             v[o + 1] = Float.floatToRawIntBits(py + d.getStepY() * push);
             v[o + 2] = Float.floatToRawIntBits(pz + d.getStepZ() * push);
             v[o + 3] = -1;
-            v[o + 4] = Float.floatToRawIntBits(sprite.getU(Math.clamp(uv[0], 0, 1)));
-            v[o + 5] = Float.floatToRawIntBits(sprite.getV(Math.clamp(uv[1], 0, 1)));
+            v[o + 4] = Float.floatToRawIntBits(sprite.getU(net.minecraft.util.Mth.clamp(uv[0], 0, 1) * 16.0F));
+            v[o + 5] = Float.floatToRawIntBits(sprite.getV(net.minecraft.util.Mth.clamp(uv[1], 0, 1) * 16.0F));
         }
         return new BakedQuad(v, -1, d, sprite, q.isShade(), q.hasAmbientOcclusion());
     }
@@ -206,16 +206,16 @@ public final class CoverQuads {
                 u = 1 - w;
                 w = t;
             }
-            u = Math.clamp(u, 0, 1);
-            w = Math.clamp(w, 0, 1);
+            u = net.minecraft.util.Mth.clamp(u, 0, 1);
+            w = net.minecraft.util.Mth.clamp(w, 0, 1);
             if (push > 0) {
                 v[o] = Float.floatToRawIntBits(px + d.getStepX() * push);
                 v[o + 1] = Float.floatToRawIntBits(py + d.getStepY() * push);
                 v[o + 2] = Float.floatToRawIntBits(pz + d.getStepZ() * push);
             }
             v[o + 3] = -1;
-            v[o + 4] = Float.floatToRawIntBits(sprite.getU(u));
-            v[o + 5] = Float.floatToRawIntBits(sprite.getV(w));
+            v[o + 4] = Float.floatToRawIntBits(sprite.getU(u * 16.0F));
+            v[o + 5] = Float.floatToRawIntBits(sprite.getV(w * 16.0F));
         }
         return new BakedQuad(v, -1, d, sprite, q.isShade(), q.hasAmbientOcclusion());
     }

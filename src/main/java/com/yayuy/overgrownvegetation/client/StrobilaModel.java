@@ -42,9 +42,9 @@ public class StrobilaModel extends LodGeoModel<StrobilaEntity> {
         long t = animatable.level().getGameTime();
         if (t == this.lastTraceTick) return;
         this.lastTraceTick = t;
-        var cone = getAnimationProcessor().getBone("cone");
-        var tail = getAnimationProcessor().getBone("tail0");
-        var tail1 = getAnimationProcessor().getBone("tail1");
+        var cone = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("cone");
+        var tail = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("tail0");
+        var tail1 = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("tail1");
         int flying = animatable.level().getEntitiesOfClass(com.yayuy.overgrownvegetation.entity.StrobilaCone.class,
                 animatable.getBoundingBox().inflate(6.0D)).size();
         OvergrownVegetation.LOGGER.info(String.format(java.util.Locale.ROOT, "STROB_BONE gt %d 球果の大きさ %.2f 尾0 %.1f 度 尾1 y %.1f 度 弾 %d",

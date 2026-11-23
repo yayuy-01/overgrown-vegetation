@@ -194,7 +194,7 @@ public final class MeteorShower {
     }
 
     private static void draw(RenderLevelStageEvent event, ClientLevel level) {
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         WorldEventLooks.Meteors p = DesignData.sky().events.meteors;
         float amount = p.strength * SunLight.night(level, partial) * (1.0F - level.getRainLevel(partial)) * (1.0F - DenseFog.skyFillPublic())
                 * (1.0F - Mth.clamp(CloudInterior.amount(partial) * 2.0F, 0.0F, 1.0F)) * (1.0F - ForestPresence.underground())
@@ -212,7 +212,8 @@ public final class MeteorShower {
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE,
                 GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         Vector3f head = new Vector3f();
         Vector3f a = new Vector3f();
         Vector3f c = new Vector3f();
@@ -252,10 +253,10 @@ public final class MeteorShower {
                 float near = m.tail / Math.max(tailLen, 1.0e-4F);
                 float a0 = alpha(t0, near, life, trail) * m.bright * amount * horizon(a.y);
                 float a1 = alpha(t1, near, life, trail) * m.bright * amount * horizon(c.y);
-                b.addVertex(a.x * dist - side.x * w0, a.y * dist - side.y * w0, a.z * dist - side.z * w0).setColor(r, g, bl, a0);
-                b.addVertex(a.x * dist + side.x * w0, a.y * dist + side.y * w0, a.z * dist + side.z * w0).setColor(r, g, bl, a0);
-                b.addVertex(c.x * dist + side.x * w1, c.y * dist + side.y * w1, c.z * dist + side.z * w1).setColor(r, g, bl, a1);
-                b.addVertex(c.x * dist - side.x * w1, c.y * dist - side.y * w1, c.z * dist - side.z * w1).setColor(r, g, bl, a1);
+                b.vertex(a.x * dist - side.x * w0, a.y * dist - side.y * w0, a.z * dist - side.z * w0).color(r, g, bl, a0).endVertex();
+                b.vertex(a.x * dist + side.x * w0, a.y * dist + side.y * w0, a.z * dist + side.z * w0).color(r, g, bl, a0).endVertex();
+                b.vertex(c.x * dist + side.x * w1, c.y * dist + side.y * w1, c.z * dist + side.z * w1).color(r, g, bl, a1).endVertex();
+                b.vertex(c.x * dist - side.x * w1, c.y * dist - side.y * w1, c.z * dist - side.z * w1).color(r, g, bl, a1).endVertex();
             }
             if (m.fireball && life > 0.01F) {
                 // 火球の頭: やわらかい光の丸(8 角形)。
@@ -266,7 +267,7 @@ public final class MeteorShower {
                 }
             }
         }
-        var mesh = b.build();
+        var mesh = b.endOrDiscardIfEmpty();
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);
         }
@@ -310,10 +311,10 @@ public final class MeteorShower {
             double a1 = (i + 1) * Math.PI / 4.0;
             float c0 = (float) Math.cos(a0) * radius, s0 = (float) Math.sin(a0) * radius;
             float c1 = (float) Math.cos(a1) * radius, s1 = (float) Math.sin(a1) * radius;
-            b.addVertex(x, y, z).setColor(r, g, bl, alpha);
-            b.addVertex(x + ux * c0 + vx * s0, y + vy * s0, z + uz * c0 + vz * s0).setColor(r, g, bl, 0.0F);
-            b.addVertex(x + ux * c1 + vx * s1, y + vy * s1, z + uz * c1 + vz * s1).setColor(r, g, bl, 0.0F);
-            b.addVertex(x, y, z).setColor(r, g, bl, alpha);
+            b.vertex(x, y, z).color(r, g, bl, alpha).endVertex();
+            b.vertex(x + ux * c0 + vx * s0, y + vy * s0, z + uz * c0 + vz * s0).color(r, g, bl, 0.0F).endVertex();
+            b.vertex(x + ux * c1 + vx * s1, y + vy * s1, z + uz * c1 + vz * s1).color(r, g, bl, 0.0F).endVertex();
+            b.vertex(x, y, z).color(r, g, bl, alpha).endVertex();
         }
     }
 

@@ -269,13 +269,13 @@ public class ResearchScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mx, double my, double sx, double sy) {
+    public boolean mouseScrolled(double mx, double my, double sy) { // 1.20.1: 横の転がしは来ない(縦の 1 本だけ)
         if (inTree(mx, my)) {
-            panX += (sy + sx) * 24;
+            panX += sy * 24;
             clampPan();
             return true;
         }
-        return super.mouseScrolled(mx, my, sx, sy);
+        return super.mouseScrolled(mx, my, sy);
     }
 
     private void clampPan() {
@@ -317,7 +317,7 @@ public class ResearchScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        renderBackground(g, mx, my, partial);
+        renderBackground(g);
         g.drawString(font, title, 10, 6, 0xFFFFFF, true);
         Component power = Component.translatable("research.overgrown_vegetation.power", fmt(energy), fmt(buffer));
         g.drawString(font, power, width - 10 - font.width(power), 6, 0x7FE3E8, true);
@@ -544,7 +544,7 @@ public class ResearchScreen extends Screen {
             int ux = rx + font.width(head) + 4;
             var level = Minecraft.getInstance().level;
             for (ResourceLocation id : n.unlocks()) {
-                ItemStack out = level.getRecipeManager().byKey(id).map(h -> h.value().getResultItem(level.registryAccess())).orElse(ItemStack.EMPTY);
+                ItemStack out = level.getRecipeManager().byKey(id).map(h -> h.getResultItem(level.registryAccess())).orElse(ItemStack.EMPTY);
                 if (out.isEmpty()) continue;
                 g.renderItem(out, ux, ry);
                 ux += 17;

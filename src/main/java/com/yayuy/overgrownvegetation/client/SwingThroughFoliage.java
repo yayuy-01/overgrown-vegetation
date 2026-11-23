@@ -11,7 +11,6 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.MaceItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.ClipContext;
@@ -93,7 +92,7 @@ public final class SwingThroughFoliage {
             return;
         }
 
-        double reach = player.entityInteractionRange();
+        double reach = player.getEntityReach() /* 1.20.1: Forge の届く距離 */;
         if (reach <= 0.0D) {
             return;
         }
@@ -147,8 +146,7 @@ public final class SwingThroughFoliage {
             return false;
         }
         Item item = stack.getItem();
-        if (item instanceof SwordItem || item instanceof AxeItem || item instanceof TridentItem
-                || item instanceof MaceItem) {
+        if (item instanceof SwordItem || item instanceof AxeItem || item instanceof TridentItem) { // 1.20.1: メイスは無い
             return true;
         }
         return stack.is(ModTags.SWINGS_THROUGH_FOLIAGE);

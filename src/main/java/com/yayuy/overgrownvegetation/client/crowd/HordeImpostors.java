@@ -173,9 +173,23 @@ public final class HordeImpostors {
                     }
                 }
             }
-            if (sp.sprites > 0 && drawSprites(sp)) {
-                sprites += sp.sprites;
-                draws++;
+            if (sp.sprites > 0) {
+                // 1.20.1: この段の描画の行列は単位行列(1.21 はカメラの回転入り)。絵の板はカメラからの位置で書くので、回転を積んで描く
+                com.mojang.blaze3d.vertex.PoseStack mv = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
+                mv.pushPose();
+                mv.mulPoseMatrix(modelView);
+                com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
+                boolean drawn;
+                try {
+                    drawn = drawSprites(sp);
+                } finally {
+                    mv.popPose();
+                    com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
+                }
+                if (drawn) {
+                    sprites += sp.sprites;
+                    draws++;
+                }
             }
         }
         lastModels = models;
@@ -250,7 +264,7 @@ public final class HordeImpostors {
         RenderType type = RenderType.entityCutoutNoCull(sp.texture);
         try {
             type.setupRenderState();
-            shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
+            com.yayuy.overgrownvegetation.client.PortShaderUniforms.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
             shader.apply();
             buf.clear();
             buf.put(poses.data).flip();
@@ -316,10 +330,10 @@ public final class HordeImpostors {
             float u0 = view / (float) SpriteSheet.VIEWS, u1 = (view + 1) / (float) SpriteSheet.VIEWS;
             int light = Float.floatToRawIntBits(sp.s[at + 4]);
             // 法線は上向き(絵に陰影を焼いてあるので、Mob の 2 灯の陰影を掛け直さない。parked の遠景の身代わりと同じ)
-            vc.addVertex(bx + rx * left, by + bottom, bz + rz * left, c, u0, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * right, by + bottom, bz + rz * right, c, u1, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * right, by + top, bz + rz * right, c, u1, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
-            vc.addVertex(bx + rx * left, by + top, bz + rz * left, c, u0, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * left, by + bottom, bz + rz * left, c, u0, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * right, by + bottom, bz + rz * right, c, u1, 1.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * right, by + top, bz + rz * right, c, u1, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
+            com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, bx + rx * left, by + top, bz + rz * left, c, u0, 0.0F, ov, light, 0.0F, 1.0F, 0.0F);
         }
         src.endBatch(sp.spriteType);
         return true;
@@ -352,12 +366,12 @@ public final class HordeImpostors {
         mc.getTextureManager().register(id, new SheetTexture(sp.sheet));
         sp.spriteType = RenderType.create("overgrown_vegetation_horde_sprite", DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536,
                 true, false, RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.RENDERTYPE_ENTITY_CUTOUT_NO_CULL_SHADER)
+                        .setShaderState(com.yayuy.overgrownvegetation.client.PortRenderStates.RENDERTYPE_ENTITY_CUTOUT_NO_CULL_SHADER)
                         .setTextureState(new RenderStateShard.TextureStateShard(id, true, true))
-                        .setTransparencyState(RenderStateShard.NO_TRANSPARENCY)
-                        .setCullState(RenderStateShard.NO_CULL)
-                        .setLightmapState(RenderStateShard.LIGHTMAP)
-                        .setOverlayState(RenderStateShard.OVERLAY)
+                        .setTransparencyState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_TRANSPARENCY)
+                        .setCullState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_CULL)
+                        .setLightmapState(com.yayuy.overgrownvegetation.client.PortRenderStates.LIGHTMAP)
+                        .setOverlayState(com.yayuy.overgrownvegetation.client.PortRenderStates.OVERLAY)
                         .createCompositeState(true));
         return true;
     }
@@ -377,9 +391,9 @@ public final class HordeImpostors {
             saved[k + 3] = b.getPosX(); saved[k + 4] = b.getPosY(); saved[k + 5] = b.getPosZ();
             saved[k + 6] = b.getScaleX(); saved[k + 7] = b.getScaleY(); saved[k + 8] = b.getScaleZ();
             var r = b.getInitialSnapshot();
-            b.updateRotation(r.getRotX(), r.getRotY(), r.getRotZ());
-            b.updatePosition(r.getOffsetX(), r.getOffsetY(), r.getOffsetZ());
-            b.updateScale(r.getScaleX(), r.getScaleY(), r.getScaleZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateRotation(b, r.getRotX(), r.getRotY(), r.getRotZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updatePosition(b, r.getOffsetX(), r.getOffsetY(), r.getOffsetZ());
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateScale(b, r.getScaleX(), r.getScaleY(), r.getScaleZ());
         }
         try {
             return SpriteQuads.of(model);
@@ -387,9 +401,9 @@ public final class HordeImpostors {
             for (int i = 0; i < bones.size(); i++) {
                 var b = bones.get(i);
                 int k = i * 9;
-                b.updateRotation(saved[k], saved[k + 1], saved[k + 2]);
-                b.updatePosition(saved[k + 3], saved[k + 4], saved[k + 5]);
-                b.updateScale(saved[k + 6], saved[k + 7], saved[k + 8]);
+                com.yayuy.overgrownvegetation.client.PortGeoBones.updateRotation(b, saved[k], saved[k + 1], saved[k + 2]);
+                com.yayuy.overgrownvegetation.client.PortGeoBones.updatePosition(b, saved[k + 3], saved[k + 4], saved[k + 5]);
+                com.yayuy.overgrownvegetation.client.PortGeoBones.updateScale(b, saved[k + 6], saved[k + 7], saved[k + 8]);
             }
         }
     }

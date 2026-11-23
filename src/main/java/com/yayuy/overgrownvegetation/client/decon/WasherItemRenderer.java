@@ -17,8 +17,8 @@ public class WasherItemRenderer extends GeoItemRenderer<WasherBlockItem> {
 
     @Override
     public void preRender(PoseStack poseStack, WasherBlockItem animatable, BakedGeoModel model, @Nullable MultiBufferSource bufferSource,
-                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         WasherModel.showParts(model, true, false);
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 }

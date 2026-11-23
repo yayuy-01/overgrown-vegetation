@@ -66,7 +66,7 @@ public final class SpineWaveRig {
 
     private static void add(GeoModel<?> model, String name, double rotX, double rotY) {
         if (name == null || (rotX == 0.0D && rotY == 0.0D)) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         b.setRotX(b.getRotX() + (float) rotX);
         b.setRotY(b.getRotY() + (float) rotY);

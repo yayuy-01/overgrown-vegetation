@@ -51,7 +51,7 @@ public class StiltPhyllosensModel extends GeoModel<StiltPhyllosensEntity> {
     public void setCustomAnimations(StiltPhyllosensEntity animatable, long instanceId, AnimationState<StiltPhyllosensEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         for (String d : DEW) {
-            GeoBone b = getAnimationProcessor().getBone(d);
+            GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(d);
             if (b != null) b.setHidden(true);
         }
         float w = animatable.isDeadOrDying() ? 0.0F : 1.0F;

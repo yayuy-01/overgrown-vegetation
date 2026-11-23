@@ -1,7 +1,7 @@
 package com.yayuy.overgrownvegetation.client.worldevent;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
@@ -24,7 +24,7 @@ final class EventLight {
 
     static MultiBufferSource.BufferSource buffers() {
         if (buffers == null) {
-            buffers = MultiBufferSource.immediate(new ByteBufferBuilder(1 << 16));
+            buffers = MultiBufferSource.immediate(new BufferBuilder(1 << 16));
         }
         return buffers;
     }
@@ -39,7 +39,7 @@ final class EventLight {
 
     static void restoreTarget(boolean switched) {
         if (switched) {
-            RenderStateShard.PARTICLES_TARGET.setupRenderState();
+            com.yayuy.overgrownvegetation.client.PortRenderStates.PARTICLES_TARGET.setupRenderState();
         }
     }
 
@@ -53,10 +53,10 @@ final class EventLight {
                     false,
                     false,
                     RenderType.CompositeState.builder()
-                            .setShaderState(ShaderPacks.active() ? RenderStateShard.RENDERTYPE_LIGHTNING_SHADER : RenderStateShard.POSITION_COLOR_SHADER)
-                            .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
-                            .setCullState(RenderStateShard.NO_CULL)
-                            .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                            .setShaderState(ShaderPacks.active() ? com.yayuy.overgrownvegetation.client.PortRenderStates.RENDERTYPE_LIGHTNING_SHADER : com.yayuy.overgrownvegetation.client.PortRenderStates.POSITION_COLOR_SHADER)
+                            .setTransparencyState(com.yayuy.overgrownvegetation.client.PortRenderStates.LIGHTNING_TRANSPARENCY)
+                            .setCullState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_CULL)
+                            .setWriteMaskState(com.yayuy.overgrownvegetation.client.PortRenderStates.COLOR_WRITE)
                             .createCompositeState(false));
         }
         return renderType;

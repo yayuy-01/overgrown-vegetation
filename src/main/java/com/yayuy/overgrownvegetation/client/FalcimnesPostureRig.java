@@ -90,7 +90,7 @@ public final class FalcimnesPostureRig {
     /** ファイル座標の度を足す(GeckoLib の中では X・Y の向きが逆)。 */
     private static void add(GeoModel<FalcimnesEntity> model, String name, float x, float y, float z) {
         if (x == 0 && y == 0 && z == 0) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         b.setRotX(b.getRotX() - x * Mth.DEG_TO_RAD);
         b.setRotY(b.getRotY() - y * Mth.DEG_TO_RAD);

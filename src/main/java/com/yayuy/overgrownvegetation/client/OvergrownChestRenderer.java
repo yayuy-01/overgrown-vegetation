@@ -137,8 +137,10 @@ public class OvergrownChestRenderer implements BlockEntityRenderer<OvergrownChes
                                     ModelPart bottomPart, float openness, int light, int packedOverlay, int color) {
         lidPart.xRot = -(openness * ((float) Math.PI / 2F));
         lockPart.xRot = lidPart.xRot;
-        lidPart.render(poseStack, consumer, light, packedOverlay, color);
-        lockPart.render(poseStack, consumer, light, packedOverlay, color);
-        bottomPart.render(poseStack, consumer, light, packedOverlay, color);
+        // 1.20.1: ModelPart#render の色は float 4 つ(1.21 は ARGB の int)
+        float r = (color >> 16 & 0xFF) / 255.0F, g = (color >> 8 & 0xFF) / 255.0F, b = (color & 0xFF) / 255.0F, a = (color >>> 24) / 255.0F;
+        lidPart.render(poseStack, consumer, light, packedOverlay, r, g, b, a);
+        lockPart.render(poseStack, consumer, light, packedOverlay, r, g, b, a);
+        bottomPart.render(poseStack, consumer, light, packedOverlay, r, g, b, a);
     }
 }

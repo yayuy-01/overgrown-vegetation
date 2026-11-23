@@ -24,6 +24,7 @@ public class BeltPouchScreen extends AbstractContainerScreen<BeltPouchMenu> {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        renderBackground(g); // 1.20.1: 入れ物の画面は背景の暗幕を自分で描く(1.21 は Screen#render が描く)
         super.render(g, mouseX, mouseY, partialTick);
         renderTooltip(g, mouseX, mouseY);
     }

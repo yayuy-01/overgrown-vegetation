@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
+import net.minecraftforge.client.event.TextureStitchEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -64,7 +64,7 @@ public final class CoverSprites {
     }
 
     @SubscribeEvent
-    public static void onStitched(TextureAtlasStitchedEvent event) {
+    public static void onStitched(TextureStitchEvent.Post event) { // 1.20.1: TextureAtlasStitchedEvent = TextureStitchEvent.Post
         TextureAtlas atlas = event.getAtlas();
         if (!atlas.location().equals(TextureAtlas.LOCATION_BLOCKS)) {
             return;

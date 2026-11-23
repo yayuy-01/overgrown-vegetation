@@ -30,7 +30,7 @@ public final class FalcimnesShapeRig {
         float q = e.squeeze(pt), d = e.duck(pt);
         if (q > 0.0F) {
             add(model, "stance", SQ_STANCE_RX * q, 0, 0);
-            GeoBone st = model.getAnimationProcessor().getBone("stance");
+            GeoBone st = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("stance");
             if (st != null) {
                 st.setPosY(st.getPosY() + SQ_STANCE_PY * q);
                 st.setPosZ(st.getPosZ() + SQ_STANCE_PZ * q);
@@ -54,7 +54,7 @@ public final class FalcimnesShapeRig {
     /** ファイル座標の度を足す(GeckoLib の中では X・Y の向きが逆。FalcimnesPostureRig と同じ)。 */
     private static void add(GeoModel<FalcimnesEntity> model, String name, float x, float y, float z) {
         if (x == 0 && y == 0 && z == 0) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         b.setRotX(b.getRotX() - x * Mth.DEG_TO_RAD);
         b.setRotY(b.getRotY() - y * Mth.DEG_TO_RAD);

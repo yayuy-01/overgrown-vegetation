@@ -56,7 +56,7 @@ public class G1GeoModel<T extends Entity & GeoAnimatable> extends LodGeoModel<T>
             // 符号はゲーム内で確かめた(11-13): 体の正面から左回りの角度を、そのまま骨の y 回転に足すと標的の側へ向く(逆にすると反対側へ伸びた)
             // 骨は種ごと: ゾンビ grab_swing・エンダーマン reach_shoulder・スケルトン ballista_aim(G1Rooted.Skill#aimBone)
             String boneName = r.rooted().skill.aimBone;
-            software.bernie.geckolib.cache.object.GeoBone swing = boneName == null ? null : getAnimationProcessor().getBone(boneName);
+            software.bernie.geckolib.cache.object.GeoBone swing = boneName == null ? null : (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(boneName);
             if (swing != null) {
                 float yaw = r.aimYaw();
                 if (r.deathTime > 0) {
@@ -70,7 +70,7 @@ public class G1GeoModel<T extends Entity & GeoAnimatable> extends LodGeoModel<T>
             // 豚の根の顎: 骨 root_jaw_carry を、同期した位置(体の左・前へのブロック数)へ動かし、縛っている間は大きくする。
             // 静止の位置からの差を骨の位置に入れる(モデルの単位 = 1/16 ブロック。前 = −Z、左 = −X。GeckoLib は位置の x を逆の符号で持つ)
             if (r.rooted().skill == com.yayuy.overgrownvegetation.entity.g1.G1Rooted.Skill.BIND) {
-                software.bernie.geckolib.cache.object.GeoBone jaw = getAnimationProcessor().getBone("root_jaw_carry");
+                software.bernie.geckolib.cache.object.GeoBone jaw = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("root_jaw_carry");
                 if (jaw != null) {
                     float dLeft = (r.jawLeft() - com.yayuy.overgrownvegetation.entity.RootedParasitized.JAW_REST_LEFT) * 16.0F;
                     float dFront = (r.jawFront() - com.yayuy.overgrownvegetation.entity.RootedParasitized.JAW_REST_FRONT) * 16.0F;

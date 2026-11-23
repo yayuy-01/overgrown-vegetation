@@ -4,14 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import software.bernie.geckolib.core.animation.Animation;
 import software.bernie.geckolib.core.animation.EasingType;
-import software.bernie.geckolib.core.keyframe.AnimationPoint;
 import software.bernie.geckolib.core.keyframe.BoneAnimation;
-import software.bernie.geckolib.core.keyframe.Keyframe;
 import software.bernie.geckolib.core.keyframe.KeyframeStack;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
-import software.bernie.geckolib.loading.math.MathValue;
-import software.bernie.geckolib.loading.math.value.Constant;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -104,7 +100,7 @@ public final class HordePoses {
         float sx = bone.getInitialSnapshot().getScaleX(), sy = bone.getInitialSnapshot().getScaleY(), sz = bone.getInitialSnapshot().getScaleZ();
         BoneAnimation ba = byBone.get(bone.getName());
         if (ba != null) {
-            KeyframeStack<Keyframe<MathValue>> r = ba.rotationKeyFrames(), pos = ba.positionKeyFrames(), sc = ba.scaleKeyFrames();
+            KeyframeStack<?> r = ba.rotationKeyFrames(), pos = ba.positionKeyFrames(), sc = ba.scaleKeyFrames();
             if (!r.xKeyframes().isEmpty()) {
                 rx += (float) value(r.xKeyframes(), t, true, true);
                 ry += (float) value(r.yKeyframes(), t, true, true);
@@ -170,31 +166,9 @@ public final class HordePoses {
     }
 
     /** GeckoLib の AnimationController#getAnimationPointAtTick と同じ引き方(キーの位置・回転の度 → ラジアン・x と y の向き)。 */
-    private static double value(List<Keyframe<MathValue>> frames, double tick, boolean rotation, boolean flip) {
-        if (frames.isEmpty()) return 0.0D;
-        double total = 0.0D;
-        Keyframe<MathValue> frame = frames.get(frames.size() - 1);
-        double local = tick;
-        for (Keyframe<MathValue> f : frames) {
-            total += f.length();
-            if (total > tick) {
-                frame = f;
-                local = tick - (total - f.length());
-                break;
-            }
-        }
-        double start = frame.startValue().get(), end = frame.endValue().get();
-        if (rotation) {
-            if (!(frame.startValue() instanceof Constant)) {
-                start = Math.toRadians(start);
-                if (flip) start = -start;
-            }
-            if (!(frame.endValue() instanceof Constant)) {
-                end = Math.toRadians(end);
-                if (flip) end = -end;
-            }
-        }
-        return EasingType.lerpWithOverride(new AnimationPoint(frame, local, frame.length(), start, end), null);
+    private static double value(List<?> frames, double tick, boolean rotation, boolean flip) {
+        // 1.20.1(GeckoLib 4.8.4): キーの値の型(mclib の IValue)がコンパイルのクラスパスに無いので、名前から引いて読む(PortKeyframes)
+        return com.yayuy.overgrownvegetation.client.PortKeyframes.value(frames, tick, rotation, flip);
     }
 
     @Nullable

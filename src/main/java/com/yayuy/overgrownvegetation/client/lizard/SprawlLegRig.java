@@ -65,7 +65,7 @@ public final class SprawlLegRig {
         FootPlanter fp = e.footPlanter();
         if (fp == null || !fp.ready() || e.legSolution() == null) return;
         var proc = model.getAnimationProcessor();
-        GeoBone trunk = proc.getBone(this.body);
+        GeoBone trunk = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.body);
         if (trunk == null) return;
         net.minecraft.client.Camera cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
         if (cam.getPosition().distanceToSqr(e.position()) < NEAR * NEAR) {
@@ -95,12 +95,12 @@ public final class SprawlLegRig {
         double[][] sol = e.legSolution();
         for (int i = 0; i < this.legs.length && i < fp.legs(); i++) {
             String[] names = this.legs[i];
-            GeoBone a = proc.getBone(names[0]), b = proc.getBone(names[1]);
-            GeoBone c = names.length > 2 ? proc.getBone(names[2]) : null;
+            GeoBone a = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[0]), b = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[1]);
+            GeoBone c = names.length > 2 ? (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[2]) : null;
             if (a == null || b == null || (names.length > 2 && c == null)) continue;
             double[] mParent = null;
             for (String n : this.parents[i]) {
-                GeoBone p = proc.getBone(n);
+                GeoBone p = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(n);
                 if (p != null) mParent = LegChainRig.boneMatrix(p, mParent);
             }
             if (mParent == null) continue;
@@ -254,13 +254,13 @@ public final class SprawlLegRig {
     private void loadSoles(GeoModel<?> model) {
         var proc = model.getAnimationProcessor();
         String[] firstLeg = this.legs[0];
-        GeoBone first = proc.getBone(firstLeg[firstLeg.length - 1]);
+        GeoBone first = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(firstLeg[firstLeg.length - 1]);
         if (first == null || first == this.soleFor) return;
         float[][] t = new float[this.legs.length][];
         double[] r = new double[this.legs.length];
         for (int i = 0; i < this.legs.length; i++) {
             String[] names = this.legs[i];
-            GeoBone last = proc.getBone(names[names.length - 1]);
+            GeoBone last = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[names.length - 1]);
             if (last == null || last.getCubes().isEmpty()) return;
             java.util.List<double[]> pts = new java.util.ArrayList<>();
             double minY = Double.MAX_VALUE;
@@ -286,7 +286,7 @@ public final class SprawlLegRig {
             t[i] = new float[]{(float) (sx / nv), (float) minY, (float) (sz / nv)};
             double len = 0.0D;
             for (int k = 1; k < names.length; k++) {
-                GeoBone p0 = proc.getBone(names[k - 1]), p1 = proc.getBone(names[k]);
+                GeoBone p0 = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[k - 1]), p1 = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(names[k]);
                 len += Math.sqrt(sq(p1.getPivotX() - p0.getPivotX()) + sq(p1.getPivotY() - p0.getPivotY()) + sq(p1.getPivotZ() - p0.getPivotZ()));
             }
             len += Math.sqrt(sq(t[i][0] - last.getPivotX()) + sq(t[i][1] - last.getPivotY()) + sq(t[i][2] - last.getPivotZ()));

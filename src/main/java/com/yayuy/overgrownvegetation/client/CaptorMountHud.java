@@ -7,8 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 
 /**
  * 捕まえて乗せる Mob({@link CaptorMount})に捕まっている間、乗り物の体力の欄と「左 Shift で降りる」の案内を描かない(2026-11-16、
@@ -22,9 +22,10 @@ public final class CaptorMountHud {
     }
 
     @SubscribeEvent
-    public static void onLayer(RenderGuiLayerEvent.Pre event) {
-        ResourceLocation name = event.getName();
-        if (!name.equals(VanillaGuiLayers.VEHICLE_HEALTH) && !name.equals(VanillaGuiLayers.OVERLAY_MESSAGE)) return;
+    public static void onLayer(RenderGuiOverlayEvent.Pre event) {
+        ResourceLocation name = event.getOverlay().id();
+        // 1.20.1: 乗り物の体力 = MOUNT_HEALTH、下の一行(overlay message)= RECORD_OVERLAY
+        if (!name.equals(VanillaGuiOverlay.MOUNT_HEALTH.id()) && !name.equals(VanillaGuiOverlay.RECORD_OVERLAY.id())) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.player.getVehicle() instanceof CaptorMount) event.setCanceled(true);
     }

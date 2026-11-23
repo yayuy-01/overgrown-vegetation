@@ -76,8 +76,8 @@ public class G1SeedPodRenderer extends EntityRenderer<G1SeedPod> {
 
     private static void vertex(VertexConsumer vc, PoseStack.Pose pose, float x, float y, float z, float u, float v, float nx, float ny, float nz,
                                int light) {
-        vc.addVertex(pose, x, y, z).setColor(255, 255, 255, 255).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light)
-                .setNormal(pose, nx, ny, nz);
+        vc.vertex(pose.pose(), x, y, z).color(255, 255, 255, 255).uv(u, v).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light)
+                .normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
     @Override

@@ -44,13 +44,13 @@ final class G1OmenRig {
         float t = mob.omenClientTicks(state.getPartialTick());
         float k = Mth.clamp(t / Math.max(1, DesignData.director().rootOmenTicks), 0.0F, 1.0F);
         float ease = k * k * (3.0F - 2.0F * k);
-        GeoBone root = model.getAnimationProcessor().getBone("root");
+        GeoBone root = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("root");
         if (root != null) {
             root.setPosY(root.getPosY() - ease * ROOT_SINK);
             root.setRotZ(root.getRotZ() + Mth.sin(t * 0.35F) * ease * ROOT_SWAY * Mth.DEG_TO_RAD);
             root.resetStateChanges();
         }
-        GeoBone sac = model.getAnimationProcessor().getBone("sac");
+        GeoBone sac = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("sac");
         if (sac != null) {
             float s = 1.0F + Mth.sin(t * 0.45F) * ease * 0.1F;
             sac.setScaleX(sac.getScaleX() * s);
@@ -68,14 +68,14 @@ final class G1OmenRig {
         if (mob.omen() != G1Fate.OMEN_EVOLVE) return;
         float t = mob.omenClientTicks(state.getPartialTick());
         float k = Mth.clamp(t / Math.max(1, DesignData.director().evolveOmenTicks), 0.0F, 1.0F);
-        GeoBone root = model.getAnimationProcessor().getBone("root");
+        GeoBone root = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("root");
         if (root != null) {
             root.setRotZ(root.getRotZ() + Mth.sin(t * 2.9F) * k * SHAKE_ROLL * Mth.DEG_TO_RAD);
             root.setRotX(root.getRotX() + Mth.sin(t * 3.7F + 1.3F) * k * SHAKE_PITCH * Mth.DEG_TO_RAD);
             root.setPosX(root.getPosX() + Mth.sin(t * 4.3F + 0.6F) * k * SHAKE_SHIFT);
             root.resetStateChanges();
         }
-        GeoBone sac = model.getAnimationProcessor().getBone("sac");
+        GeoBone sac = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("sac");
         if (sac != null) {
             float s = 1.0F + k * SAC_SWELL + Mth.sin(t * 0.8F) * k * SAC_PULSE;
             sac.setScaleX(sac.getScaleX() * s);
@@ -83,7 +83,7 @@ final class G1OmenRig {
             sac.setScaleZ(sac.getScaleZ() * s);
             sac.resetStateChanges();
         }
-        GeoBone sprout = model.getAnimationProcessor().getBone("sprout");
+        GeoBone sprout = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("sprout");
         if (sprout != null) {
             float s = 1.0F + k * SPROUT_SWELL;
             sprout.setScaleX(sprout.getScaleX() * s);

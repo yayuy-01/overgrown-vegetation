@@ -2,7 +2,6 @@ package com.yayuy.overgrownvegetation.client;
 
 import com.yayuy.overgrownvegetation.registry.ModMobEffects;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.entity.Entity;
@@ -30,16 +29,16 @@ public final class SelfEffectParticles {
         if (devShowAll || entity != mc.getCameraEntity() || !mc.options.getCameraType().isFirstPerson()) {
             return true;
         }
-        return !isSporeInfection(particle);
+        return !(isEffectParticle(particle) && entity instanceof net.minecraft.world.entity.LivingEntity living
+                && living.hasEffect(ModMobEffects.SPORE_INFECTION.get()));
     }
 
-    /** 胞子感染の効果の粒か(色付きの entity_effect で、色が胞子感染の色。濃さ(アルファ)は ambient で変わるので見ない)。 */
-    static boolean isSporeInfection(ParticleOptions particle) {
-        return particle instanceof ColorParticleOption color && color.getType() == ParticleTypes.ENTITY_EFFECT
-                && (rgb(color) & 0xFFFFFF) == ModMobEffects.SPORE_INFECTION_COLOR;
-    }
-
-    private static int rgb(ColorParticleOption c) {
-        return Math.round(c.getRed() * 255.0F) << 16 | Math.round(c.getGreen() * 255.0F) << 8 | Math.round(c.getBlue() * 255.0F);
+    /**
+     * 1.20.1: 効果の粒は色を持たない({@code entity_effect} / {@code ambient_entity_effect} の 1 種で、色は速さの欄に入る)。しかも色は
+     * 見える効果を全部混ぜた 1 色で、効果ごとの粒の一覧は無い(1.20.5 から)。なので「胞子感染に掛かっている間は、自分の効果の粒を全部出さない」にする
+     * (ほかの効果と重なっているときは、その効果の粒も一人称では出なくなる)。
+     */
+    static boolean isEffectParticle(ParticleOptions particle) {
+        return particle.getType() == ParticleTypes.ENTITY_EFFECT || particle.getType() == ParticleTypes.AMBIENT_ENTITY_EFFECT;
     }
 }

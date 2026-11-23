@@ -38,6 +38,6 @@ public class FalcimnesVeinLayer extends GeoRenderLayer<FalcimnesEntity> {
         RenderType rt = RenderType.entityTranslucentEmissive(VEINS);
         int a = Math.round(Math.min(1.0F, glow) * 255.0F);
         getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, rt, bufferSource.getBuffer(rt), partialTick,
-                LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, FastColor.ARGB32.color(a, 255, 255, 255));
+                LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, a / 255.0F);
     }
 }

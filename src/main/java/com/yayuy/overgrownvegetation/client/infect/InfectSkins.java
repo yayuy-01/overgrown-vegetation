@@ -212,7 +212,7 @@ final class InfectSkins {
         }
         float extent = Math.max(maxY - minY, Math.max(maxX - minX, maxZ - minZ));
         // 子どもは体が縮んで描かれる(絵は大人と同じ)→ 画素の細かさを大人の大きさで見る
-        float scale = entity instanceof LivingEntity living ? Math.max(0.05F, living.getScale() * living.getAgeScale()) : 1.0F;
+        float scale = entity instanceof LivingEntity living ? Math.max(0.05F, living.getScale() /* 1.20.1: getScale に子どもの 0.5 がもう入っている */) : 1.0F;
 
         for (Map.Entry<RenderType, List<InfectRender.Quad>> e : tap.quads.entrySet()) {
             ResourceLocation texture = InfectRender.TYPE_TEXTURE.get(e.getKey());

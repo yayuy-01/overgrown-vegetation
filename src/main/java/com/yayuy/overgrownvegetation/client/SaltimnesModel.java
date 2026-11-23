@@ -53,7 +53,7 @@ public class SaltimnesModel extends GeoModel<SaltimnesEntity> {
         float pt = animationState.getPartialTick();
         GroundFit g = e.groundFit();
         double pxPerBlock = 16.0D / SaltimnesEntity.RENDER_SCALE / Math.max(e.getScale(), 0.05F);
-        GeoBone root = getAnimationProcessor().getBone("root");
+        GeoBone root = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("root");
         if (root != null) {
             root.setRotX(root.getRotX() + (float) (g.pitch(pt) + e.airPitch(pt)));
             root.setRotZ(root.getRotZ() - (float) g.roll(pt));
@@ -61,7 +61,7 @@ public class SaltimnesModel extends GeoModel<SaltimnesEntity> {
             root.resetStateChanges();   // キーの無い骨は、下ろさないと足した値が次のフレームにも残って積み上がる
         }
         for (int i = 0; i < LEG_ROOT.length; i++) {
-            GeoBone b = getAnimationProcessor().getBone(LEG_ROOT[i]);
+            GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(LEG_ROOT[i]);
             if (b == null) continue;
             double err = g.footError(i, pt) * pxPerBlock;
             if (Math.abs(err) < 1.0E-3D) continue;

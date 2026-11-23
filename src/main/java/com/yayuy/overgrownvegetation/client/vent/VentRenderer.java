@@ -17,7 +17,7 @@ public class VentRenderer extends GeoBlockRenderer<VentBlockEntity> {
     }
 
     /** 模型は高さ 3 ブロック(排気の口が少し上へ出る)。本体の 1 ブロックの箱のままだと、下が画面の外へ出たとき上まで消える。 */
-    @Override
+    // 1.20.1: 描画の箱は描き手でなく BlockEntity の getRenderBoundingBox()(G1 の持ち物)が持つ。ここは G1 から呼んでもらう
     public AABB getRenderBoundingBox(VentBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).expandTowards(0.0D, 2.2D, 0.0D);
     }

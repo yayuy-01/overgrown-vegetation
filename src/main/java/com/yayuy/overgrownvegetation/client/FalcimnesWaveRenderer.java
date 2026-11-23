@@ -60,14 +60,14 @@ public class FalcimnesWaveRenderer extends EntityRenderer<FalcimnesWaveEntity> {
     /** 両面の四角(加算なので裏も描く)。 */
     static void quad(VertexConsumer vc, PoseStack.Pose p, float ax, float ay, float az, float bx, float by, float bz,
                      float cx, float cy, float cz, float dx, float dy, float dz, int r, int g, int b, int a) {
-        vc.addVertex(p, ax, ay, az).setColor(r, g, b, a);
-        vc.addVertex(p, bx, by, bz).setColor(r, g, b, a);
-        vc.addVertex(p, cx, cy, cz).setColor(r, g, b, a);
-        vc.addVertex(p, dx, dy, dz).setColor(r, g, b, a);
-        vc.addVertex(p, dx, dy, dz).setColor(r, g, b, a);
-        vc.addVertex(p, cx, cy, cz).setColor(r, g, b, a);
-        vc.addVertex(p, bx, by, bz).setColor(r, g, b, a);
-        vc.addVertex(p, ax, ay, az).setColor(r, g, b, a);
+        vc.vertex(p.pose(), ax, ay, az).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), bx, by, bz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), cx, cy, cz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), dx, dy, dz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), dx, dy, dz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), cx, cy, cz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), bx, by, bz).color(r, g, b, a).endVertex();
+        vc.vertex(p.pose(), ax, ay, az).color(r, g, b, a).endVertex();
     }
 
     @Override

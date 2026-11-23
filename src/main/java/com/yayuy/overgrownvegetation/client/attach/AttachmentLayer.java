@@ -52,9 +52,9 @@ public class AttachmentLayer<T extends LivingEntity, M extends HumanoidModel<T>>
                 if (AttachmentGeoRenderer.modelFor(item, slot) == null) continue;
                 AttachmentGeoRenderer r = RENDERERS.computeIfAbsent(item, k -> new AttachmentGeoRenderer());
                 r.setCount(ArmorAttachments.count(armor, item));
-                r.prepForRender(entity, s, slot, getParentModel(), buffer, partialTick, limbSwing, limbSwingAmount, netHeadYaw, headPitch);
+                r.prepForRender(entity, s, slot, getParentModel()); // 1.20.1(GeckoLib 4.8.4): 器・動きの値は受けない(描くときに自分で引く)
                 copyPose(getParentModel(), r);
-                r.renderToBuffer(poseStack, null, packedLight, OverlayTexture.NO_OVERLAY, -1);
+                r.renderToBuffer(poseStack, null, packedLight, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
             }
         }
     }

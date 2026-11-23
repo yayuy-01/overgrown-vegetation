@@ -66,7 +66,7 @@ public class SeminariaModel extends GeoModel<SeminariaEntity> {
         double tick = e.tickCount + pt;
         double ph = e.gustPhase();
         for (int i = 0; i < BONES.length; i++) {
-            GeoBone b = getAnimationProcessor().getBone(BONES[i]);
+            GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(BONES[i]);
             if (b == null) continue;
             double[] w = WAVES[i];
             double deg = 0.0D;

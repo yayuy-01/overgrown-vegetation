@@ -52,7 +52,7 @@ public final class EggFitProbe {
         Map<String, EntityType<?>> types = new LinkedHashMap<>();
         for (Item item : BuiltInRegistries.ITEM) {
             if (item instanceof SpawnEggItem egg) {
-                EntityType<?> type = egg.getType(new net.minecraft.world.item.ItemStack(item));
+                EntityType<?> type = egg.getType(null);
                 ResourceLocation id = EntityType.getKey(type);
                 if (id.getNamespace().equals(OvergrownVegetation.MODID) && id.getPath().contains(filter)) {
                     types.put(id.getPath(), type);
@@ -80,7 +80,7 @@ public final class EggFitProbe {
                 if (preview instanceof EggPreviewPose pose) {
                     pose.prepareEggPreview();
                 }
-                PROBES.add(new Probe(e.getKey(), preview, e.getValue().getDimensions().height() * scale * 0.5F, new float[1]));
+                PROBES.add(new Probe(e.getKey(), preview, e.getValue().getDimensions().height * scale * 0.5F, new float[1]));
             } catch (Exception ex) {
                 log.accept("EGGFIT 作れない " + e.getKey() + " " + ex);
             }
@@ -135,7 +135,8 @@ public final class EggFitProbe {
         }
 
         @Override
-        public VertexConsumer addVertex(float x, float y, float z) {
+        public VertexConsumer vertex(double dx, double dy, double dz) {
+            float x = (float) dx, y = (float) dy, z = (float) dz;
             float sy = (y - probe.halfHeight) * COS15 - z * SIN15;
             float v = 2.0F * Math.max(Math.abs(x), Math.abs(sy));
             if (v > probe.max[0]) {
@@ -145,28 +146,40 @@ public final class EggFitProbe {
         }
 
         @Override
-        public VertexConsumer setColor(int r, int g, int b, int a) {
+        public VertexConsumer color(int r, int g, int b, int a) {
             return this;
         }
 
         @Override
-        public VertexConsumer setUv(float u, float v) {
+        public VertexConsumer uv(float u, float v) {
             return this;
         }
 
         @Override
-        public VertexConsumer setUv1(int u, int v) {
+        public VertexConsumer overlayCoords(int u, int v) {
             return this;
         }
 
         @Override
-        public VertexConsumer setUv2(int u, int v) {
+        public VertexConsumer uv2(int u, int v) {
             return this;
         }
 
         @Override
-        public VertexConsumer setNormal(float x, float y, float z) {
+        public VertexConsumer normal(float x, float y, float z) {
             return this;
+        }
+
+        @Override
+        public void endVertex() {
+        }
+
+        @Override
+        public void defaultColor(int r, int g, int b, int a) {
+        }
+
+        @Override
+        public void unsetDefaultColor() {
         }
     }
 }

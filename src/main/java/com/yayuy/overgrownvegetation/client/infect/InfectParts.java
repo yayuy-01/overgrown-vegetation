@@ -219,45 +219,46 @@ final class InfectParts {
             this.us = this.vs = 0.0F;
         }
 
+        // 1.20.1: 頂点の確定は endVertex(1.21 は次の addVertex)。拾う側は今までどおり「4 頂点目の法線」で面を閉じる。
         @Override
-        public VertexConsumer addVertex(float x, float y, float z) {
-            vertex(x, y, z);
-            this.out.addVertex(x, y, z);
+        public VertexConsumer vertex(double x, double y, double z) {
+            vertex((float) x, (float) y, (float) z);
+            this.out.vertex(x, y, z);
             return this;
         }
 
         @Override
-        public VertexConsumer setColor(int red, int green, int blue, int alpha) {
-            this.out.setColor(red, green, blue, alpha);
+        public VertexConsumer color(int red, int green, int blue, int alpha) {
+            this.out.color(red, green, blue, alpha);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv(float u, float v) {
+        public VertexConsumer uv(float u, float v) {
             this.us += u;
             this.vs += v;
-            this.out.setUv(u, v);
+            this.out.uv(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv1(int u, int v) {
-            this.out.setUv1(u, v);
+        public VertexConsumer overlayCoords(int u, int v) {
+            this.out.overlayCoords(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv2(int u, int v) {
-            this.out.setUv2(u, v);
+        public VertexConsumer uv2(int u, int v) {
+            this.out.uv2(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setNormal(float nx, float ny, float nz) {
+        public VertexConsumer normal(float nx, float ny, float nz) {
             this.nx = nx;
             this.ny = ny;
             this.nz = nz;
-            this.out.setNormal(nx, ny, nz);
+            this.out.normal(nx, ny, nz);
             if (this.n == 4) {
                 finish();
             }
@@ -265,15 +266,30 @@ final class InfectParts {
         }
 
         @Override
-        public void addVertex(float x, float y, float z, int color, float u, float v, int packedOverlay, int packedLight,
-                              float normalX, float normalY, float normalZ) {
+        public void endVertex() {
+            this.out.endVertex();
+        }
+
+        @Override
+        public void defaultColor(int red, int green, int blue, int alpha) {
+            this.out.defaultColor(red, green, blue, alpha);
+        }
+
+        @Override
+        public void unsetDefaultColor() {
+            this.out.unsetDefaultColor();
+        }
+
+        @Override
+        public void vertex(float x, float y, float z, float red, float green, float blue, float alpha, float u, float v, int packedOverlay,
+                           int packedLight, float normalX, float normalY, float normalZ) {
             vertex(x, y, z);
             this.us += u;
             this.vs += v;
             this.nx = normalX;
             this.ny = normalY;
             this.nz = normalZ;
-            this.out.addVertex(x, y, z, color, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);
+            this.out.vertex(x, y, z, red, green, blue, alpha, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);
             if (this.n == 4) {
                 finish();
             }
@@ -465,7 +481,7 @@ final class InfectParts {
             float nx = nx0 * xx + ny0 * yx + nz0 * zx, ny = nx0 * xy + ny0 * yy + nz0 * zy, nz = nx0 * xz + ny0 * yz + nz0 * zz;
             for (int v = 0; v < 4; v++) {
                 float px = mp[q * 12 + v * 3] * unit, py = mp[q * 12 + v * 3 + 1] * unit, pz = mp[q * 12 + v * 3 + 2] * unit;
-                vc.addVertex(x + px * xx + py * yx + pz * zx, y + px * xy + py * yy + pz * zy, z + px * xz + py * yz + pz * zz,
+                com.yayuy.overgrownvegetation.client.PortVertex.addVertex(vc, x + px * xx + py * yx + pz * zx, y + px * xy + py * yy + pz * zy, z + px * xz + py * yz + pz * zz,
                         tint, mu[q * 8 + v * 2], mu[q * 8 + v * 2 + 1], ov, packedLight, nx, ny, nz);
             }
         }

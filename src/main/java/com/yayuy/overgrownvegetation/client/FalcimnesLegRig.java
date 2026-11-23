@@ -63,8 +63,8 @@ public final class FalcimnesLegRig {
             return;
         }
         float w = fp.weight(pt);
-        GeoBone body = model.getAnimationProcessor().getBone("body");
-        GeoBone b20 = model.getAnimationProcessor().getBone("bone20");
+        GeoBone body = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("body");
+        GeoBone b20 = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("bone20");
         if (body == null || b20 == null) {
             return;
         }
@@ -102,7 +102,7 @@ public final class FalcimnesLegRig {
         body.setPosZ(body.getPosZ() + tz);
         body.resetStateChanges();
         // 首は胴の傾きの半分だけ逆へ起こす(頭を水平に近く保つ。本物の動物の頭の安定化)【仮 0.5】
-        GeoBone neck = model.getAnimationProcessor().getBone("neck");
+        GeoBone neck = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("neck");
         if (neck != null) {
             neck.setRotX(neck.getRotX() - rx * NECK_COUNTER);
             neck.resetStateChanges();
@@ -115,7 +115,7 @@ public final class FalcimnesLegRig {
 
         // ---- body · bone20 の行列(中の値、px)。脚の付け根の親の座標へ足先を移すため
         // 段 2(11-07 夜): 体ごとの構えの根の骨 stance(上半身の層が技で動かす)を含める。含めないと踏み込みの間に足が地面から滑った
-        GeoBone stance = model.getAnimationProcessor().getBone("stance");
+        GeoBone stance = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("stance");
         double[] mBody = boneMatrix(body, stance != null ? boneMatrix(stance, null) : null);
         double[] mParent = boneMatrix(b20, mBody);
         double[] inv = invertRigid(mParent);
@@ -128,9 +128,9 @@ public final class FalcimnesLegRig {
         loadToes(model);
         double[][] sol = e.legSolution();
         for (int i = 0; i < LEGS.length; i++) {
-            GeoBone th = model.getAnimationProcessor().getBone(LEGS[i][0]);
-            GeoBone sh = model.getAnimationProcessor().getBone(LEGS[i][1]);
-            GeoBone ft = model.getAnimationProcessor().getBone(LEGS[i][2]);
+            GeoBone th = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][0]);
+            GeoBone sh = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][1]);
+            GeoBone ft = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][2]);
             if (th == null || sh == null || ft == null || toe == null) {
                 continue;
             }
@@ -376,14 +376,14 @@ public final class FalcimnesLegRig {
 
     /** 足先の骨の箱(先の節)の下端の中心(中の座標 px)。頂点は 1/16 ブロックで持たれているので ×16。 */
     private static void loadToes(GeoModel<FalcimnesEntity> model) {
-        GeoBone first = model.getAnimationProcessor().getBone(LEGS[0][2]);
+        GeoBone first = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[0][2]);
         if (first == null || first == toeFor) {
             return;
         }
         float[][] t = new float[LEGS.length][];
         double[] r = new double[LEGS.length];
         for (int i = 0; i < LEGS.length; i++) {
-            GeoBone ft = model.getAnimationProcessor().getBone(LEGS[i][2]);
+            GeoBone ft = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][2]);
             if (ft == null || ft.getCubes().isEmpty()) {
                 return;
             }
@@ -408,7 +408,7 @@ public final class FalcimnesLegRig {
                 }
             }
             t[i] = new float[]{(float) (sx / nv * 16.0D), (float) (minY * 16.0D), (float) (sz / nv * 16.0D)};
-            GeoBone th = model.getAnimationProcessor().getBone(LEGS[i][0]), sh = model.getAnimationProcessor().getBone(LEGS[i][1]);
+            GeoBone th = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][0]), sh = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(LEGS[i][1]);
             r[i] = 0.95D * (dist(sh, th.getPivotX(), th.getPivotY(), th.getPivotZ()) + dist(ft, sh.getPivotX(), sh.getPivotY(), sh.getPivotZ())
                     + Math.sqrt(sq(t[i][0] - ft.getPivotX()) + sq(t[i][1] - ft.getPivotY()) + sq(t[i][2] - ft.getPivotZ())));
         }

@@ -9,7 +9,6 @@ import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -68,7 +67,7 @@ public final class DirtClient {
     @SubscribeEvent
     public static void onAddLayers(EntityRenderersEvent.AddLayers event) {
         var models = event.getEntityModels();
-        for (PlayerSkin.Model skin : event.getSkins()) {
+        for (String skin : event.getSkins()) { // 1.20.1: スキンの形は文字列
             EntityRenderer<?> r = event.getSkin(skin);
             if (r instanceof LivingEntityRenderer lr) {
                 lr.addLayer(new DirtyArmorLayer(lr, new HumanoidArmorModel<>(models.bakeLayer(INNER)), new HumanoidArmorModel<>(models.bakeLayer(OUTER))));

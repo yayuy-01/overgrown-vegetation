@@ -67,7 +67,7 @@ public final class LegChainRig {
         FootPlanter fp = e.footPlanter();
         if (fp == null || !fp.ready() || e.legSolution() == null) return;
         var proc = model.getAnimationProcessor();
-        GeoBone body = proc.getBone(this.parents[this.parents.length - 1]);
+        GeoBone body = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.parents[this.parents.length - 1]);
         if (body == null) return;
         net.minecraft.client.Camera cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
         if (cam.getPosition().distanceToSqr(e.position()) < NEAR * NEAR) {
@@ -89,7 +89,7 @@ public final class LegChainRig {
 
         double[] mParent = null;
         for (String n : this.parents) {
-            GeoBone b = proc.getBone(n);
+            GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(n);
             if (b != null) mParent = boneMatrix(b, mParent);
         }
         double[] inv = invertRigid(mParent);
@@ -102,8 +102,8 @@ public final class LegChainRig {
         if (this.sole == null) return;
         double[][] sol = e.legSolution();
         for (int i = 0; i < this.legs.length && i < fp.legs(); i++) {
-            GeoBone th = proc.getBone(this.legs[i][0]), sh = proc.getBone(this.legs[i][1]);
-            GeoBone an = proc.getBone(this.legs[i][2]), ft = proc.getBone(this.legs[i][3]);
+            GeoBone th = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][0]), sh = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][1]);
+            GeoBone an = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][2]), ft = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][3]);
             if (th == null || sh == null || an == null || ft == null) continue;
             Vec3 f = fp.foot(i, pt);
             double dx = f.x - ex, dy = f.y - ey, dz = f.z - ez;
@@ -320,12 +320,12 @@ public final class LegChainRig {
     /** 足の骨の箱の一番下の面の中心(全部の箱で一番低い頂点の高さにある頂点の平均)と、脚の届く長さ(伸ばしきりの 0.95)。 */
     private void loadSoles(GeoModel<?> model) {
         var proc = model.getAnimationProcessor();
-        GeoBone first = proc.getBone(this.legs[0][3]);
+        GeoBone first = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[0][3]);
         if (first == null || first == this.soleFor) return;
         float[][] t = new float[this.legs.length][];
         double[] r = new double[this.legs.length];
         for (int i = 0; i < this.legs.length; i++) {
-            GeoBone ft = proc.getBone(this.legs[i][3]);
+            GeoBone ft = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][3]);
             if (ft == null || ft.getCubes().isEmpty()) return;
             double minY = Double.MAX_VALUE;
             for (GeoCube c : ft.getCubes()) {
@@ -349,7 +349,7 @@ public final class LegChainRig {
                 }
             }
             t[i] = new float[]{(float) (sx / nv * 16.0D), (float) (minY * 16.0D), (float) (sz / nv * 16.0D)};
-            GeoBone th = proc.getBone(this.legs[i][0]), sh = proc.getBone(this.legs[i][1]), an = proc.getBone(this.legs[i][2]);
+            GeoBone th = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][0]), sh = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][1]), an = (software.bernie.geckolib.cache.object.GeoBone) proc.getBone(this.legs[i][2]);
             r[i] = 0.95D * (dist(sh, th.getPivotX(), th.getPivotY(), th.getPivotZ()) + dist(an, sh.getPivotX(), sh.getPivotY(), sh.getPivotZ())
                     + dist(ft, an.getPivotX(), an.getPivotY(), an.getPivotZ())
                     + Math.sqrt(sq(t[i][0] - ft.getPivotX()) + sq(t[i][1] - ft.getPivotY()) + sq(t[i][2] - ft.getPivotZ())));

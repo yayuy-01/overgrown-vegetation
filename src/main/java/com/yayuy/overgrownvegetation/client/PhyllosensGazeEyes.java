@@ -5,12 +5,10 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.Util;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -224,7 +222,7 @@ public final class PhyllosensGazeEyes {
         presence = 1.0F;
     }
 
-    static void render(GuiGraphics g, DeltaTracker delta) {
+    static void render(GuiGraphics g, float partialTick) {
         long t0 = System.nanoTime();
         Minecraft mc = Minecraft.getInstance();
         long millis = Util.getMillis();
@@ -237,7 +235,7 @@ public final class PhyllosensGazeEyes {
             if (presence > 0.0F || inner != null) reset();
             return;
         }
-        float partial = delta.getGameTimeDeltaPartialTick(false);
+        float partial = partialTick;
         float markLevel = PhyllosensGazeEdge.strength(partial);
         boolean marked = watching && PhyllosensGazeEdge.markTick() >= 0L;
         float snapT = marked ? (PhyllosensGazeEdge.now() - PhyllosensGazeEdge.markTick() + partial) / 20.0F : 0.0F;
@@ -298,7 +296,8 @@ public final class PhyllosensGazeEyes {
                 e.jp = (RNG.nextFloat() * 2.0F - 1.0F) * 2.0F;
             }
         }
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         float unit = Math.min(w, h) / 360.0F * DOT;
         for (Eye e : eyes) {
             // 開く・閉じる(隠れた後、しつこい目は遅れて閉じる。慣れた目はゆっくり閉じる)
@@ -387,7 +386,7 @@ public final class PhyllosensGazeEyes {
             if (t > INNER_LIFE) inner = null;
         }
 
-        MeshData mesh = b.build();
+        BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
         if (mesh != null) {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             RenderSystem.setShaderTexture(0, ATLAS);
@@ -406,18 +405,19 @@ public final class PhyllosensGazeEyes {
         float[] r = {0.32F * radius, (0.32F + 0.68F * 0.55F) * radius, radius};
         float[] a = {0.0F, alpha * 0.55F, Math.min(1.0F, alpha * 1.2F)};
         float[][] c = {{14 / 255F, 10 / 255F, 4 / 255F}, {14 / 255F, 10 / 255F, 4 / 255F}, {6 / 255F, 5 / 255F, 2 / 255F}};
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (int ring = 0; ring < 2; ring++) {
             for (int i = 0; i < RING_SEGMENTS; i++) {
                 float a0 = Mth.TWO_PI * i / RING_SEGMENTS, a1 = Mth.TWO_PI * (i + 1) / RING_SEGMENTS;
                 float c0 = Mth.cos(a0), s0 = Mth.sin(a0), c1 = Mth.cos(a1), s1 = Mth.sin(a1);
-                b.addVertex(pose, cx + c0 * r[ring], cy + s0 * r[ring], 0.0F).setColor(c[ring][0], c[ring][1], c[ring][2], a[ring]);
-                b.addVertex(pose, cx + c0 * r[ring + 1], cy + s0 * r[ring + 1], 0.0F).setColor(c[ring + 1][0], c[ring + 1][1], c[ring + 1][2], a[ring + 1]);
-                b.addVertex(pose, cx + c1 * r[ring + 1], cy + s1 * r[ring + 1], 0.0F).setColor(c[ring + 1][0], c[ring + 1][1], c[ring + 1][2], a[ring + 1]);
-                b.addVertex(pose, cx + c1 * r[ring], cy + s1 * r[ring], 0.0F).setColor(c[ring][0], c[ring][1], c[ring][2], a[ring]);
+                b.vertex(pose, cx + c0 * r[ring], cy + s0 * r[ring], 0.0F).color(c[ring][0], c[ring][1], c[ring][2], a[ring]).endVertex();
+                b.vertex(pose, cx + c0 * r[ring + 1], cy + s0 * r[ring + 1], 0.0F).color(c[ring + 1][0], c[ring + 1][1], c[ring + 1][2], a[ring + 1]).endVertex();
+                b.vertex(pose, cx + c1 * r[ring + 1], cy + s1 * r[ring + 1], 0.0F).color(c[ring + 1][0], c[ring + 1][1], c[ring + 1][2], a[ring + 1]).endVertex();
+                b.vertex(pose, cx + c1 * r[ring], cy + s1 * r[ring], 0.0F).color(c[ring][0], c[ring][1], c[ring][2], a[ring]).endVertex();
             }
         }
-        MeshData mesh = b.build();
+        BufferBuilder.RenderedBuffer mesh = b.endOrDiscardIfEmpty();
         if (mesh == null) return;
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferUploader.drawWithShader(mesh);
@@ -528,7 +528,7 @@ public final class PhyllosensGazeEyes {
     private static void vertex(BufferBuilder b, Matrix4f pose, float dx, float dy, float u, float v, float r, float g, float bl, float a) {
         float lx = (eOx + dx * ePix) * eFlip, ly = eOy + dy * ePix;
         float sx = (ex + eCos * lx - eSin * ly) * eInv, sy = (ey + eSin * lx + eCos * ly) * eInv;
-        b.addVertex(pose, sx, sy, 0.0F).setUv(u, v).setColor(r, g, bl, a);
+        b.vertex(pose, sx, sy, 0.0F).uv(u, v).color(r, g, bl, a).endVertex();
     }
 
     private static float ease(float t) {

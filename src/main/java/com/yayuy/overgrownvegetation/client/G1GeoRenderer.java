@@ -47,7 +47,7 @@ public class G1GeoRenderer<T extends LivingEntity & GeoEntity> extends GeoEntity
     public void renderRecursively(com.mojang.blaze3d.vertex.PoseStack poseStack, T animatable, software.bernie.geckolib.cache.object.GeoBone bone,
                                   net.minecraft.client.renderer.RenderType renderType, net.minecraft.client.renderer.MultiBufferSource bufferSource,
                                   com.mojang.blaze3d.vertex.VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight,
-                                  int packedOverlay, int colour) {
+                                  int packedOverlay, float red, float green, float blue, float alpha) {
         if (animatable instanceof com.yayuy.overgrownvegetation.entity.DevelopedParasitized d
                 && d.dev() == com.yayuy.overgrownvegetation.entity.g1.G1Developed.SHEEP) {
             String name = bone.getName();
@@ -57,7 +57,7 @@ public class G1GeoRenderer<T extends LivingEntity & GeoEntity> extends GeoEntity
                 if (index > BOLLS_BY_FLUFF[fluff]) return;
             }
         }
-        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     /** 1 段目の死に際は赤い被弾色を出さない(破裂のアニメを見せる。G1DeathBurst の javadoc)。 */

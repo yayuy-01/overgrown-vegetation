@@ -41,18 +41,34 @@ public class DirtyArmorLayer<T extends LivingEntity, M extends HumanoidModel<T>>
             int stage = GearDirt.stage(stack);
             if (stage == 0 || !(stack.getItem() instanceof ArmorItem armor) || armor.getEquipmentSlot() != slot) continue;
             if (stack.getItem() instanceof software.bernie.geckolib.animatable.GeoItem) continue;
-            ArmorMaterial material = armor.getMaterial().value();
-            if (material.layers().isEmpty()) continue;
+            ArmorMaterial material = armor.getMaterial();
             boolean innerModel = slot == EquipmentSlot.LEGS;
-            ResourceLocation base = net.neoforged.neoforge.client.ClientHooks.getArmorTexture(entity, stack, material.layers().get(0), innerModel, slot);
+            ResourceLocation base = armorTexture(entity, stack, material, innerModel, slot);
             ResourceLocation dust = DirtOverlays.armorOverlay(base, stage);
             if (dust == null) continue;
             HumanoidArmorModel<T> model = innerModel ? inner : outer;
             getParentModel().copyPropertiesTo(model);
             setVisibility(model, slot);
             VertexConsumer vc = buffers.getBuffer(RenderType.armorCutoutNoCull(dust));
-            model.renderToBuffer(pose, vc, light, OverlayTexture.NO_OVERLAY);
+            model.renderToBuffer(pose, vc, light, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
         }
+    }
+
+    /**
+     * 1.20.1: 防具の 1 枚目の絵(1.21 の {@code material.layers().get(0)} と {@code ClientHooks.getArmorTexture})。
+     * Forge 1.20.1 の {@code HumanoidArmorLayer#getArmorResource} と同じ組み立て(型の接尾辞なし)。
+     */
+    private static ResourceLocation armorTexture(net.minecraft.world.entity.Entity entity, ItemStack stack, ArmorMaterial material, boolean inner,
+                                                 EquipmentSlot slot) {
+        String texture = material.getName();
+        String domain = "minecraft";
+        int idx = texture.indexOf(':');
+        if (idx != -1) {
+            domain = texture.substring(0, idx);
+            texture = texture.substring(idx + 1);
+        }
+        String path = String.format(java.util.Locale.ROOT, "%s:textures/models/armor/%s_layer_%d.png", domain, texture, inner ? 2 : 1);
+        return ResourceLocation.parse(net.minecraftforge.client.ForgeHooksClient.getArmorTexture(entity, stack, path, slot, null));
     }
 
     private static void setVisibility(HumanoidModel<?> model, EquipmentSlot slot) {

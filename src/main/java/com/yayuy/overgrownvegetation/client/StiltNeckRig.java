@@ -23,7 +23,7 @@ public final class StiltNeckRig {
      */
     public static void apply(GeoModel<?> model, StiltNeck.Shape shape, String body, String[] neck, String head,
                              StiltNeck.Pose pose, float w, double leanDeg) {
-        GeoBone b = model.getAnimationProcessor().getBone(body);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(body);
         if (b != null && Math.abs(leanDeg) > 1.0E-3D) {
             b.setRotX(b.getRotX() - (float) Math.toRadians(leanDeg));
             b.resetStateChanges();
@@ -32,7 +32,7 @@ public final class StiltNeckRig {
         double[] q = pose.qEuler();
         float off = (float) (-shape.telescope() * (1.0D - pose.s()));
         for (int i = 0; i < neck.length; i++) {
-            GeoBone n = model.getAnimationProcessor().getBone(neck[i]);
+            GeoBone n = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(neck[i]);
             if (n == null) continue;
             n.setRotX(Mth.lerp(w, n.getRotX(), (float) q[0]));
             n.setRotY(Mth.lerp(w, n.getRotY(), (float) q[1]));
@@ -40,7 +40,7 @@ public final class StiltNeckRig {
             if (i > 0) n.setPosY(Mth.lerp(w, n.getPosY(), off));
             n.resetStateChanges();
         }
-        GeoBone h = model.getAnimationProcessor().getBone(head);
+        GeoBone h = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(head);
         if (h != null) {
             double[] e = pose.headEuler();
             h.setRotX(Mth.lerp(w, h.getRotX(), (float) e[0]));

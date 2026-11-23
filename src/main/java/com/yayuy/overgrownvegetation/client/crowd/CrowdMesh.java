@@ -17,7 +17,7 @@ import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.object.GeoCube;
 import software.bernie.geckolib.cache.object.GeoQuad;
 import software.bernie.geckolib.cache.object.GeoVertex;
-import software.bernie.geckolib.util.RenderUtil;
+import software.bernie.geckolib.util.RenderUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -32,7 +32,7 @@ import java.util.List;
  * (GeckoLib の {@code renderCube} と同じ掛け算の順: 骨 × 箱 × 頂点)。</p>
  *
  * <p>頂点 1 つ = 位置 3・UV 2・法線 3(箱の回転まで掛けた物)の float と、骨の番号 + 平らな箱の印の int 1 つ(36 バイト)。
- * 平らな箱の印は GeckoLib の {@code RenderUtil.fixInvertedFlatCube}(大きさが 0 の向きの法線を裏返す)をシェーダーで同じにするため。</p>
+ * 平らな箱の印は GeckoLib の {@code RenderUtils.fixInvertedFlatCube}(大きさが 0 の向きの法線を裏返す)をシェーダーで同じにするため。</p>
  */
 public final class CrowdMesh {
 
@@ -78,9 +78,9 @@ public final class CrowdMesh {
             for (int b = 0; b < order.size(); b++) {
                 for (GeoCube cube : order.get(b).getCubes()) {
                     cubeStack.pushPose();
-                    RenderUtil.translateToPivotPoint(cubeStack, cube);
-                    RenderUtil.rotateMatrixAroundCube(cubeStack, cube);
-                    RenderUtil.translateAwayFromPivotPoint(cubeStack, cube);
+                    RenderUtils.translateToPivotPoint(cubeStack, cube);
+                    RenderUtils.rotateMatrixAroundCube(cubeStack, cube);
+                    RenderUtils.translateAwayFromPivotPoint(cubeStack, cube);
                     Matrix4f pose = cubeStack.last().pose();
                     Matrix3f normal = cubeStack.last().normal();
                     int flat = (cube.size().x() == 0 ? 1 : 0) | (cube.size().y() == 0 ? 2 : 0) | (cube.size().z() == 0 ? 4 : 0);

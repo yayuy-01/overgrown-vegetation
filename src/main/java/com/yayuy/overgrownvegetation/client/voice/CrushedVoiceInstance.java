@@ -109,7 +109,8 @@ public final class CrushedVoiceInstance extends AbstractSoundInstance {
                     return events;
                 }
             }
-            this.sound = new Sound(held != null ? held : picked.getLocation(), picked.getVolume(), picked.getPitch(), picked.getWeight(),
+            this.sound = new Sound((held != null ? held : picked.getLocation()).toString(), // 1.20.1: 置き場所は文字列で渡す
+                    picked.getVolume(), picked.getPitch(), picked.getWeight(),
                     Sound.Type.FILE, held == null, false, picked.getAttenuationDistance());
             if (DEV_LOG) {
                 OvergrownVegetation.LOGGER.info("CrushedVoice {} {} 版 {}", held != null ? "持った方で鳴らす" : "流して鳴らす", picked.getLocation(), this.mode);

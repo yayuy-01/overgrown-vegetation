@@ -160,7 +160,7 @@ public final class SporeRise {
         Vec3 eye = event.getCamera().getPosition();
         org.joml.Vector3f left = event.getCamera().getLeftVector();
         org.joml.Vector3f up = event.getCamera().getUpVector();
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float cr = WorldEventSky.rgb(p.color, 0), cg = WorldEventSky.rgb(p.color, 1), cb = WorldEventSky.rgb(p.color, 2);
         boolean main = EventLight.drawToMainTarget();
         MultiBufferSource.BufferSource buffers = EventLight.buffers();
@@ -182,16 +182,18 @@ public final class SporeRise {
             quad(c, x, y, z, left, up, s * 2.6F, cr, cg, cb, a * 0.22F);
             quad(c, x, y, z, left, up, s, cr * 0.6F + 0.4F, cg * 0.6F + 0.4F, cb * 0.6F + 0.4F, a);
         }
+        boolean pushed = com.yayuy.overgrownvegetation.client.PortStageView.push(event); // 1.20.1: この段の描画の行列にカメラの回転を(PortStageView)
         buffers.endBatch(EventLight.renderType());
+        com.yayuy.overgrownvegetation.client.PortStageView.pop(pushed);
         EventLight.restoreTarget(main);
     }
 
     private static void quad(VertexConsumer c, float x, float y, float z, org.joml.Vector3f l, org.joml.Vector3f u, float s,
                              float r, float g, float b, float a) {
-        c.addVertex(x - l.x() * s - u.x() * s, y - l.y() * s - u.y() * s, z - l.z() * s - u.z() * s).setColor(r, g, b, a);
-        c.addVertex(x + l.x() * s - u.x() * s, y + l.y() * s - u.y() * s, z + l.z() * s - u.z() * s).setColor(r, g, b, a);
-        c.addVertex(x + l.x() * s + u.x() * s, y + l.y() * s + u.y() * s, z + l.z() * s + u.z() * s).setColor(r, g, b, a);
-        c.addVertex(x - l.x() * s + u.x() * s, y - l.y() * s + u.y() * s, z - l.z() * s + u.z() * s).setColor(r, g, b, a);
+        c.vertex(x - l.x() * s - u.x() * s, y - l.y() * s - u.y() * s, z - l.z() * s - u.z() * s).color(r, g, b, a).endVertex();
+        c.vertex(x + l.x() * s - u.x() * s, y + l.y() * s - u.y() * s, z + l.z() * s - u.z() * s).color(r, g, b, a).endVertex();
+        c.vertex(x + l.x() * s + u.x() * s, y + l.y() * s + u.y() * s, z + l.z() * s + u.z() * s).color(r, g, b, a).endVertex();
+        c.vertex(x - l.x() * s + u.x() * s, y - l.y() * s + u.y() * s, z - l.z() * s + u.z() * s).color(r, g, b, a).endVertex();
     }
 
     private static float hash(int n) {
@@ -209,7 +211,7 @@ public final class SporeRise {
 
     private static void drawPillars(RenderLevelStageEvent event, ClientLevel level) {
         pillarsDrawn = 0;
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         float elapsed = WorldEventCues.pillarsElapsed(partial);
         WorldEventLooks.Pillars p = DesignData.sky().events.pillars;
         if (elapsed < 0.0F || p.strength <= 0.0F || !level.dimensionType().hasSkyLight()) {
@@ -235,7 +237,8 @@ public final class SporeRise {
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE,
                 GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (int k = 0; k < count; k++) {
             // 1 本ずつ間を置いて立ち上がる(8 秒おき)。伸びきるのに 30 秒。
             float grow = SunLight.smooth(Mth.clamp((elapsed - k * 160.0F) / 600.0F, 0.0F, 1.0F));
@@ -272,7 +275,7 @@ public final class SporeRise {
                 }
             }
         }
-        var mesh = b.build();
+        var mesh = b.endOrDiscardIfEmpty();
         if (mesh != null) {
             BufferUploader.drawWithShader(mesh);
         }
@@ -288,7 +291,7 @@ public final class SporeRise {
     private static void vertex(BufferBuilder b, double az, float side, float el, float dist, float r, float g, float bl, float a) {
         double yaw = az + side;
         float ce = Mth.cos(el);
-        b.addVertex((float) Math.cos(yaw) * ce * dist, Mth.sin(el) * dist, (float) Math.sin(yaw) * ce * dist).setColor(r, g, bl, a);
+        b.vertex((float) Math.cos(yaw) * ce * dist, Mth.sin(el) * dist, (float) Math.sin(yaw) * ce * dist).color(r, g, bl, a).endVertex();
     }
 
     /** 確かめ用の 1 行。 */

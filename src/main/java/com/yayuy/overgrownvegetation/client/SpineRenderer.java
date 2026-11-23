@@ -70,8 +70,8 @@ public class SpineRenderer<T extends Projectile> extends EntityRenderer<T> {
     }
 
     private void vertex(PoseStack.Pose pose, VertexConsumer vc, int x, int y, float u, float v, int light) {
-        vc.addVertex(pose, (float) x, (float) y, 0.0F).setColor(this.color).setUv(u, v)
-                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        vc.vertex(pose.pose(), (float) x, (float) y, 0.0F).color(this.color).uv(u, v)
+                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
     }
 
     @Override

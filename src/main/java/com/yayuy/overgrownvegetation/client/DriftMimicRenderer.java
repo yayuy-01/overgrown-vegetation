@@ -28,8 +28,9 @@ public class DriftMimicRenderer extends GeoEntityRenderer<DriftMimicEntity> {
 
     @Override
     protected void applyRotations(DriftMimicEntity animatable, PoseStack poseStack, float ageInTicks,
-                                  float rotationYaw, float partialTick, float nativeScale) {
-        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+                                  float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
         // 回した後の形の向きで: 後ろ(形の +z)へ塊の分だけ、上へ沈みの分だけ
         poseStack.translate(0.0F, SUBMERGE, (float) DriftMimicEntity.MODEL_BACK);
     }

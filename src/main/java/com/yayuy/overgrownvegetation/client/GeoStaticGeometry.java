@@ -46,7 +46,7 @@ import software.bernie.geckolib.loading.FileLoader;
 import software.bernie.geckolib.loading.json.raw.Model;
 import software.bernie.geckolib.loading.object.BakedModelFactory;
 import software.bernie.geckolib.loading.object.GeometryTree;
-import software.bernie.geckolib.util.RenderUtil;
+import software.bernie.geckolib.util.RenderUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -291,7 +291,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
     @Override
     public BakedModel bake(IGeometryBakingContext context, ModelBaker baker,
                            Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState,
-                           ItemOverrides overrides) {
+                           ItemOverrides overrides, ResourceLocation modelLocation) { // 1.20.1: 模型の置き場所の引数がある
         CurledFernDetail detail = detail();
         lastBakedDetail = detail;
         showAllFronds = detail == CurledFernDetail.FULL;
@@ -524,7 +524,7 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
 
         pose.pushPose();
-        RenderUtil.prepMatrixForBone(pose, bone);
+        RenderUtils.prepMatrixForBone(pose, bone);
 
         if (!bone.isHidden()) {
             for (GeoCube cube : bone.getCubes()) {
@@ -556,16 +556,16 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         boolean closed = visible.size() == 6 && hasThicknessOnEveryAxis(cube);
 
         pose.pushPose();
-        RenderUtil.translateToPivotPoint(pose, cube);
-        RenderUtil.rotateMatrixAroundCube(pose, cube);
-        RenderUtil.translateAwayFromPivotPoint(pose, cube);
+        RenderUtils.translateToPivotPoint(pose, cube);
+        RenderUtils.rotateMatrixAroundCube(pose, cube);
+        RenderUtils.translateAwayFromPivotPoint(pose, cube);
 
         Matrix4f poseMatrix = pose.last().pose();
         Matrix3f normalMatrix = pose.last().normal();
         for (GeoQuad quad : visible) {
             // GeckoLib が陰影に使う法線(ミラー・厚み 0 の直方体の補正込み)。
             Vector3f lightNormal = normalMatrix.transform(new Vector3f(quad.normal()));
-            RenderUtil.fixInvertedFlatCube(cube, lightNormal);
+            RenderUtils.fixInvertedFlatCube(cube, lightNormal);
             // その面が直方体の「外側」を向く方向(頂点順の判定用)。
             Vector3f outward = normalMatrix.transform(new Vector3f(quad.direction().step()));
             bakeQuad(quad, poseMatrix, lightNormal, outward, sprite, stateRotation, ambientOcclusion, !closed, out);
@@ -661,10 +661,11 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         }
     }
 
+    // 1.20.1: TextureAtlasSprite#getU/getV は 0〜16 で受ける(1.21 は 0〜1)ので 16 を掛ける。焼いた面は QuadBakingVertexConsumer.Buffered から取る
     private static BakedQuad bakeOneSide(Vector3f[] positions, float[] us, float[] vs, int[] order,
                                          TextureAtlasSprite sprite, Direction shadeDirection, Vector3f shadingNormal,
                                          boolean ambientOcclusion) {
-        QuadBakingVertexConsumer consumer = new QuadBakingVertexConsumer();
+        QuadBakingVertexConsumer.Buffered consumer = new QuadBakingVertexConsumer.Buffered();
         consumer.setSprite(sprite);
         consumer.setDirection(shadeDirection);
         consumer.setShade(true);
@@ -672,13 +673,13 @@ public final class GeoStaticGeometry implements IUnbakedGeometry<GeoStaticGeomet
         consumer.setHasAmbientOcclusion(ambientOcclusion);
         for (int index : order) {
             Vector3f p = positions[index];
-            consumer.addVertex(p.x(), p.y(), p.z())
-                    .setColor(255, 255, 255, 255)
-                    .setUv(sprite.getU(us[index]), sprite.getV(vs[index]))
-                    .setUv2(0, 0)
-                    .setNormal(shadingNormal.x(), shadingNormal.y(), shadingNormal.z());
+            consumer.vertex(p.x(), p.y(), p.z())
+                    .color(255, 255, 255, 255)
+                    .uv(sprite.getU(us[index] * 16.0F), sprite.getV(vs[index] * 16.0F))
+                    .uv2(0, 0)
+                    .normal(shadingNormal.x(), shadingNormal.y(), shadingNormal.z()).endVertex();
         }
-        return consumer.bakeQuad();
+        return consumer.getQuad();
     }
 
     /** blockstate の {@code x}/{@code y} 回転をバニラ({@code FaceBakery})と同じくブロック中心まわりに適用する。 */

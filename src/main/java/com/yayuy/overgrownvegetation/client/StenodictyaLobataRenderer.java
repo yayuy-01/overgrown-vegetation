@@ -22,8 +22,9 @@ public class StenodictyaLobataRenderer extends GeoEntityRenderer<StenodictyaLoba
 
     @Override
     protected void applyRotations(StenodictyaLobataEntity animatable, PoseStack poseStack, float ageInTicks,
-                                  float rotationYaw, float partialTick, float nativeScale) {
-        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+                                  float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
         float bank = animatable.bank(partialTick), pitch = animatable.pitch(partialTick);
         if (Math.abs(bank) < 0.01F && Math.abs(pitch) < 0.01F) return;
         poseStack.translate(0.0F, PIVOT_Y / 16.0F, 0.0F);

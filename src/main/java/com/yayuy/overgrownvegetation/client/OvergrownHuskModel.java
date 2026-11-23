@@ -180,7 +180,7 @@ public class OvergrownHuskModel implements IDynamicBakedModel {
         }
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
         ModelManager models = Minecraft.getInstance().getModelManager();
-        BakedModel model = models.getModel(ModelResourceLocation.inventory(id));
+        BakedModel model = models.getModel(new ModelResourceLocation(id, "inventory"));
         return model == models.getMissingModel() ? null : model;
     }
 

@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.client.wall;
 
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -44,11 +44,11 @@ public final class BoxCreepingWallRenderer implements CreepingWallRenderer {
     public void render(RenderLevelStageEvent event, ClientLevel level, Camera camera, Iterable<ClientCreepingWall.View> views, float time) {
         long t0 = System.nanoTime();
         if (buffers == null) {
-            buffers = MultiBufferSource.immediate(new ByteBufferBuilder(1 << 20));
+            buffers = MultiBufferSource.immediate(new BufferBuilder(1 << 20));
         }
         Vec3 cam = camera.getPosition();
-        PoseStack ps = new PoseStack();
-        PoseStack.Pose pose = ps.last();
+        // 1.20.1: この段の描画の行列は単位行列(1.21 はカメラの回転入り)。event の PoseStack(カメラの回転)で書く = バニラの Mob と同じ形
+        PoseStack.Pose pose = event.getPoseStack().last();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         faceCount = 0;
         BlockPos.MutableBlockPos lightPos = new BlockPos.MutableBlockPos();
@@ -148,12 +148,12 @@ public final class BoxCreepingWallRenderer implements CreepingWallRenderer {
         float[][] uv = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         for (int k = 0; k < 4; k++) {
             int i = idx[k];
-            vc.addVertex(pose, v[i * 3], v[i * 3 + 1], v[i * 3 + 2])
-                    .setColor(r, g, bl, 1.0F)
-                    .setUv(uv[k][0], uv[k][1])
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(light)
-                    .setNormal(pose, nx, ny, nz);
+            vc.vertex(pose.pose(), v[i * 3], v[i * 3 + 1], v[i * 3 + 2])
+                    .color(r, g, bl, 1.0F)
+                    .uv(uv[k][0], uv[k][1])
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                    .uv2(light)
+                    .normal(pose.normal(), nx, ny, nz).endVertex();
         }
     }
 

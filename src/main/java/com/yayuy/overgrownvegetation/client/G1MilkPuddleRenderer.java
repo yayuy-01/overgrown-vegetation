@@ -50,8 +50,8 @@ public class G1MilkPuddleRenderer extends EntityRenderer<G1MilkPuddle> {
     }
 
     private static void vertex(VertexConsumer vc, PoseStack.Pose pose, float x, float z, float u, float v, int alpha, int light) {
-        vc.addVertex(pose, x, 0.0F, z).setColor(255, 255, 255, alpha).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light)
-                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        vc.vertex(pose.pose(), x, 0.0F, z).color(255, 255, 255, alpha).uv(u, v).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light)
+                .normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
     }
 
     @Override

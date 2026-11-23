@@ -157,7 +157,7 @@ public final class LeyTide {
     }
 
     private static void draw(RenderLevelStageEvent event, ClientLevel level) {
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         WorldEventLooks.LeyTide p = DesignData.sky().events.leyTide;
         float night = SunLight.night(level, partial);
         float amount = amount(partial) * p.strength * Mth.lerp(night, p.dayStrength, 1.0F);
@@ -201,7 +201,9 @@ public final class LeyTide {
                 ribbon(c, x + rx * ox, y, z + rz * ox, rx, rz, width, height, time, ph, cr, cg, cb, a * breathe * (k == 0 ? 0.42F : 0.24F));
             }
         }
+        boolean pushed = com.yayuy.overgrownvegetation.client.PortStageView.push(event); // 1.20.1: この段の描画の行列にカメラの回転を(PortStageView)
         buffers.endBatch(EventLight.renderType());
+        com.yayuy.overgrownvegetation.client.PortStageView.pop(pushed);
         EventLight.restoreTarget(main);
     }
 
@@ -219,10 +221,10 @@ public final class LeyTide {
             float w0 = width * (1.0F + 0.5F * (i - 1) / (float) seg) * 0.5F;
             float w1 = width * (1.0F + 0.5F * u) * 0.5F;
             for (int side = -1; side <= 1; side += 2) {
-                c.addVertex(x + rx * px, y0, z + rz * px).setColor(r, g, b, pa);
-                c.addVertex(x + rx * (px + side * w0), y0, z + rz * (px + side * w0)).setColor(r, g, b, 0.0F);
-                c.addVertex(x + rx * (sway + side * w1), y1, z + rz * (sway + side * w1)).setColor(r, g, b, 0.0F);
-                c.addVertex(x + rx * sway, y1, z + rz * sway).setColor(r, g, b, al);
+                c.vertex(x + rx * px, y0, z + rz * px).color(r, g, b, pa).endVertex();
+                c.vertex(x + rx * (px + side * w0), y0, z + rz * (px + side * w0)).color(r, g, b, 0.0F).endVertex();
+                c.vertex(x + rx * (sway + side * w1), y1, z + rz * (sway + side * w1)).color(r, g, b, 0.0F).endVertex();
+                c.vertex(x + rx * sway, y1, z + rz * sway).color(r, g, b, al).endVertex();
             }
             px = sway;
             pa = al;

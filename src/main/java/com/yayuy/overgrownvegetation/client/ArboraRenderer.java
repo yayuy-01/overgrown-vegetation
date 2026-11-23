@@ -24,9 +24,10 @@ public class ArboraRenderer extends CrowdGeoEntityRenderer<ArboraEntity> {
 
     @Override
     protected void applyRotations(ArboraEntity animatable, PoseStack poseStack, float ageInTicks,
-                                  float rotationYaw, float partialTick, float nativeScale) {
+                                  float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
         if (animatable.pose().upright(partialTick)) {
-            super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+            super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
             return;
         }
         float pivot = animatable.getBbHeight() * 0.5F / nativeScale;

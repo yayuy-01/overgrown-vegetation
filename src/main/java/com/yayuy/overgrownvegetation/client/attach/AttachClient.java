@@ -8,7 +8,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,7 +15,7 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import com.yayuy.overgrownvegetation.port.event.tick.ClientTickEvent;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import com.yayuy.overgrownvegetation.port.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
@@ -33,9 +32,12 @@ public final class AttachClient {
     }
 
     @SubscribeEvent
-    public static void onScreens(RegisterMenuScreensEvent event) {
-        event.register(ModArmorAttach.BENCH_MENU.get(), AttachBenchScreen::new);
-        event.register(ModArmorAttach.BELT_MENU.get(), BeltPouchScreen::new);
+    public static void onScreens(FMLClientSetupEvent event) {
+        // 1.20.1: RegisterMenuScreensEvent が無い。準備の知らせで MenuScreens に入れる(本スレッドで)
+        event.enqueueWork(() -> {
+            net.minecraft.client.gui.screens.MenuScreens.register(ModArmorAttach.BENCH_MENU.get(), AttachBenchScreen::new);
+            net.minecraft.client.gui.screens.MenuScreens.register(ModArmorAttach.BELT_MENU.get(), BeltPouchScreen::new);
+        });
     }
 
     @SubscribeEvent
@@ -46,7 +48,7 @@ public final class AttachClient {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @SubscribeEvent
     public static void onAddLayers(EntityRenderersEvent.AddLayers event) {
-        for (PlayerSkin.Model skin : event.getSkins()) {
+        for (String skin : event.getSkins()) { // 1.20.1: スキンの形は文字列
             EntityRenderer<?> r = event.getSkin(skin);
             if (r instanceof LivingEntityRenderer lr) lr.addLayer(new AttachmentLayer(lr));
         }

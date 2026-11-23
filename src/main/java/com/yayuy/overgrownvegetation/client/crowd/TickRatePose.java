@@ -48,7 +48,7 @@ public final class TickRatePose {
 
     public static <T extends Entity & GeoAnimatable> void handle(LodGeoModel<T> model, T animatable, long instanceId,
                                                                  AnimationState<T> state, float partialTick) {
-        Collection<GeoBone> bones = model.getAnimationProcessor().getRegisteredBones();
+        Collection<GeoBone> bones = com.yayuy.overgrownvegetation.client.PortGeoBones.registered(model.getAnimationProcessor());
         if (bones.isEmpty() || Minecraft.getInstance().isPaused()) {
             model.handleAnimationsNow(animatable, instanceId, state, partialTick);
             return;
@@ -109,9 +109,9 @@ public final class TickRatePose {
     private static void apply(Collection<GeoBone> bones, float[] a, float[] b, float f) {
         int i = 0;
         for (GeoBone bone : bones) {
-            bone.updateRotation(a[i] + (b[i] - a[i]) * f, a[i + 1] + (b[i + 1] - a[i + 1]) * f, a[i + 2] + (b[i + 2] - a[i + 2]) * f);
-            bone.updatePosition(a[i + 3] + (b[i + 3] - a[i + 3]) * f, a[i + 4] + (b[i + 4] - a[i + 4]) * f, a[i + 5] + (b[i + 5] - a[i + 5]) * f);
-            bone.updateScale(a[i + 6] + (b[i + 6] - a[i + 6]) * f, a[i + 7] + (b[i + 7] - a[i + 7]) * f, a[i + 8] + (b[i + 8] - a[i + 8]) * f);
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateRotation(bone, a[i] + (b[i] - a[i]) * f, a[i + 1] + (b[i + 1] - a[i + 1]) * f, a[i + 2] + (b[i + 2] - a[i + 2]) * f);
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updatePosition(bone, a[i + 3] + (b[i + 3] - a[i + 3]) * f, a[i + 4] + (b[i + 4] - a[i + 4]) * f, a[i + 5] + (b[i + 5] - a[i + 5]) * f);
+            com.yayuy.overgrownvegetation.client.PortGeoBones.updateScale(bone, a[i + 6] + (b[i + 6] - a[i + 6]) * f, a[i + 7] + (b[i + 7] - a[i + 7]) * f, a[i + 8] + (b[i + 8] - a[i + 8]) * f);
             i += PER_BONE;
         }
     }

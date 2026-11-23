@@ -3,10 +3,9 @@ package com.yayuy.overgrownvegetation.client.survival;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.network.SurvivalHudPayload;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.Gui;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -14,8 +13,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 
 /**
  * HUD の 2 本のゲージ(2026-11-13 サバイバルの背骨 段 1)。値はサーバーから {@link SurvivalHudPayload} で届く。
@@ -40,12 +39,12 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SurvivalHud {
 
-    private static final ResourceLocation BAR_BG = OvergrownVegetation.id("hud/exposure_bar_background");
-    private static final ResourceLocation BAR_EXPOSURE = OvergrownVegetation.id("hud/exposure_bar_progress");
-    private static final ResourceLocation BAR_INFECTION = OvergrownVegetation.id("hud/infection_bar_progress");
-    private static final ResourceLocation FATIGUE_EMPTY = OvergrownVegetation.id("hud/fatigue_empty");
-    private static final ResourceLocation FATIGUE_HALF = OvergrownVegetation.id("hud/fatigue_half");
-    private static final ResourceLocation FATIGUE_FULL = OvergrownVegetation.id("hud/fatigue_full");
+    private static final ResourceLocation BAR_BG = OvergrownVegetation.id("textures/gui/sprites/hud/exposure_bar_background.png");
+    private static final ResourceLocation BAR_EXPOSURE = OvergrownVegetation.id("textures/gui/sprites/hud/exposure_bar_progress.png");
+    private static final ResourceLocation BAR_INFECTION = OvergrownVegetation.id("textures/gui/sprites/hud/infection_bar_progress.png");
+    private static final ResourceLocation FATIGUE_EMPTY = OvergrownVegetation.id("textures/gui/sprites/hud/fatigue_empty.png");
+    private static final ResourceLocation FATIGUE_HALF = OvergrownVegetation.id("textures/gui/sprites/hud/fatigue_half.png");
+    private static final ResourceLocation FATIGUE_FULL = OvergrownVegetation.id("textures/gui/sprites/hud/fatigue_full.png");
 
     /** バーの半分の幅・高さと、バーがずらす行の高さ(バー 5 + すき間 1)。 */
     public static final int HALF_WIDTH = 81, BAR_HEIGHT = 5, BAR_ROW = 6;
@@ -102,10 +101,10 @@ public final class SurvivalHud {
         return Mth.clamp(Math.round(fraction * HALF_WIDTH * 2), 0, HALF_WIDTH * 2);
     }
 
-    private static void renderBar(GuiGraphics g, DeltaTracker delta) {
+    private static void renderBar(ForgeGui forgeGui, GuiGraphics g, float partialTick, int screenWidth, int screenHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (!visible(mc)) return;
-        Gui gui = mc.gui;
+        ForgeGui gui = forgeGui;
         int w = g.guiWidth(), h = g.guiHeight();
         int y = h - 29 - BAR_ROW;
         int left = w / 2 - 91, right = w / 2 + GAP / 2;
@@ -122,8 +121,8 @@ public final class SurvivalHud {
         }
 
         RenderSystem.enableBlend();
-        g.blitSprite(BAR_BG, left, y, HALF_WIDTH, BAR_HEIGHT);
-        g.blitSprite(BAR_BG, right, y, HALF_WIDTH, BAR_HEIGHT);
+        g.blit(BAR_BG, left, y, 0, 0, HALF_WIDTH, BAR_HEIGHT, HALF_WIDTH, BAR_HEIGHT);
+        g.blit(BAR_BG, right, y, 0, 0, HALF_WIDTH, BAR_HEIGHT, HALF_WIDTH, BAR_HEIGHT);
         int fill = received ? fillPixels(shownBar) : 0;
         ResourceLocation sprite = stage > 0 ? BAR_INFECTION : BAR_EXPOSURE;
         if (stage > 0) {
@@ -131,8 +130,8 @@ public final class SurvivalHud {
             g.setColor(c[0], c[1], c[2], 1.0F);
         }
         int l = Math.min(fill, HALF_WIDTH), r = Math.max(0, fill - HALF_WIDTH);
-        if (l > 0) g.blitSprite(sprite, HALF_WIDTH, BAR_HEIGHT, 0, 0, left, y, l, BAR_HEIGHT);
-        if (r > 0) g.blitSprite(sprite, HALF_WIDTH, BAR_HEIGHT, 0, 0, right, y, r, BAR_HEIGHT);
+        if (l > 0) g.blit(sprite, left, y, 0, 0, l, BAR_HEIGHT, HALF_WIDTH, BAR_HEIGHT);
+        if (r > 0) g.blit(sprite, right, y, 0, 0, r, BAR_HEIGHT, HALF_WIDTH, BAR_HEIGHT);
         g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.disableBlend();
 
@@ -152,10 +151,10 @@ public final class SurvivalHud {
         gui.rightHeight += BAR_ROW;
     }
 
-    private static void renderFatigue(GuiGraphics g, DeltaTracker delta) {
+    private static void renderFatigue(ForgeGui forgeGui, GuiGraphics g, float partialTick, int screenWidth, int screenHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (!visible(mc)) return;
-        Gui gui = mc.gui;
+        ForgeGui gui = forgeGui;
         int w = g.guiWidth(), h = g.guiHeight();
         int y = h - gui.rightHeight;
         int xRight = w / 2 + 91;
@@ -164,12 +163,12 @@ public final class SurvivalHud {
         RenderSystem.enableBlend();
         for (int i = 0; i < 10; i++) {
             int x = xRight - i * 8 - 9;
-            g.blitSprite(FATIGUE_EMPTY, x, y, 9, 9);
+            g.blit(FATIGUE_EMPTY, x, y, 0, 0, 9, 9, 9, 9);
             if (heavy) g.setColor(1.0F, 0.72F, 0.72F, 1.0F);
             if (i * 2 + 1 < units) {
-                g.blitSprite(FATIGUE_FULL, x, y, 9, 9);
+                g.blit(FATIGUE_FULL, x, y, 0, 0, 9, 9, 9, 9);
             } else if (i * 2 + 1 == units) {
-                g.blitSprite(FATIGUE_HALF, x, y, 9, 9);
+                g.blit(FATIGUE_HALF, x, y, 0, 0, 9, 9, 9, 9);
             }
             if (heavy) g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
         }
@@ -181,9 +180,10 @@ public final class SurvivalHud {
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Layers {
         @SubscribeEvent
-        public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-            event.registerAbove(VanillaGuiLayers.EXPERIENCE_BAR, OvergrownVegetation.id("spore_exposure_bar"), SurvivalHud::renderBar);
-            event.registerAbove(VanillaGuiLayers.FOOD_LEVEL, OvergrownVegetation.id("fatigue"), SurvivalHud::renderFatigue);
+        public static void onRegisterGuiLayers(RegisterGuiOverlaysEvent event) {
+            // 1.20.1: ハートの列は経験値バーより先に描かれる(1.21 は後)。ハート・食料を上へずらすため、ハートの前に入れる
+            event.registerBelow(VanillaGuiOverlay.PLAYER_HEALTH.id(), "spore_exposure_bar", SurvivalHud::renderBar);
+            event.registerAbove(VanillaGuiOverlay.FOOD_LEVEL.id(), "fatigue", SurvivalHud::renderFatigue);
         }
 
         private Layers() {

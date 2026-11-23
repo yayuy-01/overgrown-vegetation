@@ -54,9 +54,9 @@ public class VelophyllRenderer extends GeoEntityRenderer<VelophyllEntity> {
     }
 
     private static void vertex(com.mojang.blaze3d.vertex.VertexConsumer vc, PoseStack.Pose pose, float x, float z, float u, float v, int alpha) {
-        vc.addVertex(pose, x, 0.0F, z).setColor(255, 255, 255, alpha).setUv(u, v)
-                .setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
-                .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        vc.vertex(pose.pose(), x, 0.0F, z).color(255, 255, 255, alpha).uv(u, v)
+                .overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                .uv2(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
     }
 
     public VelophyllRenderer(EntityRendererProvider.Context context) {
@@ -66,8 +66,9 @@ public class VelophyllRenderer extends GeoEntityRenderer<VelophyllEntity> {
 
     @Override
     protected void applyRotations(VelophyllEntity animatable, PoseStack poseStack, float ageInTicks,
-                                  float rotationYaw, float partialTick, float nativeScale) {
-        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+                                  float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
         float bank = animatable.bank(partialTick), pitch = animatable.pitch(partialTick);
         if (Math.abs(bank) < 0.01F && Math.abs(pitch) < 0.01F) return;
         poseStack.translate(0.0F, PIVOT_Y, 0.0F);

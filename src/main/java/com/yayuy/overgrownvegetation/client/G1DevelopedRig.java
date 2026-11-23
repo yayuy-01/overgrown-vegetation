@@ -46,7 +46,7 @@ final class G1DevelopedRig {
         if (t >= EVOLVE_BLEND_TICKS) return;
         float k = Mth.clamp(t / EVOLVE_BLEND_TICKS, 0.0F, 1.0F);
         k = k * k * (3.0F - 2.0F * k);
-        for (software.bernie.geckolib.cache.object.GeoBone bone : model.getAnimationProcessor().getRegisteredBones()) {
+        for (software.bernie.geckolib.cache.object.GeoBone bone : com.yayuy.overgrownvegetation.client.PortGeoBones.registered(model.getAnimationProcessor())) {
             software.bernie.geckolib.core.state.BoneSnapshot init = bone.getInitialSnapshot();
             bone.setRotX(Mth.lerp(k, init.getRotX(), bone.getRotX()));
             bone.setRotY(Mth.lerp(k, init.getRotY(), bone.getRotY()));
@@ -65,14 +65,14 @@ final class G1DevelopedRig {
         if (mob.dev() == G1Developed.CREEPER) {
             float empty = 1.0F - mob.podsShown(state.getPartialTick());
             if (empty > 0.001F) {
-                GeoBone pods = model.getAnimationProcessor().getBone("pods");
+                GeoBone pods = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("pods");
                 if (pods != null) {
                     pods.setScaleX(pods.getScaleX() * Mth.lerp(empty, 1.0F, PODS_X));
                     pods.setScaleY(pods.getScaleY() * Mth.lerp(empty, 1.0F, PODS_Y));
                     pods.setScaleZ(pods.getScaleZ() * Mth.lerp(empty, 1.0F, PODS_Z));
                     pods.resetStateChanges();
                 }
-                GeoBone tip = model.getAnimationProcessor().getBone("pods_tip");
+                GeoBone tip = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("pods_tip");
                 if (tip != null) {
                     float s = Mth.lerp(empty, 1.0F, TIP_SCALE);
                     tip.setScaleX(tip.getScaleX() * s);
@@ -87,9 +87,9 @@ final class G1DevelopedRig {
         } else if (mob.dev() == G1Developed.SKELETON && mob.anchored()) {
             int a = mob.action();
             if (a == G1Move.SHOOT_WINDUP.id() || a == G1Move.SHOOT.id() || a == G1Move.SHOOT_RECOVER.id()) {
-                GeoBone l = model.getAnimationProcessor().getBone("anchor_l");
-                GeoBone r = model.getAnimationProcessor().getBone("anchor_r");
-                GeoBone root = model.getAnimationProcessor().getBone("root");
+                GeoBone l = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("anchor_l");
+                GeoBone r = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("anchor_r");
+                GeoBone root = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("root");
                 if (l != null) {
                     l.setRotZ(ANCHOR_ROT_Z * Mth.DEG_TO_RAD);
                     l.resetStateChanges();

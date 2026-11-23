@@ -78,8 +78,8 @@ public class AttachmentGeoRenderer extends GeoArmorRenderer<ArmorAttachmentItem>
     @Override
     public void preRender(com.mojang.blaze3d.vertex.PoseStack poseStack, ArmorAttachmentItem animatable, software.bernie.geckolib.cache.object.BakedGeoModel model,
             @Nullable net.minecraft.client.renderer.MultiBufferSource bufferSource, @Nullable com.mojang.blaze3d.vertex.VertexConsumer buffer, boolean isReRender,
-            float partialTick, int packedLight, int packedOverlay, int colour) {
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+            float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
         for (software.bernie.geckolib.cache.object.GeoBone b : model.topLevelBones()) hideByCount(b);
     }
 

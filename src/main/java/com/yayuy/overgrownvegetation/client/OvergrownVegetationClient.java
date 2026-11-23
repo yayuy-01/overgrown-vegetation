@@ -16,7 +16,6 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.SpawnEggItem;
@@ -28,10 +27,8 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterColorHandlersEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import com.yayuy.overgrownvegetation.port.registries.DeferredHolder;
 
 import javax.annotation.Nullable;
@@ -55,7 +52,7 @@ public final class OvergrownVegetationClient {
      */
     @SubscribeEvent
     public static void registerGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
-        event.register(GeoStaticGeometry.LOADER_ID, GeoStaticGeometry.Loader.INSTANCE);
+        event.register(GeoStaticGeometry.LOADER_ID.getPath(), GeoStaticGeometry.Loader.INSTANCE); // 1.20.1: 名前だけ(名前空間はこの MOD)
     }
 
     /**
@@ -133,10 +130,6 @@ public final class OvergrownVegetationClient {
     }
 
     @SubscribeEvent
-    public static void registerMenuScreens(RegisterMenuScreensEvent event) {
-    }
-
-    @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.BLIGHT_FERN.get(), BlightFernRenderer::new);
         event.registerEntityRenderer(ModEntities.HIVE_NODE.get(), HiveNodeRenderer::new);
@@ -161,7 +154,9 @@ public final class OvergrownVegetationClient {
      * 作れないので、最初に描画されるまで生成を遅らせる。
      */
     @SubscribeEvent
-    public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
+    public static void registerClientExtensions(FMLClientSetupEvent setup) {
+        // 1.20.1: RegisterClientExtensionsEvent が無い。クライアントの準備の知らせで、アイテムの欄へ直に入れる(PortClientExtensions)
+        PortClientExtensions event = new PortClientExtensions();
         IClientItemExtensions spawnEggExtensions = new IClientItemExtensions() {
             private BlockEntityWithoutLevelRenderer renderer;
 
@@ -221,7 +216,7 @@ public final class OvergrownVegetationClient {
      */
     @SubscribeEvent
     public static void registerPlayerLayers(EntityRenderersEvent.AddLayers event) {
-        for (PlayerSkin.Model model : PlayerSkin.Model.values()) {
+        for (String model : event.getSkins()) { // 1.20.1: スキンの形は文字列("default" / "slim")
             PlayerRenderer renderer = event.getSkin(model);
             if (renderer != null) {
             }

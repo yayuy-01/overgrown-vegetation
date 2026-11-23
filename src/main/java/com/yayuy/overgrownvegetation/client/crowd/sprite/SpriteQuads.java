@@ -11,7 +11,7 @@ import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.object.GeoCube;
 import software.bernie.geckolib.cache.object.GeoQuad;
 import software.bernie.geckolib.cache.object.GeoVertex;
-import software.bernie.geckolib.util.RenderUtil;
+import software.bernie.geckolib.util.RenderUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +61,7 @@ public final class SpriteQuads {
 
     private static void addBone(PoseStack pose, GeoBone bone, List<SpriteRasterizer.Quad> out) {
         pose.pushPose();
-        RenderUtil.prepMatrixForBone(pose, bone);
+        RenderUtils.prepMatrixForBone(pose, bone);
         if (!bone.isHidden()) {
             for (GeoCube cube : bone.getCubes()) {
                 addCube(pose, cube, out);
@@ -77,9 +77,9 @@ public final class SpriteQuads {
 
     private static void addCube(PoseStack pose, GeoCube cube, List<SpriteRasterizer.Quad> out) {
         pose.pushPose();
-        RenderUtil.translateToPivotPoint(pose, cube);
-        RenderUtil.rotateMatrixAroundCube(pose, cube);
-        RenderUtil.translateAwayFromPivotPoint(pose, cube);
+        RenderUtils.translateToPivotPoint(pose, cube);
+        RenderUtils.rotateMatrixAroundCube(pose, cube);
+        RenderUtils.translateAwayFromPivotPoint(pose, cube);
         Matrix4f matrix = pose.last().pose();
         Matrix3f normalMatrix = pose.last().normal();
         for (GeoQuad quad : cube.quads()) {
@@ -99,7 +99,7 @@ public final class SpriteQuads {
             }
             // GeckoLib が陰影に使う法線(厚み 0 の直方体の裏返りの補正込み)。
             Vector3f normal = normalMatrix.transform(new Vector3f(quad.normal()));
-            RenderUtil.fixInvertedFlatCube(cube, normal);
+            RenderUtils.fixInvertedFlatCube(cube, normal);
             out.add(new SpriteRasterizer.Quad(xyz, uv, normal.x(), normal.y(), normal.z()));
         }
         pose.popPose();

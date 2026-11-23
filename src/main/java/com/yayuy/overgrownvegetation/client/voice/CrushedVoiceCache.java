@@ -4,7 +4,7 @@ import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.sounds.AudioStream;
-import net.minecraft.client.sounds.JOrbisAudioStream;
+import com.mojang.blaze3d.audio.OggAudioStream;
 import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.resources.ResourceLocation;
@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  *     <li>鍵 = 元の音のファイル・版・帯・強さ。鍵ごとに偽の道 {@code overgrown_vegetation:sounds/crushed/<版>/<帯>/<強さ>/<元の名前空間>/<元の道>.ogg}
  *         を作り、{@code SoundBufferLibraryCrushedMixin} がその道のときだけここのバッファーを返す。</li>
  *     <li>初めての音: 加工が済むまでは今までどおり流して鳴らし({@link CrushedAudioStream}。黙らせない)、裏で加工する。済んだ次の回から持っている方で鳴る。</li>
- *     <li>加工は IO のスレッド(バニラが ogg を全部読むのと同じ {@code Util.nonCriticalIoPool()})。{@link SoundBuffer} はそこで作り、
+ *     <li>加工は IO のスレッド(バニラが ogg を全部読むのと同じ {@code Util.nonCriticalIoPool()}。1.20.1 は Util.ioPool())。{@link SoundBuffer} はそこで作り、
  *         OpenAL へ渡すのはバニラどおり音のスレッド(鳴らすときの {@code attachStaticBuffer})。</li>
  *     <li>持つ数の上限 {@value #MAX_ENTRIES}【仮】。超えたら長く鳴っていない古いものから捨てる(最後に鳴らしてから {@value #KEEP_MS} ミリ秒【仮】
  *         経っていないものは捨てない = 再生中のものを捨てない)。捨てるときは OpenAL のバッファーも放す。</li>
@@ -162,7 +162,7 @@ public final class CrushedVoiceCache {
         ResourceLocation fakePath = fake.withPath(p -> "sounds/" + p + ".ogg");
         Entry e = ENTRIES.get(fakePath);
         if (e == null) {
-            ENTRIES.put(fakePath, new Entry(CompletableFuture.supplyAsync(() -> build(path, fake, mode, small, strength), Util.nonCriticalIoPool())));
+            ENTRIES.put(fakePath, new Entry(CompletableFuture.supplyAsync(() -> build(path, fake, mode, small, strength), Util.ioPool()))); // 1.20.1: nonCriticalIoPool が無い
             evict();
             return null;
         }
@@ -196,7 +196,7 @@ public final class CrushedVoiceCache {
     /** 元の ogg を全部読み、加工して、全部読む音のバッファーにする(IO のスレッド)。 */
     private static SoundBuffer build(ResourceLocation path, ResourceLocation fake, int mode, boolean small, double strength) {
         try (InputStream in = Minecraft.getInstance().getResourceManager().open(path);
-             AudioStream stream = new JOrbisAudioStream(in)) {
+             AudioStream stream = new OggAudioStream(in) /* 1.20.1: JOrbisAudioStream の代わり */) {
             AudioFormat f = stream.getFormat();
             int ch = f.getChannels();
             float sr = f.getSampleRate();

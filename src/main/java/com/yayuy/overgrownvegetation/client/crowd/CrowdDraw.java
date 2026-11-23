@@ -129,7 +129,7 @@ public final class CrowdDraw {
             capturing = on() && CrowdShader.shader() != null && !ShaderPacks.active();
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
             capturing = false;
-            drawAll(event.getModelViewMatrix(), event.getProjectionMatrix());
+            drawAll(RenderSystem.getModelViewMatrix(), event.getProjectionMatrix()); // 1.20.1: 骨の行列(Mob の PoseStack)にカメラの回転が入っているので、バニラの Mob と同じ描画の行列(この段では単位行列)
         }
     }
 
@@ -157,7 +157,7 @@ public final class CrowdDraw {
             for (Batch b : ACTIVE) {
                 if (b.count == 0) continue;
                 b.type.setupRenderState();
-                shader.setDefaultUniforms(VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
+                com.yayuy.overgrownvegetation.client.PortShaderUniforms.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES, modelView, projection, Minecraft.getInstance().getWindow());
                 shader.apply();
                 GlStateManager._activeTexture(GL13.GL_TEXTURE0 + BONE_UNIT);
                 GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, boneTexture);
@@ -236,7 +236,7 @@ public final class CrowdDraw {
         }
 
         /** 1 体を書き始める。骨は {@link #bone} で描く順に全部書き、{@link #commit} で数に入れる。 */
-        public void begin(int packedLight, int packedOverlay, int colour) {
+        public void begin(int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
             int need = (this.count + 1) * this.stride * 4;
             if (need > this.data.capacity()) {
                 this.data = MemoryUtil.memRealloc(this.data, Math.max(need, this.data.capacity() * 2));
@@ -246,8 +246,8 @@ public final class CrowdDraw {
             this.nextBone = 0;
             this.data.put(at, packedLight & 0xFFFF).put(at + 1, packedLight >> 16 & 0xFFFF)
                     .put(at + 2, packedOverlay & 0xFFFF).put(at + 3, packedOverlay >> 16 & 0xFFFF)
-                    .put(at + 4, (colour >> 16 & 0xFF) / 255.0F).put(at + 5, (colour >> 8 & 0xFF) / 255.0F)
-                    .put(at + 6, (colour & 0xFF) / 255.0F).put(at + 7, (colour >>> 24) / 255.0F);
+                    .put(at + 4, red).put(at + 5, green)
+                    .put(at + 6, blue).put(at + 7, alpha);
         }
 
         /** 次の骨(描く順)の行列。見えない骨は {@code visible = false}(箱が点に潰れる)。 */

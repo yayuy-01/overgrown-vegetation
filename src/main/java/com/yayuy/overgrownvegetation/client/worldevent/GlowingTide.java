@@ -145,7 +145,7 @@ public final class GlowingTide {
         if (shader == null) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         WorldEventLooks.Tide p = DesignData.sky().events.tide;
         float amount = ShaderPacks.active() ? 0.0F : amount(partial) * p.strength;
         lastShown = amount;

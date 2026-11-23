@@ -29,7 +29,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.client.ChunkRenderTypeSet;
-import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
+// 1.20.1: AddSectionGeometryEvent は G5 の助け手(同じ包みの client/AddSectionGeometryEvent)。チャンクの組み立てへの mixin がつなぐ
 import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
 

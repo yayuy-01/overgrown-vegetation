@@ -251,7 +251,7 @@ public final class WorldEventSky {
                 || !level.dimensionType().hasSkyLight() || level.effects().skyType() != DimensionSpecialEffects.SkyType.NORMAL) {
             return;
         }
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partial = event.getPartialTick();
         try {
             drawAurora(event, level, partial);
             drawHalo(event, level, partial);
@@ -286,7 +286,7 @@ public final class WorldEventSky {
         float bottom = Math.max(200.0F, a.bottom - (float) cam.y);
         float top = Math.max(bottom + 200.0F, a.top - (float) cam.y);
         double drift = time * a.drift;
-        shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert());
+        shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose()).invert());
         shader.safeGetUniform("Aurora").set(amount, (float) time, a.shimmer, Math.max(200.0F, a.scale));
         shader.safeGetUniform("Layer").set(bottom, top, a.base, a.forestBoost);
         shader.safeGetUniform("Field").set((float) (cam.x - Math.floor(cam.x / PERIOD) * PERIOD), (float) (cam.z - Math.floor(cam.z / PERIOD) * PERIOD),
@@ -325,7 +325,7 @@ public final class WorldEventSky {
             return;
         }
         lastHalo = Math.min(1.0F, amount);
-        shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getModelViewMatrix()).invert());
+        shader.safeGetUniform("InvViewProj").set(new Matrix4f(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose()).invert());
         shader.safeGetUniform("Halo").set(amount, (float) Math.toRadians(Mth.clamp(h.radiusDeg, 5.0F, 60.0F)),
                 (float) Math.toRadians(Mth.clamp(h.widthDeg, 0.2F, 10.0F)), h.veil);
         shader.safeGetUniform("SunDir").set((float) sun.x, (float) sun.y, (float) sun.z, h.dogs);
@@ -340,14 +340,16 @@ public final class WorldEventSky {
      * 描き終えたら {@link #popSkyView}。
      */
     static void pushSkyView(RenderLevelStageEvent event) {
-        org.joml.Matrix4fStack stack = RenderSystem.getModelViewStack();
-        stack.pushMatrix();
-        stack.set(event.getModelViewMatrix());
+        // 1.20.1: 描画の行列は PoseStack。この段の event.getPoseStack() がカメラの回転だけ(1.21 の getModelViewMatrix と同じ)
+        com.mojang.blaze3d.vertex.PoseStack stack = RenderSystem.getModelViewStack();
+        stack.pushPose();
+        stack.setIdentity();
+        stack.mulPoseMatrix(event.getPoseStack().last().pose());
         RenderSystem.applyModelViewMatrix();
     }
 
     static void popSkyView() {
-        RenderSystem.getModelViewStack().popMatrix();
+        RenderSystem.getModelViewStack().popPose();
         RenderSystem.applyModelViewMatrix();
     }
 
@@ -366,12 +368,13 @@ public final class WorldEventSky {
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE,
                 GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE);
-        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-        b.addVertex(-1.0F, -1.0F, 0.0F);
-        b.addVertex(1.0F, -1.0F, 0.0F);
-        b.addVertex(1.0F, 1.0F, 0.0F);
-        b.addVertex(-1.0F, 1.0F, 0.0F);
-        BufferUploader.drawWithShader(b.buildOrThrow());
+        BufferBuilder b = Tesselator.getInstance().getBuilder();
+        b.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        b.vertex(-1.0F, -1.0F, 0.0F).endVertex();
+        b.vertex(1.0F, -1.0F, 0.0F).endVertex();
+        b.vertex(1.0F, 1.0F, 0.0F).endVertex();
+        b.vertex(-1.0F, 1.0F, 0.0F).endVertex();
+        BufferUploader.drawWithShader(b.end());
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
         RenderSystem.enableCull();

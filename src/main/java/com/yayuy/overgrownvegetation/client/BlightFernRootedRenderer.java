@@ -35,7 +35,7 @@ public class BlightFernRootedRenderer extends GeoBlockRenderer<BlightFernRootedB
     }
 
     /** 模型は背丈 3.9・横に 1.7 ブロック広がる(開いた葉)。ブロック 1 つの箱のままだと、少し外れただけで描かれなくなる。 */
-    @Override
+    // 1.20.1: 描画の箱は描き手でなく BlockEntity の getRenderBoundingBox()(G1 の持ち物)が持つ。ここは G1 から呼んでもらう
     public AABB getRenderBoundingBox(BlightFernRootedBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).inflate(1.8D, 0.0D, 1.8D).expandTowards(0.0D, 3.2D, 0.0D);
     }

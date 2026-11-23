@@ -48,15 +48,15 @@ public class PediculaRenderer extends GeoEntityRenderer<PediculaEntity> {
 
     @Override
     public void preRender(PoseStack poseStack, PediculaEntity animatable, BakedGeoModel model, MultiBufferSource bufferSource, VertexConsumer buffer,
-                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         model.getBone(LIP).ifPresent(b -> b.setTrackingMatrices(true));
-        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     @Override
     public void renderRecursively(PoseStack poseStack, PediculaEntity animatable, GeoBone bone, RenderType renderType, MultiBufferSource bufferSource,
-                                  VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
-        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+                                  VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
         if (!isReRender && LIP.equals(bone.getName()) && bone.isTrackingMatrices()) {
             Vector3d p = bone.getWorldPosition();
             Vector3f up = bone.getWorldSpaceMatrix().transformDirection(new Vector3f(0.0F, 1.0F, 0.0F));
@@ -82,7 +82,8 @@ public class PediculaRenderer extends GeoEntityRenderer<PediculaEntity> {
 
     @Override
     protected void applyRotations(PediculaEntity animatable, PoseStack poseStack, float ageInTicks,
-                                  float rotationYaw, float partialTick, float nativeScale) {
+                                  float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
         PediculaEntity.tumbleAngles(animatable.getUUID(), animatable.tumbleClock(partialTick), this.angles);
         poseStack.translate(0.0F, PIVOT_Y, 0.0F);
         poseStack.mulPose(new Quaternionf().rotationZYX(this.angles[2], this.angles[1], this.angles[0]));

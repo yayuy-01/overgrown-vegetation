@@ -317,14 +317,14 @@ public class FalcimnesRiftRenderer extends EntityRenderer<FalcimnesRiftEntity> {
     /** 頂点ごとに透明度の違う四角(両面)。 */
     static void quadColors(VertexConsumer vc, PoseStack.Pose p, float ax, float ay, float az, int aa, float bx, float by, float bz, int ba,
                            float cx, float cy, float cz, int ca, float dx, float dy, float dz, int da, int r, int g, int b) {
-        vc.addVertex(p, ax, ay, az).setColor(r, g, b, aa);
-        vc.addVertex(p, bx, by, bz).setColor(r, g, b, ba);
-        vc.addVertex(p, cx, cy, cz).setColor(r, g, b, ca);
-        vc.addVertex(p, dx, dy, dz).setColor(r, g, b, da);
-        vc.addVertex(p, dx, dy, dz).setColor(r, g, b, da);
-        vc.addVertex(p, cx, cy, cz).setColor(r, g, b, ca);
-        vc.addVertex(p, bx, by, bz).setColor(r, g, b, ba);
-        vc.addVertex(p, ax, ay, az).setColor(r, g, b, aa);
+        vc.vertex(p.pose(), ax, ay, az).color(r, g, b, aa).endVertex();
+        vc.vertex(p.pose(), bx, by, bz).color(r, g, b, ba).endVertex();
+        vc.vertex(p.pose(), cx, cy, cz).color(r, g, b, ca).endVertex();
+        vc.vertex(p.pose(), dx, dy, dz).color(r, g, b, da).endVertex();
+        vc.vertex(p.pose(), dx, dy, dz).color(r, g, b, da).endVertex();
+        vc.vertex(p.pose(), cx, cy, cz).color(r, g, b, ca).endVertex();
+        vc.vertex(p.pose(), bx, by, bz).color(r, g, b, ba).endVertex();
+        vc.vertex(p.pose(), ax, ay, az).color(r, g, b, aa).endVertex();
     }
 
     static int a(float alpha) {

@@ -398,7 +398,7 @@ public final class InfectRender {
             this.n++;
         }
 
-        private void uv(float u, float v) {
+        private void recordUv(float u, float v) {
             if (this.n >= 1) {
                 this.uv[(this.n - 1) * 2] = u;
                 this.uv[(this.n - 1) * 2 + 1] = v;
@@ -434,44 +434,45 @@ public final class InfectRender {
             this.n = 0;
         }
 
+        // 1.20.1: 頂点の確定は endVertex(1.21 は次の addVertex)。記録は今までどおり「4 頂点目の法線」で面を閉じる。
         @Override
-        public VertexConsumer addVertex(float x, float y, float z) {
-            begin(x, y, z);
-            this.out.addVertex(x, y, z);
+        public VertexConsumer vertex(double x, double y, double z) {
+            begin((float) x, (float) y, (float) z);
+            this.out.vertex(x, y, z);
             return this;
         }
 
         @Override
-        public VertexConsumer setColor(int red, int green, int blue, int alpha) {
-            this.out.setColor(red, green, blue, alpha);
+        public VertexConsumer color(int red, int green, int blue, int alpha) {
+            this.out.color(red, green, blue, alpha);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv(float u, float v) {
-            uv(u, v);
-            this.out.setUv(u, v);
+        public VertexConsumer uv(float u, float v) {
+            recordUv(u, v);
+            this.out.uv(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv1(int u, int v) {
-            this.out.setUv1(u, v);
+        public VertexConsumer overlayCoords(int u, int v) {
+            this.out.overlayCoords(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setUv2(int u, int v) {
-            this.out.setUv2(u, v);
+        public VertexConsumer uv2(int u, int v) {
+            this.out.uv2(u, v);
             return this;
         }
 
         @Override
-        public VertexConsumer setNormal(float nx, float ny, float nz) {
+        public VertexConsumer normal(float nx, float ny, float nz) {
             this.nx = nx;
             this.ny = ny;
             this.nz = nz;
-            this.out.setNormal(nx, ny, nz);
+            this.out.normal(nx, ny, nz);
             if (this.n == 4) {
                 flush();
             }
@@ -479,14 +480,29 @@ public final class InfectRender {
         }
 
         @Override
-        public void addVertex(float x, float y, float z, int color, float u, float v, int packedOverlay, int packedLight,
-                              float normalX, float normalY, float normalZ) {
+        public void endVertex() {
+            this.out.endVertex();
+        }
+
+        @Override
+        public void defaultColor(int red, int green, int blue, int alpha) {
+            this.out.defaultColor(red, green, blue, alpha);
+        }
+
+        @Override
+        public void unsetDefaultColor() {
+            this.out.unsetDefaultColor();
+        }
+
+        @Override
+        public void vertex(float x, float y, float z, float red, float green, float blue, float alpha, float u, float v, int packedOverlay,
+                           int packedLight, float normalX, float normalY, float normalZ) {
             begin(x, y, z);
-            uv(u, v);
+            recordUv(u, v);
             this.nx = normalX;
             this.ny = normalY;
             this.nz = normalZ;
-            this.out.addVertex(x, y, z, color, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);
+            this.out.vertex(x, y, z, red, green, blue, alpha, u, v, packedOverlay, packedLight, normalX, normalY, normalZ);
             if (this.n == 4) {
                 flush();
             }

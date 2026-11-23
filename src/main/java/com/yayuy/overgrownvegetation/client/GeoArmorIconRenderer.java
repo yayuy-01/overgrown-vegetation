@@ -17,7 +17,7 @@ import software.bernie.geckolib.cache.object.GeoQuad;
 import software.bernie.geckolib.cache.object.GeoVertex;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.util.RenderUtil;
+import software.bernie.geckolib.util.RenderUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -69,10 +69,10 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
     @Override
     public void preRender(PoseStack poseStack, T animatable, BakedGeoModel model,
                           @Nullable MultiBufferSource bufferSource, @Nullable VertexConsumer buffer,
-                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+                          boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         applyBoneVisibility(model, shownBones(animatable.getType(), getCurrentItemStack()));
         super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick,
-                packedLight, packedOverlay, colour);
+                packedLight, packedOverlay, red, green, blue, alpha);
 
         if (isReRender) {
             // 2 週目以降(発光レイヤーなど)は 1 週目と同じ姿勢で呼ばれるので、二重に掛けない。
@@ -148,15 +148,15 @@ public abstract class GeoArmorIconRenderer<T extends ArmorItem & GeoItem> extend
      */
     private static boolean accumulate(PoseStack poseStack, GeoBone bone, float[] box, Vector4f point) {
         poseStack.pushPose();
-        RenderUtil.prepMatrixForBone(poseStack, bone);
+        RenderUtils.prepMatrixForBone(poseStack, bone);
         boolean any = false;
 
         if (!bone.isHidden()) {
             for (GeoCube cube : bone.getCubes()) {
                 poseStack.pushPose();
-                RenderUtil.translateToPivotPoint(poseStack, cube);
-                RenderUtil.rotateMatrixAroundCube(poseStack, cube);
-                RenderUtil.translateAwayFromPivotPoint(poseStack, cube);
+                RenderUtils.translateToPivotPoint(poseStack, cube);
+                RenderUtils.rotateMatrixAroundCube(poseStack, cube);
+                RenderUtils.translateAwayFromPivotPoint(poseStack, cube);
                 Matrix4f pose = poseStack.last().pose();
                 for (GeoQuad quad : cube.quads()) {
                     if (quad == null) {

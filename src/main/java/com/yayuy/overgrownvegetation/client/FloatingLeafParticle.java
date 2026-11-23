@@ -154,7 +154,7 @@ public class FloatingLeafParticle extends TextureSheetParticle {
     }
 
     private void vertex(VertexConsumer buffer, float x, float y, float z, float u, float v, int light) {
-        buffer.addVertex(x, y, z).setUv(u, v).setColor(this.rCol, this.gCol, this.bCol, this.alpha).setLight(light);
+        buffer.vertex(x, y, z).uv(u, v).color(this.rCol, this.gCol, this.bCol, this.alpha).uv2(light).endVertex();
     }
 
     @Override

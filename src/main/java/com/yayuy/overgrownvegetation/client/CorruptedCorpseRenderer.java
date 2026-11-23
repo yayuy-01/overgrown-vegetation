@@ -10,7 +10,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterRenderBuffersEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 
@@ -92,10 +91,11 @@ public class CorruptedCorpseRenderer extends GeoBlockRenderer<CorruptedCorpseBlo
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class FixedBuffers {
 
-        @SubscribeEvent
-        public static void onRegisterRenderBuffers(RegisterRenderBuffersEvent event) {
+        // 1.20.1: RegisterRenderBuffersEvent が無い(固定の器は RenderBuffers を作るときに決まり、後から足す口が無い)。登録しないので、
+        // この種類は共有の器で描かれる(描画命令が増えるだけ。見た目は上の理由で同じ)。足すなら RenderBuffers への mixin(G7)で、この一覧を使う。
+        public static void onRegisterRenderBuffers(java.util.function.Consumer<RenderType> event) {
             for (RenderType type : BATCHED_TYPES) {
-                event.registerRenderBuffer(type);
+                event.accept(type);
             }
         }
 
@@ -126,9 +126,12 @@ public class CorruptedCorpseRenderer extends GeoBlockRenderer<CorruptedCorpseBlo
         }
     }
 
+    // 1.20.1(GeckoLib 4.8.4): GeoBlockRenderer#render は 1 つ目が BlockEntity で宣言されていて、型を絞って上書きできない(名前がぶつかる)。
+    // render は this.animatable を入れて defaultRender を呼ぶだけ(重ねの値は使わない)なので、defaultRender を上書きする
     @Override
-    public void render(CorruptedCorpseBlockEntity blockEntity, float partialTick, PoseStack poseStack,
-                       MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+    public void defaultRender(PoseStack poseStack, CorruptedCorpseBlockEntity blockEntity, MultiBufferSource bufferSource,
+                              @javax.annotation.Nullable RenderType renderType, @javax.annotation.Nullable com.mojang.blaze3d.vertex.VertexConsumer buffer,
+                              float yaw, float partialTick, int packedLight) {
         if (!CorruptedCorpseModel.hasGeoModel(blockEntity.getBlockState().getBlock())) {
             // 専用モデルの無い死体(牛・ゾンビ・クモ)は通常のブロックモデルで描画済み。
             return;
@@ -144,7 +147,7 @@ public class CorruptedCorpseRenderer extends GeoBlockRenderer<CorruptedCorpseBlo
                     p.getX() + 0.5 + blockEntity.offsetX(), p.getY() + blockEntity.offsetY(), p.getZ() + 0.5 + blockEntity.offsetZ(),
                     blockEntity.getLevel().getGameTime());
         }
-        super.render(blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay);
+        super.defaultRender(poseStack, blockEntity, bufferSource, renderType, buffer, yaw, partialTick, packedLight);
     }
 
     /** 崩れ落ちに対応した死体の姿勢の値(無ければ null = 今までどおり北向き・ブロックの真ん中)。 */
@@ -193,7 +196,7 @@ public class CorruptedCorpseRenderer extends GeoBlockRenderer<CorruptedCorpseBlo
     }
 
     /** 死体は 2〜3 ブロックの長さで、死んだ位置の前へ伸びる。1 マスの枠のままだと、ブロックが画面から外れた途端に消える。 */
-    @Override
+    // 1.20.1: 描画の箱は描き手でなく BlockEntity の getRenderBoundingBox()(G1 の持ち物)が持つ。ここは G1 から呼んでもらう
     public net.minecraft.world.phys.AABB getRenderBoundingBox(CorruptedCorpseBlockEntity blockEntity) {
         return new net.minecraft.world.phys.AABB(blockEntity.getBlockPos()).inflate(3.0);
     }

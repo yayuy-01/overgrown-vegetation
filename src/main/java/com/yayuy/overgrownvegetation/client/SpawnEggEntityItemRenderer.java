@@ -133,14 +133,14 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
         }
         Minecraft minecraft = Minecraft.getInstance();
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
-        EntityType<?> type = egg.getType(stack);
+        EntityType<?> type = egg.getType(stack.getTag());
         Entity preview = type == null ? null : resolvePreview(type);
         // カメラはワールド描画中に設定される。まだ 1 フレームも描いていない間は何も描画しない。
         if (preview == null || dispatcher.camera == null) {
             return;
         }
 
-        float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(false);
+        float partialTick = minecraft.getFrameTime();
         // バニラ骨格のモデルは tickCount からアニメーションの位相を決めるので、ワールドの時間に合わせる。
         preview.tickCount = minecraft.level == null ? 0 : (int) minecraft.level.getGameTime();
 
@@ -150,12 +150,12 @@ public class SpawnEggEntityItemRenderer extends BlockEntityWithoutLevelRenderer 
         // (GeoEntityRenderer 側はちゃんと getScale() を掛けて描く)。
         float nativeScale = preview instanceof LivingEntity living ? living.getScale() : 1.0F;
         EntityDimensions dimensions = type.getDimensions();
-        float scaledHeight = dimensions.height() * nativeScale;
+        float scaledHeight = dimensions.height * nativeScale;
 
         // アイテムモデル空間は 1 ブロック(0..1)。中央に置いて、最大辺が枠に収まるように縮める。
         // 既定は当たり判定の最大辺だが、尾や脚が当たり判定からはみ出しているモデル(アルボラなど)は
         // それだと枠からあふれるので、mobs.json の eggFit(画面上の見かけの差し渡し)があればそちらを使う。
-        float hitbox = Math.max(dimensions.width() * nativeScale, scaledHeight);
+        float hitbox = Math.max(dimensions.width * nativeScale, scaledHeight);
         float extent = Math.max(fitSizeOf(type, hitbox), 0.05F);
         float scale = SLOT_FILL / extent;
 

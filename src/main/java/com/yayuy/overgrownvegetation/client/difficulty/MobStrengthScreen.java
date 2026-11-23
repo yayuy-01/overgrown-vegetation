@@ -10,7 +10,7 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
-import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.layouts.GridLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
@@ -57,9 +57,9 @@ public final class MobStrengthScreen extends Screen {
     @Override
     protected void init() {
         layout = new HeaderAndFooterLayout(this, 33, 33);
-        layout.addTitleHeader(TITLE, font);
-        MobList list = layout.addToContents(new MobList(minecraft));
-        LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
+        layout.addToHeader(new net.minecraft.client.gui.components.StringWidget(TITLE, font));
+        MobList list = addRenderableWidget(new MobList(minecraft)); // 1.20.1: 一覧は割り付けに入れられない(LayoutElement でない)。位置は作るときと updateSize で
+        GridLayout.RowHelper footer = layout.addToFooter(new GridLayout().columnSpacing(8)).createRowHelper(3); // 1.20.1: LinearLayout に spacing が無い
         Button clear = footer.addChild(Button.builder(Component.translatable(KEY + "mob_details.clear"), b -> {
             draft.clearMobOverrides();
             invalid.clear();
@@ -74,8 +74,14 @@ public final class MobStrengthScreen extends Screen {
         }
         layout.visitWidgets(this::addRenderableWidget);
         layout.arrangeElements();
-        list.updateSize(width, layout);
+        list.updateSize(width, height, layout.getHeaderHeight(), height - layout.getFooterHeight());
         updateDone();
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        renderBackground(graphics); // 1.20.1: Screen#render は背景を描かない(1.21 は描く)
+        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -100,7 +106,7 @@ public final class MobStrengthScreen extends Screen {
 
     private final class MobList extends ContainerObjectSelectionList<MobStrengthScreen.Row> {
         MobList(Minecraft minecraft) {
-            super(minecraft, MobStrengthScreen.this.width, layout.getContentHeight(), layout.getHeaderHeight(), ITEM_HEIGHT);
+            super(minecraft, MobStrengthScreen.this.width, MobStrengthScreen.this.height, layout.getHeaderHeight(), MobStrengthScreen.this.height - layout.getFooterHeight(), ITEM_HEIGHT);
             addEntry(new HeaderRow());
             for (String id : parent.mobs()) addEntry(new MobRow(id));
         }

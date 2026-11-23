@@ -53,11 +53,11 @@ public class PhyllosensModel extends GeoModel<PhyllosensEntity> {
         float pt = animationState.getPartialTick();
         int broken = e.clientBrokenMask();
         for (int i = 0; i < 4; i++) {
-            GeoBone b = getAnimationProcessor().getBone(STUMPS[i]);
+            GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(STUMPS[i]);
             if (b != null) b.setHidden((broken & (1 << i)) != 0);
         }
         PhyllosensWatch.State st = e.isDeadOrDying() ? PhyllosensWatch.State.DEAD : e.state();
-        GeoBone core = getAnimationProcessor().getBone("core");
+        GeoBone core = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("core");
         if (core != null) {
             core.setHidden(switch (st) {
                 case CLOSED, COLLAPSE, STUN, RISE, DEAD -> true;
@@ -98,7 +98,7 @@ public class PhyllosensModel extends GeoModel<PhyllosensEntity> {
     }
 
     private GeoBone bone(String name) {
-        return getAnimationProcessor().getBone(name);
+        return (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(name);
     }
 
     /** 頭の花(−Z)を見る点へ向ける。 */

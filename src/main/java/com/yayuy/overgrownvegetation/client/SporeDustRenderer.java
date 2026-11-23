@@ -26,7 +26,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
+// 1.20.1: AddSectionGeometryEvent は G5 の助け手(同じ包みの client/AddSectionGeometryEvent)。チャンクの組み立てへの mixin がつなぐ
 import org.joml.Matrix4f;
 
 /**
@@ -201,8 +201,8 @@ public final class SporeDustRenderer {
             for (int k = 0; k < 4; k++) {
                 int c = order[k];
                 int uvi = flip ? (3 - ((c + rot) & 3)) : ((c + rot) & 3);
-                vc.addVertex(m, corners[c][0], y, corners[c][1]).setColor(cr, cg, cb, NOT_WATER_ALPHA)
-                        .setUv(us[uvi], vs[uvi]).setLight(light).setNormal(0, 1, 0);
+                vc.vertex(m, corners[c][0], y, corners[c][1]).color(cr, cg, cb, NOT_WATER_ALPHA)
+                        .uv(us[uvi], vs[uvi]).uv2(light).normal(0, 1, 0).endVertex();
             }
         }
     }

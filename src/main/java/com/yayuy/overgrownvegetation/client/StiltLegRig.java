@@ -26,7 +26,7 @@ public final class StiltLegRig {
      */
     public static void apply(GeoModel<?> model, Mob e, StiltWalker.Client feet, String[][] legs, double[][] tips,
                              float rootShiftY, float partialTick, float weight) {
-        GeoBone root = model.getAnimationProcessor().getBone("root");
+        GeoBone root = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone("root");
         if (root == null) return;
         root.setPosY(root.getPosY() - rootShiftY);
         root.resetStateChanges();
@@ -40,10 +40,10 @@ public final class StiltLegRig {
         double fx = -Mth.sin(yaw), fz = Mth.cos(yaw), lx = Mth.cos(yaw), lz = Mth.sin(yaw);
         double[] down = mulDir(inv, 0.0D, -1.0D, 0.0D);
         for (int i = 0; i < legs.length; i++) {
-            GeoBone coxa = model.getAnimationProcessor().getBone(legs[i][0]);
-            GeoBone femur = model.getAnimationProcessor().getBone(legs[i][1]);
-            GeoBone tibia = model.getAnimationProcessor().getBone(legs[i][2]);
-            GeoBone tarsus = model.getAnimationProcessor().getBone(legs[i][3]);
+            GeoBone coxa = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(legs[i][0]);
+            GeoBone femur = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(legs[i][1]);
+            GeoBone tibia = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(legs[i][2]);
+            GeoBone tarsus = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(legs[i][3]);
             if (coxa == null || femur == null || tibia == null || tarsus == null) continue;
             Vec3 f = feet.foot(i, e.tickCount, partialTick);
             if (f == null) continue;

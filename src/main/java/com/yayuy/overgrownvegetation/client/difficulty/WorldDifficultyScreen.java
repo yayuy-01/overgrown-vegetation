@@ -15,7 +15,7 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
-import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.layouts.GridLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -141,9 +141,9 @@ public final class WorldDifficultyScreen extends Screen {
     @Override
     protected void init() {
         layout = new HeaderAndFooterLayout(this, 33, FOOTER_HEIGHT);
-        layout.addTitleHeader(TITLE, font);
-        list = layout.addToContents(new SettingList(minecraft));
-        LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
+        layout.addToHeader(new net.minecraft.client.gui.components.StringWidget(TITLE, font));
+        list = addRenderableWidget(new SettingList(minecraft)); // 1.20.1: 一覧は割り付けに入れられない(LayoutElement でない)。位置は作るときと updateSize で
+        GridLayout.RowHelper footer = layout.addToFooter(new GridLayout().columnSpacing(8)).createRowHelper(3); // 1.20.1: LinearLayout に spacing が無い
         footer.addChild(Button.builder(Component.translatable("gui.overgrown_vegetation.gameplay_settings.visuals"),
                 button -> minecraft.setScreen(new VisualSettingsScreen(this))).width(100).build());
         if (editable) {
@@ -166,8 +166,14 @@ public final class WorldDifficultyScreen extends Screen {
     protected void repositionElements() {
         layout.arrangeElements();
         if (list != null) {
-            list.updateSize(width, layout);
+            list.updateSize(width, height, layout.getHeaderHeight(), height - layout.getFooterHeight());
         }
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        renderBackground(graphics); // 1.20.1: Screen#render は背景を描かない(1.21 は描く)
+        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -221,8 +227,7 @@ public final class WorldDifficultyScreen extends Screen {
     private final class SettingList extends ContainerObjectSelectionList<WorldDifficultyScreen.Entry> {
 
         SettingList(Minecraft minecraft) {
-            super(minecraft, WorldDifficultyScreen.this.width, layout.getContentHeight(), layout.getHeaderHeight(),
-                    ITEM_HEIGHT);
+            super(minecraft, WorldDifficultyScreen.this.width, WorldDifficultyScreen.this.height, layout.getHeaderHeight(), WorldDifficultyScreen.this.height - layout.getFooterHeight(), ITEM_HEIGHT);
             addEntry(new TextEntry(note, editable ? NOTE_COLOR : LABEL_CHANGED_COLOR, true));
             addEntry(new TierEntry());
             for (DifficultySetting.Section section : DifficultySetting.Section.values()) {
@@ -253,8 +258,8 @@ public final class WorldDifficultyScreen extends Screen {
         }
 
         @Override
-        public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            super.renderWidget(graphics, mouseX, mouseY, partialTick);
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            super.render(graphics, mouseX, mouseY, partialTick);
             WorldDifficultyScreen.Entry hovered = getHovered();
             if (hovered != null && hovered.tooltip() != null) {
                 setTooltipForNextRenderPass(hovered.tooltip());

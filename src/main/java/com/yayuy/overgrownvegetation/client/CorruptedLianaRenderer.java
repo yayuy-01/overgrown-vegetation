@@ -24,7 +24,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterRenderBuffersEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -56,7 +55,7 @@ import java.util.WeakHashMap;
  * 独自の {@link RenderType}({@link #MAIN_RENDER_TYPE}/{@link #DROOP_RENDER_TYPE})を、
  * {@code DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP}(バニラのリードのフォーマットに
  * テクスチャ座標(UV0)を1個足しただけ)+ バニラの「テキスト(文字)」描画が使っている
- * {@code RenderStateShard.RENDERTYPE_TEXT_SHADER} の組み合わせで定義している。この2つは
+ * {@code com.yayuy.overgrownvegetation.client.PortRenderStates.RENDERTYPE_TEXT_SHADER} の組み合わせで定義している。この2つは
  * 頂点フォーマットが完全に一致するうえ、シェーダーの中身自体は「テクスチャ×頂点色×
  * ライトマップ」を掛け合わせるだけの汎用処理(文字特有の処理はグリフのテクスチャ側にあるだけで
  * シェーダー側には無い)なので、文字とは無関係な半透明テクスチャ付きリボンの描画にもそのまま
@@ -258,7 +257,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      * 完全な不透明(アルファ0/255の2値)にする必要はなく、葉のような柔らかい輪郭も使える。
      */
     static RenderType createRenderType(String name, ResourceLocation texture) {
-        return createRenderType(name, texture, RenderStateShard.RENDERTYPE_TEXT_SHADER);
+        return createRenderType(name, texture, com.yayuy.overgrownvegetation.client.PortRenderStates.RENDERTYPE_TEXT_SHADER);
     }
 
     /** シェーダーを選べる版(登る蔓が林冠の光のシェーダー {@code liana_canopy_lit} で使う。2026-11-05 光の点検 6)。 */
@@ -273,9 +272,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
                 RenderType.CompositeState.builder()
                         .setShaderState(shader)
                         .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
-                        .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                        .setLightmapState(RenderStateShard.LIGHTMAP)
-                        .setCullState(RenderStateShard.NO_CULL)
+                        .setTransparencyState(com.yayuy.overgrownvegetation.client.PortRenderStates.TRANSLUCENT_TRANSPARENCY)
+                        .setLightmapState(com.yayuy.overgrownvegetation.client.PortRenderStates.LIGHTMAP)
+                        .setCullState(com.yayuy.overgrownvegetation.client.PortRenderStates.NO_CULL)
                         .createCompositeState(false)
         );
     }
@@ -296,15 +295,16 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
     @EventBusSubscriber(modid = OvergrownVegetation.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class FixedBuffers {
 
-        @SubscribeEvent
-        public static void onRegisterRenderBuffers(RegisterRenderBuffersEvent event) {
-            event.registerRenderBuffer(MAIN_RENDER_TYPE);
-            event.registerRenderBuffer(DROOP_RENDER_TYPE);
-            event.registerRenderBuffer(DROOP_LIGHT_RENDER_TYPE);
-            event.registerRenderBuffer(TRIM_RENDER_TYPE);
-            event.registerRenderBuffer(ClimbingVineRenderer.BODY_RENDER_TYPE);
-            event.registerRenderBuffer(ClimbingVineRenderer.TRIM_RENDER_TYPE);
-            event.registerRenderBuffer(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
+        // 1.20.1: RegisterRenderBuffersEvent が無い(固定の器は RenderBuffers を作るときに決まり、後から足す口が無い)。登録しないので、
+        // この種類は共有の器で描かれる(描画命令が増えるだけ。見た目は上の理由で同じ)。足すなら RenderBuffers への mixin(G7)で、この一覧を使う。
+        public static void onRegisterRenderBuffers(java.util.function.Consumer<RenderType> event) {
+            event.accept(MAIN_RENDER_TYPE);
+            event.accept(DROOP_RENDER_TYPE);
+            event.accept(DROOP_LIGHT_RENDER_TYPE);
+            event.accept(TRIM_RENDER_TYPE);
+            event.accept(ClimbingVineRenderer.BODY_RENDER_TYPE);
+            event.accept(ClimbingVineRenderer.TRIM_RENDER_TYPE);
+            event.accept(ClimbingVineRenderer.CANOPY_LEAF_RENDER_TYPE);
         }
 
         private FixedBuffers() {
@@ -345,7 +345,7 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
      * 始点・終点が未設定(サーバーからまだ同期されていない一瞬)の間は、マーカー自身の
      * 1x1x1(既定実装と同じ)にフォールバックする。
      */
-    @Override
+    // 1.20.1: 描画の箱は描き手でなく BlockEntity の getRenderBoundingBox()(G1 の持ち物)が持つ。ここは G1 から呼んでもらう
     public AABB getRenderBoundingBox(CorruptedLianaBlockEntity blockEntity) {
         if (blockEntity.hasClimb()) {
             return ClimbingVineRenderer.box(blockEntity); // 登る蔓(2026-11-03 試作)
@@ -876,9 +876,9 @@ public class CorruptedLianaRenderer implements BlockEntityRenderer<CorruptedLian
             float x1, float y1, float z1, float u1, float v1, int light1,
             float x2, float y2, float z2, float u2, float v2, int light2,
             float x3, float y3, float z3, float u3, float v3, int light3) {
-        buffer.addVertex(pose, x0, y0, z0).setColor(1.0F, 1.0F, 1.0F, 1.0F).setUv(u0, v0).setLight(light0);
-        buffer.addVertex(pose, x1, y1, z1).setColor(1.0F, 1.0F, 1.0F, 1.0F).setUv(u1, v1).setLight(light1);
-        buffer.addVertex(pose, x2, y2, z2).setColor(1.0F, 1.0F, 1.0F, 1.0F).setUv(u2, v2).setLight(light2);
-        buffer.addVertex(pose, x3, y3, z3).setColor(1.0F, 1.0F, 1.0F, 1.0F).setUv(u3, v3).setLight(light3);
+        buffer.vertex(pose, x0, y0, z0).color(1.0F, 1.0F, 1.0F, 1.0F).uv(u0, v0).uv2(light0).endVertex();
+        buffer.vertex(pose, x1, y1, z1).color(1.0F, 1.0F, 1.0F, 1.0F).uv(u1, v1).uv2(light1).endVertex();
+        buffer.vertex(pose, x2, y2, z2).color(1.0F, 1.0F, 1.0F, 1.0F).uv(u2, v2).uv2(light2).endVertex();
+        buffer.vertex(pose, x3, y3, z3).color(1.0F, 1.0F, 1.0F, 1.0F).uv(u3, v3).uv2(light3).endVertex();
     }
 }

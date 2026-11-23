@@ -13,7 +13,7 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
-import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.layouts.GridLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -402,9 +402,9 @@ public final class VisualSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        layout.addTitleHeader(TITLE, font);
-        list = layout.addToContents(new SettingList(minecraft));
-        LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
+        layout.addToHeader(new net.minecraft.client.gui.components.StringWidget(TITLE, font));
+        list = addRenderableWidget(new SettingList(minecraft)); // 1.20.1: 一覧は割り付けに入れられない(LayoutElement でない)。位置は作るときと updateSize で
+        GridLayout.RowHelper footer = layout.addToFooter(new GridLayout().columnSpacing(8)).createRowHelper(3); // 1.20.1: LinearLayout に spacing が無い
         // 「ゲーム内容」= MOD の設定のページへ(2026-11-14、11-19 にワールドごとの設定のページへ。この画面の変更は保存されない =
         // 行き来は「キャンセル」と同じ)。設定のページから来たならそこへ戻り、ワールドの中ならサーバーに今の値を聞いて開く。
         // タイトル画面から来たときはワールドが無いので押せない(ワールドを作る画面の葉っぱのボタンから開く)
@@ -429,8 +429,14 @@ public final class VisualSettingsScreen extends Screen {
     protected void repositionElements() {
         layout.arrangeElements();
         if (list != null) {
-            list.updateSize(width, layout);
+            list.updateSize(width, height, layout.getHeaderHeight(), height - layout.getFooterHeight());
         }
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        renderBackground(graphics); // 1.20.1: Screen#render は背景を描かない(1.21 は描く)
+        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -465,7 +471,7 @@ public final class VisualSettingsScreen extends Screen {
     private final class SettingList extends ContainerObjectSelectionList<VisualSettingsScreen.Entry> {
 
         SettingList(Minecraft minecraft) {
-            super(minecraft, VisualSettingsScreen.this.width, layout.getContentHeight(), layout.getHeaderHeight(), ITEM_HEIGHT);
+            super(minecraft, VisualSettingsScreen.this.width, VisualSettingsScreen.this.height, layout.getHeaderHeight(), VisualSettingsScreen.this.height - layout.getFooterHeight(), ITEM_HEIGHT);
             settingEntries.clear();
             presetEntry = new PresetEntry();
             addEntry(new NoteEntry());
@@ -486,8 +492,8 @@ public final class VisualSettingsScreen extends Screen {
         }
 
         @Override
-        public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            super.renderWidget(graphics, mouseX, mouseY, partialTick);
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            super.render(graphics, mouseX, mouseY, partialTick);
             VisualSettingsScreen.Entry hovered = getHovered();
             if (hovered != null && hovered.tooltip() != null) {
                 setTooltipForNextRenderPass(hovered.tooltip());

@@ -5,7 +5,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.client.particle.SuspendedParticle;
+import net.minecraft.client.particle.ParticleRenderType;
+import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -21,7 +22,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  * 数・寿命・動きはバニラのまま(絵もバニラの underwater の粒)。色と大きさは仮決め。
  */
 @OnlyIn(Dist.CLIENT)
-public class UnderwaterMoteParticle extends SuspendedParticle {
+// 1.20.1: SuspendedParticle の作り方は包みの外から呼べない(1.21 の NeoForge はアクセス変換で public)。同じ中身を TextureSheetParticle の上に写した
+public class UnderwaterMoteParticle extends TextureSheetParticle {
 
     /** #8FB040(胞子)。 */
     private static final float[] MOTE = {0.561F, 0.690F, 0.251F};
@@ -38,7 +40,16 @@ public class UnderwaterMoteParticle extends SuspendedParticle {
     private static final float MOTE_SIZE = 0.75F;
 
     UnderwaterMoteParticle(ClientLevel level, SpriteSet sprites, double x, double y, double z) {
-        super(level, sprites, x, y, z);
+        // ここから SuspendedParticle(level, sprites, x, y, z) と同じ
+        super(level, x, y - 0.125D, z);
+        this.setSize(0.01F, 0.01F);
+        this.pickSprite(sprites);
+        this.quadSize *= this.random.nextFloat() * 0.6F + 0.2F;
+        this.lifetime = (int) (16.0D / (Math.random() * 0.8D + 0.2D));
+        this.hasPhysics = false;
+        this.friction = 1.0F;
+        this.gravity = 0.0F;
+        // ここまで
         if (overgrownWater(level.getBiome(BlockPos.containing(x, y, z)))) {
             float u = random.nextFloat();
             float[] c = u < PEAT_SHARE ? PEAT : (u < PEAT_SHARE + ALGAE_SHARE ? ALGAE : MOTE);
@@ -50,6 +61,11 @@ public class UnderwaterMoteParticle extends SuspendedParticle {
     }
 
     /** 水の中の共通の流れに流される(11-13 水まわり ⑥ の直し「共通の流れ」)。 */
+    @Override
+    public ParticleRenderType getRenderType() {
+        return ParticleRenderType.PARTICLE_SHEET_OPAQUE; // SuspendedParticle と同じ
+    }
+
     @Override
     public void tick() {
         super.tick();

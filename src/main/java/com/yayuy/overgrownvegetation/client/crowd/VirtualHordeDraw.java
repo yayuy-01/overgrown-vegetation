@@ -78,7 +78,7 @@ public final class VirtualHordeDraw {
             if (!MEMBERS.isEmpty()) MEMBERS.clear();
             return;
         }
-        float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float pt = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
         double far = mc.options.getEffectiveRenderDistance() * 16.0D;
         double far2 = far * far;
@@ -134,7 +134,7 @@ public final class VirtualHordeDraw {
             lastPurge = now;
             MEMBERS.values().removeIf(m -> now - m.seen > 100L);
         }
-        HordeImpostors.draw(event.getModelViewMatrix(), event.getProjectionMatrix(), now + pt);
+        HordeImpostors.draw(event.getPoseStack().last().pose(), event.getProjectionMatrix(), now + pt);
     }
 
     /** この MOD の本物の Mob の居場所(2 ブロック升)を集める(描画距離の中だけ)。 */

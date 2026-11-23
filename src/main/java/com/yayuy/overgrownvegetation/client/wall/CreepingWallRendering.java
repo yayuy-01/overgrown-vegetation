@@ -53,7 +53,7 @@ public final class CreepingWallRendering {
         if (mc.player == null) {
             return;
         }
-        double reach = mc.player.blockInteractionRange();
+        double reach = mc.player.getBlockReach() /* 1.20.1: Forge の届く距離 */;
         if (mc.hitResult != null && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
             reach = Math.min(reach, mc.hitResult.getLocation().distanceTo(mc.player.getEyePosition()) + 0.05D);
         }
@@ -74,7 +74,7 @@ public final class CreepingWallRendering {
         if (mc.level == null) {
             return;
         }
-        float time = mc.level.getGameTime() + event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float time = mc.level.getGameTime() + event.getPartialTick();
         renderer.render(event, mc.level, event.getCamera(), ClientCreepingWall.views(), time);
     }
 }

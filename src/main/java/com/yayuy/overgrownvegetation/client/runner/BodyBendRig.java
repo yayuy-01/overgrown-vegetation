@@ -50,7 +50,7 @@ public final class BodyBendRig {
     /** 体に対して左へ {@code deg} 度(前の骨か後ろの骨かで回す向きが逆。ファルキムネスで確かめた向き)。 */
     private static void yaw(GeoModel<?> model, String name, float deg, boolean front) {
         if (deg == 0.0F || name == null) return;
-        GeoBone b = model.getAnimationProcessor().getBone(name);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) model.getAnimationProcessor().getBone(name);
         if (b == null) return;
         b.setRotY(b.getRotY() + (front ? 1.0F : -1.0F) * deg * Mth.DEG_TO_RAD);
         b.resetStateChanges();   // アニメにキーの無い骨は、消さないと回転が積み重なる

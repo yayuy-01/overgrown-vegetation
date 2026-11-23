@@ -40,7 +40,7 @@ public class AcumnesModel extends GeoModel<AcumnesEntity> {
     public void setCustomAnimations(AcumnesEntity animatable, long instanceId, software.bernie.geckolib.core.animation.AnimationState<AcumnesEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
         float pt = animationState.getPartialTick();
-        software.bernie.geckolib.cache.object.GeoBone needle = getAnimationProcessor().getBone("needle_aim");
+        software.bernie.geckolib.cache.object.GeoBone needle = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("needle_aim");
         if (needle != null) {
             float dep = animatable.needleDepression(pt);
             needle.setRotX(needle.getInitialSnapshot().getRotX() - dep * net.minecraft.util.Mth.DEG_TO_RAD);
@@ -48,7 +48,7 @@ public class AcumnesModel extends GeoModel<AcumnesEntity> {
         }
         float glow = animatable.pinGlow(pt);
         if (glow != 1.0F) {
-            software.bernie.geckolib.cache.object.GeoBone charge = getAnimationProcessor().getBone("stinger_charge");
+            software.bernie.geckolib.cache.object.GeoBone charge = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("stinger_charge");
             if (charge != null) {
                 charge.setScaleX(charge.getScaleX() * glow);
                 charge.setScaleY(charge.getScaleY() * glow);

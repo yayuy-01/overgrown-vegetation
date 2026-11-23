@@ -21,9 +21,10 @@ public class SmallCrawlerRenderer<T extends SmallCrawler & GeoEntity> extends Cr
     }
 
     @Override
-    protected void applyRotations(T animatable, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTick, float nativeScale) {
+    protected void applyRotations(T animatable, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTick) {
+        float nativeScale = com.yayuy.overgrownvegetation.client.PortRenderScale.of(animatable); // 1.20.1: 4.8.4 は nativeScale を渡さない(PortRenderScale)
         poseStack.translate(0.0F, animatable.lift(partialTick) / nativeScale, 0.0F);
-        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
         float tilt = animatable.tilt(partialTick);
         if (Math.abs(tilt) > 0.05F) {
             float pivot = animatable.getBbHeight() * 0.5F / nativeScale;

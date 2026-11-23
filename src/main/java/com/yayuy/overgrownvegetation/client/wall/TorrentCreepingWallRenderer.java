@@ -1,6 +1,6 @@
 package com.yayuy.overgrownvegetation.client.wall;
 
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yayuy.overgrownvegetation.OvergrownVegetation;
 import com.yayuy.overgrownvegetation.registry.ModParticles;
@@ -126,15 +126,16 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
     public void render(RenderLevelStageEvent event, ClientLevel level, Camera camera, Iterable<ClientCreepingWall.View> views, float time) {
         long t0 = System.nanoTime();
         if (buffers == null) {
-            buffers = MultiBufferSource.immediate(new ByteBufferBuilder(1 << 21));
+            buffers = MultiBufferSource.immediate(new BufferBuilder(1 << 21));
         }
         Style st = style;
+        view = event.getPoseStack().last();
         Vec3 cam = camera.getPosition();
         camX = cam.x;
         camY = cam.y;
         camZ = cam.z;
         // 時刻は 1 時間で折り返す(大きな時刻を float にすると絵の流れが粗くなる)。
-        partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        partial = event.getPartialTick();
         t = (float) (level.getGameTime() % 72000L) + partial;
         float bs = Math.max(0.0F, Mth.sin(t * (Mth.TWO_PI / 24.0F)));
         beat = bs * bs * bs;
@@ -337,9 +338,12 @@ public final class TorrentCreepingWallRenderer implements CreepingWallRenderer {
         }
     }
 
+    /** 1.20.1: この段の描画の行列は単位行列なので、カメラの回転(event の PoseStack)を位置と法線に掛ける(バニラの Mob と同じ形)。 */
+    private static com.mojang.blaze3d.vertex.PoseStack.Pose view;
+
     private static void vtx(VertexConsumer vc, float x, float y, float z, float r, float g, float b, float u, float v, int light, float nx, float ny, float nz) {
-        int color = 0xFF000000 | (int) (Math.min(1.0F, r) * 255.0F) << 16 | (int) (Math.min(1.0F, g) * 255.0F) << 8 | (int) (Math.min(1.0F, b) * 255.0F);
-        vc.addVertex(x, y, z, color, u, v, OverlayTexture.NO_OVERLAY, light, nx, ny, nz);
+        vc.vertex(view.pose(), x, y, z).color(Math.min(1.0F, r), Math.min(1.0F, g), Math.min(1.0F, b), 1.0F).uv(u, v)
+                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(view.normal(), nx, ny, nz).endVertex();
     }
 
     /**

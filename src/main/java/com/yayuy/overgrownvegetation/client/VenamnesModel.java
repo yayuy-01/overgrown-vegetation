@@ -63,7 +63,7 @@ public class VenamnesModel extends GeoModel<VenamnesEntity> {
         this.bend.apply(this, animatable, pt);
         // 段 C(11-15): 泳ぐ間は描く体を水面まで下ろす(アニメの一覧「水面の高さに体を浮かせるのはコード」。体の当たりは下げない)
         float sink = animatable.swimSink(pt);
-        GeoBone root = sink > 0.001F ? getAnimationProcessor().getBone("root") : null;
+        GeoBone root = sink > 0.001F ? (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("root") : null;
         if (root != null) {
             root.setPosY(root.getPosY() - (float) (VenamnesEntity.SWIM_SINK * 16.0D / VenamnesEntity.RENDER_SCALE) * sink);
             root.resetStateChanges();
@@ -83,7 +83,7 @@ public class VenamnesModel extends GeoModel<VenamnesEntity> {
         if (w <= 0.001F) return;
         GaitSway s = e.sway();
         float k = Mth.DEG_TO_RAD * w;
-        GeoBone hips = getAnimationProcessor().getBone("hips");
+        GeoBone hips = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone("hips");
         if (hips != null) {
             hips.setPosY(hips.getPosY() + (float) (s.get(GaitSway.LIFT, pt) * 16.0D / VenamnesEntity.RENDER_SCALE) * w);
             hips.setRotY(hips.getRotY() + (float) s.get(GaitSway.YAW, pt) * k);
@@ -102,7 +102,7 @@ public class VenamnesModel extends GeoModel<VenamnesEntity> {
     }
 
     private void add(String bone, float rotX, float rotY) {
-        GeoBone b = getAnimationProcessor().getBone(bone);
+        GeoBone b = (software.bernie.geckolib.cache.object.GeoBone) getAnimationProcessor().getBone(bone);
         if (b == null) return;
         b.setRotX(b.getRotX() + rotX);
         b.setRotY(b.getRotY() + rotY);

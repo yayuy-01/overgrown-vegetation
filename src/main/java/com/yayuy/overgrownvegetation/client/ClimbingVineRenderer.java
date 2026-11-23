@@ -239,7 +239,7 @@ public final class ClimbingVineRenderer {
     }
 
     private static void vertex(VertexConsumer buffer, Matrix4f pose, float x, float y, float z, float u, float v, float shade, int light) {
-        buffer.addVertex(pose, x, y, z).setColor(shade, shade, shade, alpha).setUv(u, v).setLight(light);
+        buffer.vertex(pose, x, y, z).color(shade, shade, shade, alpha).uv(u, v).uv2(light).endVertex();
     }
 
     private static Geometry build(CorruptedLianaBlockEntity be) {
