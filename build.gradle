@@ -251,13 +251,7 @@ gradle.taskGraph.whenReady { graph ->
 
 repositories {
     mavenLocal()
-    maven {
-        name = "RedlanceMinecraft" // PAL (Player Animation Library)
-        url = "https://repo.redlance.org/public"
-        content {
-            includeGroupByRegex('com\\.zigythebird.*')
-        }
-    }
+    // PAL (Player Animation Library) の maven は 2026-11-23 に外した(下の dependencies の注)
     maven {
         name = 'GeckoLib'
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
@@ -285,13 +279,10 @@ configurations {
 dependencies {
     // Blockbench製モデル/アニメーションを読み込むための GeckoLib
     implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
-    // プレイヤーの体を動かすアニメ(寄生植物装備の儀式)用の PAL
-    // transitive = false が必須: PAL の POM は Minecraft より新しい netty / fastutil / slf4j を要求していて、
-    // そのままだと runtimeClasspath の解決に失敗して runClient が起動できない(2026-09-18 に実際に起きた)。
-    // 必要なもの(Core / mochafloats / javassist)は PAL の jar に同梱(jar-in-jar)されているので切ってよい。
-    implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${pal_version}") {
-        transitive = false
-    }
+    // PAL(プレイヤーの体を動かすアニメ。寄生植物装備の儀式・武器)は、使っていたコードが退避中なので 2026-11-23 に外した
+    // (ユーザー了承。遊ぶ人に使われない前提 MOD を求めないため)。戻すときは、PAL の POM が Minecraft より新しい
+    // netty / fastutil / slf4j を要求するので transitive = false を付けること(2026-09-18 に runClient が起動できなくなった)。
+    // 版は 1.21.1 向け 1.1.6+mc.1.21.1、maven は https://repo.redlance.org/public(com.zigythebird.*)。
 
     // Sodium の設定の API(client/compat/SodiumOptionsPage)。コンパイルにだけ使う(Sodium は入れた人だけ。無い・版が違うときはそのクラスを読まない)
     compileOnly "net.caffeinemc:sodium-neoforge-api:0.8.13+mc1.21.1"

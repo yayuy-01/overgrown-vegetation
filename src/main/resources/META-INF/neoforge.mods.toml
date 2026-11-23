@@ -38,13 +38,6 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.overgrown_vegetation]]
-modId = "player_animation_library"
-type = "required"
-versionRange = "[1.1,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies.overgrown_vegetation]]
 modId = "geckolib"
 type = "required"
 versionRange = "[4.7,)"
